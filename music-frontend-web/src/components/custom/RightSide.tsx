@@ -45,6 +45,7 @@ export default function RightSide() {
   const [buffered, setBuffered] = useState(0);
   const [lyrics, setLyrics] = useState<LyricCue[]>([]);
   const [currentCueIndex, setCurrentCueIndex] = useState<number>(-1);
+  const currentCueIndexRef = useRef<number>(-1);
   const [qualityLevels, setQualityLevels] = useState<QualityLevel[]>([]);
   const [currentQuality, setCurrentQuality] = useState<number>(-1);
   const [showQualityMenu, setShowQualityMenu] = useState<boolean>(false);
@@ -53,18 +54,12 @@ export default function RightSide() {
   // Load captions/lyrics
   useEffect(() => {
     const loadLyrics = async () => {
-      const baseUrl =
-        getSongBaseUrl(currentSong?.storageKey) || currentSong?.songBaseUrl;
-      if (!baseUrl) {
-        setLyrics([]);
-        return;
-      }
+      const baseUrl = getSongBaseUrl(currentSong?.storageKey) || currentSong?.songBaseUrl;
+      if (!baseUrl) { setLyrics([]); return; }
       try {
         const captionUrl = `${baseUrl}/caption.vtt`;
         const response = await fetch(captionUrl);
-
         if (!response.ok) throw new Error("Captions not found");
-
         const vttText = await response.text();
         if (!vttText.trim().startsWith("WEBVTT")) throw new Error("Invalid VTT format");
 
@@ -75,7 +70,6 @@ export default function RightSide() {
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i].trim();
           if (!line || line === "WEBVTT") continue;
-
           if (line.includes("-->")) {
             const [start, end] = line.split("-->").map((t) => t.trim());
             tempCue = { start: parseTimestamp(start), end: parseTimestamp(end), text: "" };
@@ -87,51 +81,33 @@ export default function RightSide() {
             }
           }
         }
-
         setLyrics(parsedCues);
       } catch (error) {
         console.warn("Lyrics error:", error);
         setLyrics([]);
       }
     };
-
     loadLyrics();
   }, [currentSong?.id]);
 
   const parseTimestamp = (timestamp: string): number => {
     const parts = timestamp.split(":");
     let hours = 0, minutes = 0, seconds = 0;
-    if (parts.length === 3) {
-      hours = parseInt(parts[0]);
-      minutes = parseInt(parts[1]);
-      seconds = parseFloat(parts[2]);
-    } else if (parts.length === 2) {
-      minutes = parseInt(parts[0]);
-      seconds = parseFloat(parts[1]);
-    }
+    if (parts.length === 3) { hours = parseInt(parts[0]); minutes = parseInt(parts[1]); seconds = parseFloat(parts[2]); }
+    else if (parts.length === 2) { minutes = parseInt(parts[0]); seconds = parseFloat(parts[1]); }
     return hours * 3600 + minutes * 60 + seconds;
   };
 
   // Initialize HLS
   useEffect(() => {
     if (!audioRef.current || !currentSong) return;
-
     const baseUrl = getSongBaseUrl(currentSong.storageKey) || currentSong.songBaseUrl;
     if (!baseUrl) return;
-
     const streamUrl = `${baseUrl}/master.m3u8`;
 
     if (Hls.isSupported()) {
       if (hlsRef.current) hlsRef.current.destroy();
-
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: false,
-        maxBufferLength: 40,
-        maxMaxBufferLength: 60,
-        backBufferLength: 30,
-      });
-
+      const hls = new Hls({ enableWorker: true, lowLatencyMode: false, maxBufferLength: 40, maxMaxBufferLength: 60, backBufferLength: 30 });
       hlsRef.current = hls;
       hls.loadSource(streamUrl);
       hls.attachMedia(audioRef.current);
@@ -140,16 +116,13 @@ export default function RightSide() {
         setQualityLevels(hls.levels as QualityLevel[]);
         if (isPlaying) audioRef.current?.play().catch(console.error);
       });
-
       hls.on(Hls.Events.LEVEL_LOADED, (_, data) => {
         if (data.details.totalduration) playerActions.setDuration(data.details.totalduration);
       });
-
       hls.on(Hls.Events.FRAG_CHANGED, (_, data) => {
         const level = hls.levels[data.frag.level];
         if (level) setCurrentBitrate(Math.round(level.bitrate / 1000));
       });
-
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (data.fatal) {
           switch (data.type) {
@@ -162,11 +135,10 @@ export default function RightSide() {
     } else if (audioRef.current.canPlayType("application/vnd.apple.mpegurl")) {
       audioRef.current.src = streamUrl;
     }
-
     return () => { if (hlsRef.current) hlsRef.current.destroy(); };
   }, [currentSong?.id]);
 
-  // Sync isPlaying
+  // Sync Play/Pause
   useEffect(() => {
     if (!audioRef.current || !currentSong) return;
     if (isPlaying) {
@@ -192,25 +164,18 @@ export default function RightSide() {
         }
       }
 
-      if (newCueIndex !== currentCueIndex) {
+      if (newCueIndex !== currentCueIndexRef.current) {
+        currentCueIndexRef.current = newCueIndex;
         setCurrentCueIndex(newCueIndex);
+
         if (newCueIndex !== -1 && lyricsContainerRef.current) {
           const activeLine = lyricsContainerRef.current.querySelector(`[data-index="${newCueIndex}"]`);
-          if (activeLine) activeLine.scrollIntoView({ behavior: "smooth", block: "center" });
+          if (activeLine) {
+            activeLine.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
         }
       }
     }
-  };
-
-  const handleProgress = () => {
-    if (audioRef.current && audioRef.current.buffered.length > 0) {
-      setBuffered(audioRef.current.buffered.end(audioRef.current.buffered.length - 1));
-    }
-  };
-
-  const handleLoadedMetadata = () => {
-    if (!audioRef.current) return;
-    playerActions.setDuration(audioRef.current.duration);
   };
 
   const formatTime = (time: number) => {
@@ -247,12 +212,15 @@ export default function RightSide() {
       <audio
         ref={audioRef}
         onTimeUpdate={handleTimeUpdate}
-        onProgress={handleProgress}
-        onLoadedMetadata={handleLoadedMetadata}
+        onProgress={() => {
+          if (audioRef.current?.buffered.length)
+            setBuffered(audioRef.current.buffered.end(audioRef.current.buffered.length - 1));
+        }}
+        onLoadedMetadata={() => audioRef.current && playerActions.setDuration(audioRef.current.duration)}
         onEnded={() => playerActions.playNext()}
       />
 
-      {/* Album Art Section — 20vh */}
+      {/* Album Art — 20vh */}
       <div className="h-[20vh] px-6 pt-4 pb-2 flex-none">
         <div className="h-full w-full rounded-xl overflow-hidden shadow-2xl bg-zinc-900">
           <img
@@ -267,30 +235,43 @@ export default function RightSide() {
         </div>
       </div>
 
-      {/* Lyrics Section — 35vh */}
+      {/* Lyrics — 35vh with fade mask */}
       <div
         ref={lyricsContainerRef}
-        className="h-[35vh] overflow-y-auto no-scrollbar space-y-12 px-8 py-4"
+        className="h-[35vh] overflow-y-auto no-scrollbar px-8 py-4 space-y-10"
+        style={{
+          maskImage: "linear-gradient(to bottom, transparent, black 20%, black 80%, transparent)",
+          WebkitMaskImage: "linear-gradient(to bottom, transparent, black 20%, black 80%, transparent)",
+        }}
       >
         {lyrics.length > 0 ? (
-          lyrics.map((cue, index) => (
-            <div
-              key={index}
-              data-index={index}
-              onClick={() => {
-                if (audioRef.current) audioRef.current.currentTime = cue.start;
-              }}
-              className={`text-[2rem] font-bold leading-[1.3] cursor-pointer transition-all duration-500 text-center tracking-tight px-4 ${
-                index === currentCueIndex
-                  ? "text-white scale-[1.03] opacity-100"
-                  : index < currentCueIndex
-                    ? "text-zinc-600 opacity-50"
-                    : "text-zinc-700 opacity-60 hover:opacity-90 active:scale-95"
-              }`}
-            >
-              {cue.text}
-            </div>
-          ))
+          lyrics.map((cue, index) => {
+            const segments = cue.text.split(/,|\n/).map((s) => s.trim()).filter(Boolean);
+            const isActive = index === currentCueIndex;
+            const isPast = index < currentCueIndex;
+
+            return (
+              <div
+                key={index}
+                data-index={index}
+                onClick={() => { if (audioRef.current) audioRef.current.currentTime = cue.start; }}
+                className={`cursor-pointer transition-all duration-500 text-center flex flex-col gap-2 ${
+                  isActive ? "scale-105" : isPast ? "opacity-30" : "opacity-40"
+                }`}
+              >
+                {segments.map((segment, si) => (
+                  <span
+                    key={si}
+                    className={`block font-bold tracking-tight leading-tight transition-all duration-500 ${
+                      isActive ? "text-white text-[1.6rem]" : "text-zinc-600 text-[1.3rem]"
+                    }`}
+                  >
+                    {segment}
+                  </span>
+                ))}
+              </div>
+            );
+          })
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-zinc-800 italic text-sm">
             <Activity className="h-6 w-6 mb-4 opacity-20" />
@@ -299,12 +280,12 @@ export default function RightSide() {
         )}
       </div>
 
-      {/* Player Section — 45vh */}
+      {/* Player — 45vh */}
       <div className="h-[45vh] px-6 pb-4 pt-2 flex flex-col justify-between flex-none bg-gradient-to-t from-black via-black to-transparent">
 
         {/* Title and Artist */}
         <div className="space-y-1">
-          <h1 className="font-bold text-white text-[1.4rem] leading-none truncate uppercase tracking-tight">
+          <h1 className="font-bold text-zinc-300 text-[1.4rem] leading-none truncate uppercase tracking-tight">
             {currentSong.title}
           </h1>
           <p className="text-zinc-500 font-bold text-xs uppercase tracking-widest truncate opacity-80">
@@ -330,15 +311,14 @@ export default function RightSide() {
               }}
               className="w-full h-1 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md hover:[&::-webkit-slider-thumb]:scale-110 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-0"
               style={{
-                background: `linear-gradient(to right, #22c55e ${safeProgress}%, #fff3 ${safeProgress}%, #fff3 ${safeBufferedProgress}%, #333 ${safeBufferedProgress}%)`,
+                background: `linear-gradient(to right, #22c55e ${safeProgress}%, #ffffff ${safeProgress}%, #ffffff ${safeBufferedProgress}%, #2a2a2a ${safeBufferedProgress}%)`,
               }}
             />
           </div>
         </div>
 
-        {/* Bitrate & Quality Selector */}
+        {/* Bitrate & Quality */}
         <div className="space-y-2">
-          {/* Bitrate Indicator */}
           <div className="flex items-center justify-center gap-2">
             <div className="w-2 h-2 bg-[#1ed760] rounded-full shadow-[0_0_8px_#1ed760]" />
             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">
@@ -346,7 +326,6 @@ export default function RightSide() {
             </span>
           </div>
 
-          {/* Quality Selector Card */}
           {qualityLevels.length > 0 && (
             <div className="relative">
               <div
@@ -354,42 +333,27 @@ export default function RightSide() {
                 className="bg-[#121212] border border-white/5 rounded-[1.2rem] p-3 flex items-center gap-3 cursor-pointer hover:bg-[#1f1f1f] transition-all"
               >
                 <div className="w-8 h-8 bg-[#1ed760] rounded-lg flex items-center justify-center text-black font-black text-xs shadow-lg shadow-[#1ed760]/10">
-                  {currentQuality === -1
-                    ? "Auto"
-                    : getQualityMeta(qualityLevels[currentQuality]?.bitrate || 0).icon}
+                  {currentQuality === -1 ? "Auto" : getQualityMeta(qualityLevels[currentQuality]?.bitrate || 0).icon}
                 </div>
                 <div className="flex-1">
                   <div className="text-[0.95rem] font-bold text-white leading-tight">
-                    {currentQuality === -1
-                      ? "Auto Quality"
-                      : getQualityMeta(qualityLevels[currentQuality]?.bitrate || 0).label + " Quality"}
+                    {currentQuality === -1 ? "Auto Quality" : getQualityMeta(qualityLevels[currentQuality]?.bitrate || 0).label + " Quality"}
                   </div>
                   <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-tight opacity-70">
-                    {currentQuality === -1
-                      ? "Best for your connection"
-                      : getQualityMeta(qualityLevels[currentQuality]?.bitrate || 0).desc}
+                    {currentQuality === -1 ? "Best for your connection" : getQualityMeta(qualityLevels[currentQuality]?.bitrate || 0).desc}
                   </div>
                 </div>
-                <ChevronDown
-                  className={`h-5 w-5 text-zinc-700 transition-transform duration-300 ${showQualityMenu ? "rotate-180 text-white" : ""}`}
-                />
+                <ChevronDown className={`h-5 w-5 text-zinc-700 transition-transform duration-300 ${showQualityMenu ? "rotate-180 text-white" : ""}`} />
               </div>
 
-              {/* Quality Dropdown */}
               {showQualityMenu && (
-                <div className="absolute bottom-full left-0 right-0 mb-4 bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-[999]">
+                <div className="absolute bottom-full left-0 right-0 mb-2 bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-[999]">
                   <button
-                    onClick={() => {
-                      if (hlsRef.current) hlsRef.current.currentLevel = -1;
-                      setCurrentQuality(-1);
-                      setShowQualityMenu(false);
-                    }}
-                    className={`w-full text-left px-5 py-4 text-xs font-bold hover:bg-white/5 flex items-center justify-between border-b border-white/5 ${currentQuality === -1 ? "text-[#1ed760]" : "text-zinc-300"}`}
+                    onClick={() => { if (hlsRef.current) hlsRef.current.currentLevel = -1; setCurrentQuality(-1); setShowQualityMenu(false); }}
+                    className={`w-full text-left px-5 py-3 text-xs font-bold hover:bg-white/5 flex items-center justify-between border-b border-white/5 ${currentQuality === -1 ? "text-[#1ed760]" : "text-zinc-300"}`}
                   >
                     Auto Quality (Recommended)
-                    {currentQuality === -1 && (
-                      <div className="w-1.5 h-1.5 bg-[#1ed760] rounded-full shadow-[0_0_5px_#1ed760]" />
-                    )}
+                    {currentQuality === -1 && <div className="w-1.5 h-1.5 bg-[#1ed760] rounded-full" />}
                   </button>
                   {qualityLevels
                     .map((lvl, idx) => ({ ...lvl, idx }))
@@ -399,20 +363,11 @@ export default function RightSide() {
                       return (
                         <button
                           key={idx}
-                          onClick={() => {
-                            if (hlsRef.current) hlsRef.current.currentLevel = idx;
-                            setCurrentQuality(idx);
-                            setShowQualityMenu(false);
-                          }}
-                          className={`w-full text-left px-5 py-4 text-xs font-bold hover:bg-white/5 flex items-center justify-between ${currentQuality === idx ? "text-[#1ed760]" : "text-zinc-300"}`}
+                          onClick={() => { if (hlsRef.current) hlsRef.current.currentLevel = idx; setCurrentQuality(idx); setShowQualityMenu(false); }}
+                          className={`w-full text-left px-5 py-3 text-xs font-bold hover:bg-white/5 flex items-center justify-between ${currentQuality === idx ? "text-[#1ed760]" : "text-zinc-300"}`}
                         >
-                          <span>
-                            {meta.label} Quality{" "}
-                            <span className="text-[8px] opacity-40 ml-1">({meta.kbps}k)</span>
-                          </span>
-                          {currentQuality === idx && (
-                            <div className="w-1.5 h-1.5 bg-[#1ed760] rounded-full shadow-[0_0_5px_#1ed760]" />
-                          )}
+                          <span>{meta.label} Quality <span className="text-[8px] opacity-40 ml-1">({meta.kbps}k)</span></span>
+                          {currentQuality === idx && <div className="w-1.5 h-1.5 bg-[#1ed760] rounded-full" />}
                         </button>
                       );
                     })}
@@ -424,51 +379,27 @@ export default function RightSide() {
 
         {/* Playback Controls */}
         <div className="flex items-center justify-between px-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-zinc-500 hover:text-white hover:bg-transparent transition-colors"
-          >
-            <ListPlus className="h-6 w-6" />
+          <Button variant="ghost" size="icon" className="text-zinc-500 hover:text-white hover:bg-transparent transition-colors">
+            <ListPlus className="h-5 w-5" />
           </Button>
 
-          <div className="flex items-center gap-10">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-transparent hover:scale-110 active:scale-95 transition-all"
-              onClick={() => playerActions.playPrevious()}
-            >
-              <SkipBack className="h-7 w-7 fill-current" />
+          <div className="flex items-center gap-7">
+            <Button variant="ghost" size="icon" className="text-white hover:bg-transparent hover:scale-110 active:scale-95 transition-all" onClick={() => playerActions.playPrevious()}>
+              <SkipBack className="h-5 w-5 fill-current" />
             </Button>
-
             <Button
-              className="h-16 w-16 rounded-full bg-white text-black hover:bg-zinc-200 shadow-2xl transition-all active:scale-90 flex items-center justify-center p-0"
+              className="h-12 w-12 rounded-full bg-white text-black hover:bg-zinc-200 shadow-xl transition-all active:scale-90 flex items-center justify-center p-0"
               onClick={() => playerActions.setIsPlaying(!isPlaying)}
             >
-              {isPlaying ? (
-                <Pause className="h-7 w-7 fill-current" />
-              ) : (
-                <Play className="h-7 w-7 fill-current ml-1" />
-              )}
+              {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
             </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-transparent hover:scale-110 active:scale-95 transition-all"
-              onClick={() => playerActions.playNext()}
-            >
-              <SkipForward className="h-7 w-7 fill-current" />
+            <Button variant="ghost" size="icon" className="text-white hover:bg-transparent hover:scale-110 active:scale-95 transition-all" onClick={() => playerActions.playNext()}>
+              <SkipForward className="h-5 w-5 fill-current" />
             </Button>
           </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-zinc-500 hover:text-white hover:bg-transparent transition-colors"
-          >
-            <Heart className="h-6 w-6" />
+          <Button variant="ghost" size="icon" className="text-zinc-500 hover:text-white hover:bg-transparent transition-colors">
+            <Heart className="h-5 w-5" />
           </Button>
         </div>
 
@@ -485,21 +416,10 @@ export default function RightSide() {
               if (audioRef.current) audioRef.current.volume = v;
             }}
             className="flex-1 h-1 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md hover:[&::-webkit-slider-thumb]:scale-110 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-0"
-            style={{
-              background: `linear-gradient(to right, #1ed760 ${volProgress}%, #333 ${volProgress}%)`,
-            }}
+            style={{ background: `linear-gradient(to right, #1ed760 ${volProgress}%, #333 ${volProgress}%)` }}
           />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-white p-0 hover:bg-transparent transition-transform hover:scale-110"
-            onClick={() => playerActions.setIsMuted(!isMuted)}
-          >
-            {isMuted ? (
-              <VolumeX className="h-6 w-6 text-red-500" />
-            ) : (
-              <Volume2 className="h-6 w-6" />
-            )}
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-white p-0 hover:bg-transparent transition-transform hover:scale-110" onClick={() => playerActions.setIsMuted(!isMuted)}>
+            {isMuted ? <VolumeX className="h-6 w-6 text-red-500" /> : <Volume2 className="h-6 w-6" />}
           </Button>
         </div>
       </div>
