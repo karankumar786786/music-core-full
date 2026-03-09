@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, NotFoundException, ConflictException } from '@nestjs/common';
 import { CreateUserplaylistDto, AddSongToPlaylistDto } from './dto/create-userplaylist.dto';
 import { UpdateUserplaylistDto } from './dto/update-userplaylist.dto';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
@@ -93,6 +93,20 @@ export class UserplaylistsService {
 
     if (!song) {
       throw new NotFoundException(`Song with ID ${songId} not found`);
+    }
+
+    // Check if song already exists in playlist
+    const existingEntry = await this.prisma.userPlaylistSongs.findUnique({
+      where: {
+        songId_playlistId: {
+          songId,
+          playlistId,
+        },
+      },
+    });
+
+    if (existingEntry) {
+      throw new ConflictException('Song already exists in this playlist');
     }
 
     return await this.prisma.userPlaylistSongs.create({
