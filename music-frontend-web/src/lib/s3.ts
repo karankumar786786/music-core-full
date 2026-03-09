@@ -5,7 +5,7 @@
 
 const S3_PRODUCTION_BUCKET = 'onemelodyproduction';
 const S3_REGION = 'ap-south-1';
-const S3_BASE_URL = `https://${S3_PRODUCTION_BUCKET}.s3.${S3_REGION}.amazonaws.com`;
+export const S3_BASE_URL = `https://${S3_PRODUCTION_BUCKET}.s3.${S3_REGION}.amazonaws.com`;
 
 export type ImageSize = 'small' | 'medium' | 'large';
 
@@ -29,4 +29,12 @@ export function getCoverImageUrl(storageKey: string | null | undefined, size: Im
 export function getBannerImageUrl(storageKey: string | null | undefined, size: ImageSize = 'medium'): string | null {
     if (!storageKey) return null;
     return `${S3_BASE_URL}/${storageKey}/banner/${size}.webp`;
+}
+
+/**
+ * Get the base URL for a song's processed files (HLS, VTT).
+ */
+export function getSongBaseUrl(storageKey: string | null | undefined): string | null {
+    if (!storageKey) return null;
+    return `${S3_BASE_URL}/${storageKey}`;
 }

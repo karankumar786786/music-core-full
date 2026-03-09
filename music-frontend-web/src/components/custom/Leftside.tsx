@@ -29,12 +29,17 @@ export default function Leftside() {
     setMounted(true);
   }, []);
 
-  const menuItems = [
-    { label: "Home", icon: House, href: "/" },
-    { label: "Artist", icon: Music, href: "/" },
-    { label: "Playlist", icon: ListMusic, href: "/" },
-    { label: "Favourites", icon: Heart, href: "/" },
-    { label: "History", icon: History, href: "/" },
+  const menuItems: {
+    label: string;
+    icon: any;
+    href: string;
+    tab: "home" | "artist" | "playlist" | "favourites" | "history";
+  }[] = [
+    { label: "Home", icon: House, href: "/", tab: "home" },
+    { label: "Artist", icon: Music, href: "/", tab: "artist" },
+    { label: "Playlist", icon: ListMusic, href: "/", tab: "playlist" },
+    { label: "Favourites", icon: Heart, href: "/", tab: "favourites" },
+    { label: "History", icon: History, href: "/", tab: "history" },
   ];
 
   const handleCreatePlaylist = (e: React.FormEvent) => {
@@ -75,7 +80,7 @@ export default function Leftside() {
             <Link
               key={item.label}
               to={item.href}
-              search={{ tab: item.label.toLowerCase() }}
+              search={{ tab: item.tab }}
               className="flex items-center gap-4 px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-lg transition-all group [&.active]:bg-zinc-900 [&.active]:text-white"
               activeProps={{ className: "active" }}
               activeOptions={{ exact: true, includeSearch: true }}
@@ -96,10 +101,8 @@ export default function Leftside() {
             </Link>
             {mounted && (
               <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-                <PopoverTrigger>
-                  <button className="outline-none p-1 hover:bg-zinc-800 rounded-md transition-colors group">
-                    <Plus className="w-4 h-4 text-zinc-500 group-hover:text-white cursor-pointer transition-colors" />
-                  </button>
+                <PopoverTrigger className="outline-none p-1 hover:bg-zinc-800 rounded-md transition-colors group">
+                  <Plus className="w-4 h-4 text-zinc-500 group-hover:text-white cursor-pointer transition-colors" />
                 </PopoverTrigger>
                 <PopoverContent
                   className="w-80 bg-zinc-900 border-zinc-800 shadow-2xl p-6"

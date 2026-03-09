@@ -77,14 +77,8 @@ export default function Sidebar() {
               Your Library
             </p>
             <Popover>
-              <PopoverTrigger>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 rounded-md hover:bg-zinc-800"
-                >
-                  <Plus className="h-4 w-4 text-zinc-400" />
-                </Button>
+              <PopoverTrigger className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-zinc-800 transition-colors">
+                <Plus className="h-4 w-4 text-zinc-400" />
               </PopoverTrigger>
               <PopoverContent className="w-80 bg-zinc-900 border-white/10 p-4">
                 <PopoverHeader className="mb-4">
