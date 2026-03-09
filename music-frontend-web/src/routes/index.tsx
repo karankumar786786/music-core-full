@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { z } from "zod";
 import { useQuery } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
@@ -190,8 +190,10 @@ function ArtistsView() {
               </div>
             ))
           : data?.data?.map((artist: any) => (
-              <div
+              <Link
                 key={artist.id}
+                to="/artists/$artistId"
+                params={{ artistId: artist.id }}
                 className="group flex items-center gap-6 p-4 rounded-2xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/5"
               >
                 <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full ring-2 ring-zinc-900 group-hover:ring-primary/50 transition-all">
@@ -228,7 +230,7 @@ function ArtistsView() {
                 <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0 p-2 text-zinc-500 hover:text-white">
                   <ChevronRight className="w-6 h-6" />
                 </div>
-              </div>
+              </Link>
             ))}
       </div>
       {!isLoading && (!data?.data || data.data.length === 0) && (
@@ -270,8 +272,10 @@ function PlaylistsView() {
               </div>
             ))
           : data?.data?.map((playlist: any) => (
-              <div
+              <Link
                 key={playlist.id}
+                to="/playlists/$playlistId"
+                params={{ playlistId: playlist.id }}
                 className="group flex items-center justify-between p-5 rounded-2xl hover:bg-zinc-800/50 transition-all duration-200 cursor-pointer border-b border-zinc-900/50"
               >
                 <div className="flex items-center gap-6 flex-1">
@@ -311,7 +315,7 @@ function PlaylistsView() {
                     Playlist
                   </p>
                 </div>
-              </div>
+              </Link>
             ))}
       </div>
       {!isLoading && (!data?.data || data.data.length === 0) && (
