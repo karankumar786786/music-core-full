@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { z } from "zod";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
-import { Play, ListMusic, ChevronRight } from "lucide-react";
+import { Play, ListMusic, ChevronRight, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -19,6 +20,78 @@ export const Route = createFileRoute("/")({
   component: HomeComponent,
 });
 
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import AuthModal from "@/components/custom/AuthModal";
+
+function FavoriteButton({
+  songId,
+  isLiked,
+}: {
+  songId: string;
+  isLiked: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const { data: user } = useQuery({
+    queryKey: ["me"],
+    queryFn: () => musicApi.getMe(),
+    retry: false,
+    enabled: !!localStorage.getItem("access_token"),
+  });
+
+  const toggleMutation = useMutation({
+    mutationFn: () =>
+      isLiked
+        ? musicApi.removeFavourite(songId)
+        : musicApi.addFavourite(songId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["favourites"] });
+      queryClient.invalidateQueries({ queryKey: ["trending"] });
+      queryClient.invalidateQueries({ queryKey: ["songs"] });
+      toast.success(
+        isLiked ? "Removed from favourites" : "Added to favourites",
+      );
+    },
+    onError: (error: any) => {
+      if (error.response?.status === 401) {
+        setIsAuthModalOpen(true);
+      } else {
+        toast.error("Failed to update favourites");
+      }
+    },
+  });
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    toggleMutation.mutate();
+  };
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        className={`rounded-full transition-all ${isLiked ? "text-primary" : "text-zinc-500 hover:text-white"}`}
+        onClick={handleToggle}
+        disabled={toggleMutation.isPending}
+      >
+        <Heart
+          className={`h-5 w-5 ${isLiked ? "fill-current scale-110" : "hover:scale-110"}`}
+        />
+      </Button>
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
+    </>
+  );
+}
+
 function HomeComponent() {
   const { tab = "home" } = Route.useSearch();
 
@@ -27,6 +100,10 @@ function HomeComponent() {
       return <ArtistsView />;
     case "playlist":
       return <PlaylistsView />;
+    case "favourites":
+      return <FavouritesView />;
+    case "history":
+      return <HistoryView />;
     case "home":
     default:
       return <HomeFeed />;
@@ -34,17 +111,27 @@ function HomeComponent() {
 }
 
 function HomeFeed() {
+  const { data: trendingData, isLoading: trendingLoading } = useQuery({
+    queryKey: ["trending"],
+    queryFn: () => musicApi.getTrending(),
+  });
+
+  const { data: songsData, isLoading: songsLoading } = useQuery({
+    queryKey: ["songs"],
+    queryFn: () => musicApi.getSongs(1, 10),
+  });
+
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 pb-20">
       {/* Hero Section */}
-      <section className="relative h-[350px] overflow-hidden rounded-3xl bg-linear-to-br from-primary/20 via-black to-black border border-white/5 p-10 flex flex-col justify-end">
-        <div className="absolute top-0 right-0 p-10 opacity-20">
-          <div className="h-64 w-64 rounded-full bg-primary blur-3xl" />
+      <section className="relative h-[350px] overflow-hidden rounded-3xl bg-linear-to-br from-primary/20 via-black to-black border border-white/5 p-10 flex flex-col justify-end group">
+        <div className="absolute top-0 right-0 p-10 opacity-20 group-hover:opacity-30 transition-opacity">
+          <div className="h-64 w-64 rounded-full bg-primary blur-3xl animate-pulse" />
         </div>
-        <Badge className="mb-4 w-fit bg-primary/20  border-primary/20 px-3 py-1">
+        <Badge className="mb-4 w-fit bg-primary/20 text-primary border-primary/20 px-3 py-1 backdrop-blur-md">
           New Release
         </Badge>
-        <h1 className="text-6xl font-black tracking-tighter text-white mb-4">
+        <h1 className="text-6xl font-black tracking-tighter text-white mb-4 drop-shadow-2xl">
           Midnight City
         </h1>
         <p className="max-w-md text-zinc-400 text-lg mb-8 italic">
@@ -54,7 +141,7 @@ function HomeFeed() {
         <div className="flex gap-4">
           <Button
             size="lg"
-            className="rounded-full px-8 font-bold gap-2 bg-primary hover:bg-primary/90"
+            className="rounded-full px-8 font-bold gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 hover:scale-105 transition-all"
           >
             <Play className="h-5 w-5 fill-current" /> Play Now
           </Button>
@@ -80,21 +167,21 @@ function HomeFeed() {
               key={i}
               className="flex-none w-[160px] group relative space-y-3 cursor-pointer"
             >
-              <div className="relative aspect-square overflow-hidden rounded-2xl bg-zinc-900 border border-white/5">
-                <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <div className="relative aspect-square overflow-hidden rounded-3xl bg-zinc-900 border border-white/5 shadow-2xl">
+                <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[2px]">
                   <Button
                     size="icon"
-                    className="h-10 w-10 rounded-full bg-primary hover:scale-110 transition-transform shadow-xl"
+                    className="h-12 w-12 rounded-full bg-primary hover:scale-110 transition-transform shadow-2xl shadow-primary/40"
                   >
-                    <Play className="h-5 w-5 fill-current text-white" />
+                    <Play className="h-6 w-6 fill-current text-white" />
                   </Button>
                 </div>
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1 px-1">
                 <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
                   Ocean Vibes {i}
                 </h3>
-                <p className="text-[10px] text-zinc-500 truncate">
+                <p className="text-[10px] text-zinc-500 truncate font-medium">
                   Lofi Girl, Chillhop Music
                 </p>
               </div>
@@ -116,22 +203,22 @@ function HomeFeed() {
             Explore
           </Button>
         </div>
-        <div className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar">
+        <div className="flex flex-row overflow-x-auto gap-8 pb-4 no-scrollbar">
           {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
             <div
               key={i}
-              className="flex-none w-[128px] group relative space-y-3 cursor-pointer text-center"
+              className="flex-none w-[128px] group relative space-y-4 cursor-pointer text-center"
             >
-              <div className="relative aspect-square overflow-hidden rounded-full bg-zinc-900 border border-white/5 mx-auto">
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Play className="h-6 w-6 fill-current text-white" />
+              <div className="relative aspect-square overflow-hidden rounded-full bg-zinc-900 border border-white/5 mx-auto ring-offset-4 ring-offset-black ring-0 group-hover:ring-2 ring-primary transition-all duration-300">
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[1px]">
+                  <Play className="h-8 w-8 fill-current text-white transform scale-75 group-hover:scale-100 transition-transform" />
                 </div>
               </div>
               <div className="space-y-1">
-                <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
+                <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors text-sm">
                   Artist Name {i}
                 </h3>
-                <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
+                <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">
                   Artist
                 </p>
               </div>
@@ -148,15 +235,136 @@ function HomeFeed() {
           </h2>
         </div>
         <div className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <div key={i} className="flex-none w-[160px] space-y-3">
-              <Skeleton className="aspect-square w-full rounded-2xl bg-zinc-900" />
-              <div className="space-y-2">
-                <Skeleton className="h-3 w-3/4 bg-zinc-900" />
-                <Skeleton className="h-2 w-1/2 bg-zinc-900" />
-              </div>
-            </div>
-          ))}
+          {trendingLoading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex-none w-[200px] space-y-4">
+                  <Skeleton className="aspect-4/3 w-full rounded-3xl bg-zinc-900/50" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-3/4 bg-zinc-900/50" />
+                    <Skeleton className="h-3 w-1/2 bg-zinc-900/50" />
+                  </div>
+                </div>
+              ))
+            : trendingData?.data?.map((song: any) => (
+                <div
+                  key={song.id}
+                  className="flex-none w-[200px] group relative space-y-4 cursor-pointer"
+                >
+                  <div className="relative aspect-4/3 overflow-hidden rounded-3xl bg-zinc-900 border border-white/5 shadow-xl">
+                    {song.coverImage ? (
+                      <img
+                        src={song.coverImage}
+                        alt={song.title}
+                        className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary">
+                        <ListMusic className="h-10 w-10 opacity-20" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[2px]">
+                      <Button
+                        size="icon"
+                        className="h-12 w-12 rounded-full bg-primary hover:scale-110 transition-transform shadow-2xl shadow-primary/40"
+                      >
+                        <Play className="h-6 w-6 fill-current text-white" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors text-base tracking-tight">
+                        {song.title}
+                      </h3>
+                      <p className="text-xs text-zinc-500 truncate font-semibold">
+                        {song.artistName}
+                      </p>
+                    </div>
+                    <FavoriteButton songId={song.id} isLiked={song.isLiked} />
+                  </div>
+                </div>
+              ))}
+        </div>
+      </section>
+
+      {/* One Melody Vertical Section */}
+      <section>
+        <div className="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
+          <h2 className="text-2xl font-bold text-white tracking-tight">
+            One Melody
+          </h2>
+          <Button
+            variant="link"
+            className="text-primary hover:text-primary/80 font-semibold p-0"
+          >
+            See all
+          </Button>
+        </div>
+
+        <div className="flex flex-col gap-1 max-h-[600px] overflow-y-auto no-scrollbar pb-10">
+          {songsLoading
+            ? Array.from({ length: 10 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-4 p-3 rounded-xl animate-pulse"
+                >
+                  <div className="h-12 w-12 rounded-lg bg-zinc-900" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 w-1/3 bg-zinc-900" />
+                    <div className="h-2 w-1/4 bg-zinc-900" />
+                  </div>
+                </div>
+              ))
+            : songsData?.data?.map((song: any, index: number) => (
+                <div
+                  key={song.id}
+                  className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                >
+                  <div className="w-8 text-center text-zinc-600 font-mono text-xs group-hover:text-primary transition-colors">
+                    {String(index + 1).padStart(2, "0")}
+                  </div>
+
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
+                    {song.coverImage ? (
+                      <img
+                        src={song.coverImage}
+                        alt={song.title}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+                        <ListMusic className="h-6 w-6 text-zinc-700" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Play className="h-4 w-4 fill-current text-white" />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
+                      {song.title}
+                    </h3>
+                    <p className="text-[10px] text-zinc-500 truncate font-medium">
+                      {song.artistName}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 flex items-center gap-2">
+                    <FavoriteButton
+                      songId={song.id}
+                      isLiked={song.isLiked || false}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
+                    >
+                      <Play className="h-4 w-4 fill-current" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
         </div>
       </section>
     </div>
@@ -236,6 +444,177 @@ function ArtistsView() {
       {!isLoading && (!data?.data || data.data.length === 0) && (
         <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
           <p className="text-lg">No artists found</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FavouritesView() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["favourites"],
+    queryFn: () => musicApi.getFavourites(),
+  });
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-4xl font-black tracking-tighter text-white">
+          Favourites
+        </h1>
+        <p className="text-zinc-500">Your collection of liked songs</p>
+      </div>
+
+      <div className="flex flex-col gap-1 pb-10">
+        {isLoading
+          ? Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-4 p-3 rounded-xl animate-pulse"
+              >
+                <div className="h-12 w-12 rounded-lg bg-zinc-900" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 w-1/3 bg-zinc-900" />
+                  <div className="h-2 w-1/4 bg-zinc-900" />
+                </div>
+              </div>
+            ))
+          : data?.data?.map((song: any, index: number) => (
+              <div
+                key={song.id}
+                className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                <div className="w-8 text-center text-zinc-600 font-mono text-xs group-hover:text-primary transition-colors">
+                  {String(index + 1).padStart(2, "0")}
+                </div>
+
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
+                  {song.coverImage ? (
+                    <img
+                      src={song.coverImage}
+                      alt={song.title}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+                      <ListMusic className="h-6 w-6 text-zinc-700" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Play className="h-4 w-4 fill-current text-white" />
+                  </div>
+                </div>
+
+                <div className="flex flex-col min-w-0 flex-1">
+                  <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
+                    {song.title}
+                  </h3>
+                  <p className="text-[10px] text-zinc-500 truncate font-medium">
+                    {song.artistName}
+                  </p>
+                </div>
+
+                <div className="shrink-0 flex items-center gap-2">
+                  <FavoriteButton songId={song.id} isLiked={true} />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
+                  >
+                    <Play className="h-4 w-4 fill-current" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+      </div>
+      {!isLoading && (!data?.data || data.data.length === 0) && (
+        <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+          <p className="text-lg">No favourites yet</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HistoryView() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["history"],
+    queryFn: () => musicApi.getHistory(),
+  });
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-4xl font-black tracking-tighter text-white">
+          History
+        </h1>
+        <p className="text-zinc-500">Songs you've recently played</p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {isLoading
+          ? Array.from({ length: 12 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-4 p-3 border-b border-zinc-900/30"
+              >
+                <Skeleton className="h-12 w-12 rounded-lg bg-zinc-900" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-1/3 bg-zinc-900" />
+                  <Skeleton className="h-3 w-1/4 bg-zinc-900" />
+                </div>
+              </div>
+            ))
+          : data?.data?.map((song: any) => (
+              <div
+                key={song.id}
+                className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+              >
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
+                  {song.coverImage ? (
+                    <img
+                      src={song.coverImage}
+                      alt={song.title}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+                      <ListMusic className="h-6 w-6 text-zinc-700" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Play className="h-4 w-4 fill-current text-white" />
+                  </div>
+                </div>
+
+                <div className="flex flex-col min-w-0 flex-1">
+                  <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
+                    {song.title}
+                  </h3>
+                  <p className="text-[10px] text-zinc-500 truncate font-medium">
+                    {song.artistName}
+                  </p>
+                </div>
+
+                <div className="shrink-0 flex items-center gap-2">
+                  <FavoriteButton
+                    songId={song.id}
+                    isLiked={song.isLiked || false}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
+                  >
+                    <Play className="h-4 w-4 fill-current" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+      </div>
+      {!isLoading && (!data?.data || data.data.length === 0) && (
+        <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+          <p className="text-lg">No history yet</p>
         </div>
       )}
     </div>

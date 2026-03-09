@@ -21,12 +21,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 
-const menuItems = [
-  { label: "Home", icon: House, href: "/" },
-  { label: "Artist", icon: Music, href: "/artist" },
-  { label: "Playlist", icon: ListMusic, href: "/playlist" },
-  { label: "Favourites", icon: Heart, href: "/favourites" },
-  { label: "History", icon: History, href: "/history" },
+const menuItems: {
+  label: string;
+  icon: any;
+  search: { tab: "home" | "artist" | "playlist" | "favourites" | "history" };
+}[] = [
+  { label: "Home", icon: House, search: { tab: "home" } },
+  { label: "Artist", icon: Music, search: { tab: "artist" } },
+  { label: "Playlist", icon: ListMusic, search: { tab: "playlist" } },
+  { label: "Favourites", icon: Heart, search: { tab: "favourites" } },
+  { label: "History", icon: History, search: { tab: "history" } },
 ];
 
 export default function Sidebar() {
@@ -52,7 +56,8 @@ export default function Sidebar() {
             {menuItems.map((item) => (
               <Link
                 key={item.label}
-                to={item.href}
+                to="/"
+                search={item.search}
                 className="flex items-center gap-4 rounded-lg px-4 py-3 text-sm font-medium text-zinc-400 transition-all hover:bg-zinc-900 hover:text-white [&.active]:bg-zinc-900 [&.active]:text-white"
                 activeProps={{ className: "active" }}
               >
@@ -72,7 +77,7 @@ export default function Sidebar() {
               Your Library
             </p>
             <Popover>
-              <PopoverTrigger asChild>
+              <PopoverTrigger>
                 <Button
                   variant="ghost"
                   size="icon"
