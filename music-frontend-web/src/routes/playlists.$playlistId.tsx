@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { getCoverImageUrl } from "@/lib/s3";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { playerActions } from "@/Store/playerStore";
 import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
+import { InfiniteScrollContainer } from "@/components/custom/InfiniteScrollContainer";
 
 export const Route = createFileRoute("/playlists/$playlistId")({
   component: PlaylistDetailsPage,
@@ -22,13 +23,22 @@ export const Route = createFileRoute("/playlists/$playlistId")({
 function PlaylistDetailsPage() {
   const { playlistId } = Route.useParams();
 
-  const { data: playlist, isLoading } = useQuery({
-    queryKey: ["playlist", playlistId],
-    queryFn: () => musicApi.getPlaylist(playlistId),
-  });
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteQuery({
+      queryKey: ["playlist", playlistId],
+      queryFn: ({ pageParam = 1 }) =>
+        musicApi.getPlaylist(playlistId, pageParam, 50),
+      initialPageParam: 1,
+      getNextPageParam: (lastPage) => {
+        if (!lastPage?.songs?.data || lastPage.songs.data.length < 50)
+          return undefined;
+        return lastPage.songs.meta.page + 1;
+      },
+    });
 
-  const songsData = playlist?.songs?.data || [];
-  const songs = songsData.map((item: any) => item.song).filter(Boolean);
+  const playlist = data?.pages[0];
+  const allSongsData = data?.pages.flatMap((page) => page.songs.data) || [];
+  const songs = allSongsData.map((item: any) => item.song).filter(Boolean);
 
   const formatDuration = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -126,7 +136,7 @@ function PlaylistDetailsPage() {
             <div className="flex items-center gap-4 text-sm font-bold uppercase tracking-widest text-zinc-500 bg-zinc-900/50 px-5 py-2.5 rounded-full border border-white/5">
               <span className="flex items-center gap-2">
                 <Music className="h-4 w-4 text-primary" />
-                {songs.length} Songs
+                {playlist.songs?.meta?.totalItems || songs.length} Songs
               </span>
               <span className="w-1 h-1 rounded-full bg-zinc-800" />
               <span>{formatDate(playlist.createdAt)}</span>
@@ -157,76 +167,86 @@ function PlaylistDetailsPage() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-1">
-          {songs.length === 0 ? (
-            <div className="py-20 text-center border border-dashed border-white/5 rounded-3xl bg-zinc-900/30">
-              <Music className="h-12 w-12 text-zinc-800 mx-auto mb-4" />
-              <p className="text-zinc-500 font-medium italic">
-                This playlist is currently empty.
-              </p>
-            </div>
-          ) : (
-            songs.map((song: any, index: number) => {
-              return (
-                <div
-                  key={song.id}
-                  className="group grid grid-cols-12 w-full items-center p-3 rounded-2xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/5"
-                  onClick={() => {
-                    playerActions.setCurrentSong(mapToPlayerSong(song));
-                    playerActions.setQueue(mapListToPlayerSongs(songs));
-                  }}
-                >
-                  <div className="col-span-1 text-center text-zinc-600 font-bold text-sm group-hover:text-primary transition-colors">
-                    {(index + 1).toString().padStart(2, "0")}
-                  </div>
+        <InfiniteScrollContainer
+          fetchNextPage={fetchNextPage}
+          hasNextPage={hasNextPage}
+          isFetchingNextPage={isFetchingNextPage}
+        >
+          <div className="flex flex-col gap-1">
+            {songs.length === 0 ? (
+              <div className="py-20 text-center border border-dashed border-white/5 rounded-3xl bg-zinc-900/30">
+                <Music className="h-12 w-12 text-zinc-800 mx-auto mb-4" />
+                <p className="text-zinc-500 font-medium italic">
+                  This playlist is currently empty.
+                </p>
+              </div>
+            ) : (
+              songs.map((song: any, index: number) => {
+                return (
+                  <div
+                    key={song.id}
+                    className="group grid grid-cols-12 w-full items-center p-3 rounded-2xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/5"
+                    onClick={() => {
+                      playerActions.setCurrentSong(mapToPlayerSong(song));
+                      playerActions.setQueue(mapListToPlayerSongs(songs));
+                    }}
+                  >
+                    <div className="col-span-1 text-center text-zinc-600 font-bold text-sm group-hover:text-primary transition-colors">
+                      {(index + 1).toString().padStart(2, "0")}
+                    </div>
 
-                  <div className="col-span-11 md:col-span-11 grid grid-cols-11 items-center gap-4">
-                    <div className="col-span-11 md:col-span-5 flex items-center gap-4">
-                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/5 bg-zinc-900 shadow-lg">
-                        {getCoverImageUrl(song.storageKey, "small", true) ? (
-                          <img
-                            src={
-                              getCoverImageUrl(song.storageKey, "small", true)!
-                            }
-                            alt={song.title}
-                            className="h-full w-full object-cover transform group-hover:scale-110 transition-transform duration-500"
-                          />
-                        ) : (
-                          <div className="h-full w-full flex items-center justify-center text-zinc-700">
-                            <Music className="h-5 w-5" />
+                    <div className="col-span-11 md:col-span-11 grid grid-cols-11 items-center gap-4">
+                      <div className="col-span-11 md:col-span-5 flex items-center gap-4">
+                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/5 bg-zinc-900 shadow-lg">
+                          {getCoverImageUrl(song.storageKey, "small", true) ? (
+                            <img
+                              src={
+                                getCoverImageUrl(
+                                  song.storageKey,
+                                  "small",
+                                  true,
+                                )!
+                              }
+                              alt={song.title}
+                              className="h-full w-full object-cover transform group-hover:scale-110 transition-transform duration-500"
+                            />
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center text-zinc-700">
+                              <Music className="h-5 w-5" />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Play className="h-5 w-5 fill-current text-white" />
                           </div>
-                        )}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <Play className="h-5 w-5 fill-current text-white" />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-white truncate group-hover:text-primary transition-colors capitalize">
+                            {song.title}
+                          </h4>
+                          <p className="text-xs text-zinc-500 font-medium md:hidden">
+                            {song.artistName}
+                          </p>
                         </div>
                       </div>
-                      <div className="min-w-0">
-                        <h4 className="font-bold text-white truncate group-hover:text-primary transition-colors capitalize">
-                          {song.title}
-                        </h4>
-                        <p className="text-xs text-zinc-500 font-medium md:hidden">
-                          {song.artistName}
-                        </p>
+
+                      <div className="col-span-3 hidden md:block text-zinc-400 text-sm font-medium truncate">
+                        {song.artistName}
+                      </div>
+
+                      <div className="col-span-2 hidden lg:block text-zinc-500 text-sm italic truncate">
+                        {song.genre}
+                      </div>
+
+                      <div className="col-span-1 text-right text-zinc-500 text-xs font-bold font-mono tracking-tighter pr-4">
+                        {formatDuration(song.durationMs)}
                       </div>
                     </div>
-
-                    <div className="col-span-3 hidden md:block text-zinc-400 text-sm font-medium truncate">
-                      {song.artistName}
-                    </div>
-
-                    <div className="col-span-2 hidden lg:block text-zinc-500 text-sm italic truncate">
-                      {song.genre}
-                    </div>
-
-                    <div className="col-span-1 text-right text-zinc-500 text-xs font-bold font-mono tracking-tighter pr-4">
-                      {formatDuration(song.durationMs)}
-                    </div>
                   </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+                );
+              })
+            )}
+          </div>
+        </InfiniteScrollContainer>
       </div>
     </div>
   );

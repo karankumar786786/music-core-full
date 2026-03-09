@@ -1,5 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Play, Music, ArrowLeft, ListMusic, Trash2 } from "lucide-react";
@@ -7,6 +11,7 @@ import { playerActions } from "@/Store/playerStore";
 import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
 import { getCoverImageUrl } from "@/lib/s3";
 import { toast } from "sonner";
+import { InfiniteScrollContainer } from "@/components/custom/InfiniteScrollContainer";
 
 export const Route = createFileRoute("/user-playlists/$playlistId")({
   component: UserPlaylistDetailsPage,
@@ -17,10 +22,18 @@ function UserPlaylistDetailsPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: playlist, isLoading } = useQuery({
-    queryKey: ["userPlaylist", playlistId],
-    queryFn: () => musicApi.getUserPlaylist(playlistId),
-  });
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteQuery({
+      queryKey: ["userPlaylist", playlistId],
+      queryFn: ({ pageParam = 1 }) =>
+        musicApi.getUserPlaylist(playlistId, pageParam, 50),
+      initialPageParam: 1,
+      getNextPageParam: (lastPage) => {
+        if (!lastPage?.songs?.data || lastPage.songs.data.length < 50)
+          return undefined;
+        return lastPage.songs.meta.page + 1;
+      },
+    });
 
   const deletePlaylistMutation = useMutation({
     mutationFn: () => musicApi.deleteUserPlaylist(playlistId),
@@ -34,8 +47,9 @@ function UserPlaylistDetailsPage() {
     },
   });
 
-  const songsData = playlist?.songs?.data || [];
-  const songs = songsData
+  const playlist = data?.pages[0];
+  const allSongsData = data?.pages.flatMap((page) => page.songs.data) || [];
+  const songs = allSongsData
     .map(
       (item: {
         song: {
@@ -49,7 +63,6 @@ function UserPlaylistDetailsPage() {
       }) => item.song,
     )
     .filter(Boolean);
-
 
   if (isLoading) return <PlaylistDetailsSkeleton />;
   if (!playlist)
@@ -132,7 +145,7 @@ function UserPlaylistDetailsPage() {
             <div className="flex items-center gap-4 text-sm font-bold uppercase tracking-widest text-zinc-500 bg-zinc-900/50 px-5 py-2.5 rounded-full border border-white/5">
               <span className="flex items-center gap-2">
                 <Music className="h-4 w-4 text-primary" />
-                {songs.length} Songs
+                {playlist.songs?.meta?.totalItems || songs.length} Songs
               </span>
             </div>
           </div>
@@ -149,17 +162,23 @@ function UserPlaylistDetailsPage() {
             </p>
           </div>
         ) : (
-          <div className="flex flex-col gap-1">
-            {songs.map((song: PlaylistSong, index: number) => (
-              <PlaylistSongRow
-                key={song.id}
-                song={song}
-                index={index}
-                playlistId={playlistId}
-                songs={songs}
-              />
-            ))}
-          </div>
+          <InfiniteScrollContainer
+            fetchNextPage={fetchNextPage}
+            hasNextPage={hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+          >
+            <div className="flex flex-col gap-1">
+              {songs.map((song: PlaylistSong, index: number) => (
+                <PlaylistSongRow
+                  key={song.id}
+                  song={song}
+                  index={index}
+                  playlistId={playlistId}
+                  songs={songs}
+                />
+              ))}
+            </div>
+          </InfiniteScrollContainer>
         )}
       </div>
     </div>

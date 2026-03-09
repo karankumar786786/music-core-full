@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { getCoverImageUrl, getBannerImageUrl } from "@/lib/s3";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Play, Music, ArrowLeft, Clock, Calendar } from "lucide-react";
 import { playerActions } from "@/Store/playerStore";
 import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
+import { InfiniteScrollContainer } from "@/components/custom/InfiniteScrollContainer";
 
 export const Route = createFileRoute("/artists/$artistId")({
   component: ArtistDetailsPage,
@@ -20,12 +21,24 @@ function ArtistDetailsPage() {
     queryFn: () => musicApi.getArtist(artistId),
   });
 
-  const { data: songsResponse, isLoading: isSongsLoading } = useQuery({
+  const {
+    data: songsData,
+    isLoading: isSongsLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["artist-songs", artistId],
-    queryFn: () => musicApi.getArtistSongs(artistId),
+    queryFn: ({ pageParam = 1 }) =>
+      musicApi.getArtistSongs(artistId, pageParam, 50),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage?.data || lastPage.data.length < 50) return undefined;
+      return lastPage.meta.page + 1;
+    },
   });
 
-  const songs = songsResponse?.data || [];
+  const songs = songsData?.pages.flatMap((page) => page.data) || [];
 
   const formatDuration = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -103,7 +116,8 @@ function ArtistDetailsPage() {
             </h2>
             <p className="text-zinc-400 font-medium flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-              {songs.length} Tracks in Library
+              {songsData?.pages[0]?.meta?.totalItems || songs.length} Tracks in
+              Library
             </p>
             <div className="pt-4 flex items-center gap-4">
               <Button
@@ -146,65 +160,73 @@ function ArtistDetailsPage() {
             </Button>
           </div>
 
-          <div className="flex flex-col gap-2">
-            {songs.length === 0 ? (
-              <div className="py-20 text-center border border-dashed border-white/5 rounded-2xl bg-zinc-900/50">
-                <Music className="h-10 w-10 text-zinc-700 mx-auto mb-4" />
-                <p className="text-zinc-500">
-                  No tracks found for this artist yet.
-                </p>
-              </div>
-            ) : (
-              songs.map((song: any, index: number) => (
-                <div
-                  key={song.id}
-                  className="group flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/5"
-                  onClick={() => {
-                    playerActions.setCurrentSong(mapToPlayerSong(song));
-                    playerActions.setQueue(mapListToPlayerSongs(songs));
-                  }}
-                >
-                  <div className="w-8 text-center text-zinc-600 font-bold text-sm group-hover:text-primary transition-colors">
-                    {(index + 1).toString().padStart(2, "0")}
-                  </div>
-                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/5 bg-zinc-900 shadow-lg">
-                    {getCoverImageUrl(song.storageKey, "small", true) ? (
-                      <img
-                        src={getCoverImageUrl(song.storageKey, "small", true)!}
-                        alt={song.title}
-                        className="h-full w-full object-cover transform group-hover:scale-110 transition-transform duration-500"
-                      />
-                    ) : (
-                      <div className="h-full w-full flex items-center justify-center text-zinc-700">
-                        <Music className="h-6 w-6" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Play className="h-6 w-6 fill-current text-white transform scale-90 group-hover:scale-100 transition-transform" />
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-white truncate group-hover:text-primary transition-colors capitalize">
-                      {song.title}
-                    </h4>
-                    <p className="text-xs text-zinc-500 font-medium">
-                      {song.genre} • {formatDate(song.releaseDate)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4 text-zinc-500 text-xs font-bold uppercase tracking-wider pr-4">
-                    <div className="hidden sm:flex items-center gap-1.5">
-                      <Calendar className="h-3 w-3" />
-                      {formatDate(song.releaseDate)}
-                    </div>
-                    <div className="flex items-center gap-1.5 w-12 justify-end">
-                      <Clock className="h-3 w-3" />
-                      {formatDuration(song.durationMs)}
-                    </div>
-                  </div>
+          <InfiniteScrollContainer
+            fetchNextPage={fetchNextPage}
+            hasNextPage={hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+          >
+            <div className="flex flex-col gap-2">
+              {songs.length === 0 ? (
+                <div className="py-20 text-center border border-dashed border-white/5 rounded-2xl bg-zinc-900/50">
+                  <Music className="h-10 w-10 text-zinc-700 mx-auto mb-4" />
+                  <p className="text-zinc-500">
+                    No tracks found for this artist yet.
+                  </p>
                 </div>
-              ))
-            )}
-          </div>
+              ) : (
+                songs.map((song: any, index: number) => (
+                  <div
+                    key={song.id}
+                    className="group flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/5"
+                    onClick={() => {
+                      playerActions.setCurrentSong(mapToPlayerSong(song));
+                      playerActions.setQueue(mapListToPlayerSongs(songs));
+                    }}
+                  >
+                    <div className="w-8 text-center text-zinc-600 font-bold text-sm group-hover:text-primary transition-colors">
+                      {(index + 1).toString().padStart(2, "0")}
+                    </div>
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/5 bg-zinc-900 shadow-lg">
+                      {getCoverImageUrl(song.storageKey, "small", true) ? (
+                        <img
+                          src={
+                            getCoverImageUrl(song.storageKey, "small", true)!
+                          }
+                          alt={song.title}
+                          className="h-full w-full object-cover transform group-hover:scale-110 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center text-zinc-700">
+                          <Music className="h-6 w-6" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Play className="h-6 w-6 fill-current text-white transform scale-90 group-hover:scale-100 transition-transform" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-white truncate group-hover:text-primary transition-colors capitalize">
+                        {song.title}
+                      </h4>
+                      <p className="text-xs text-zinc-500 font-medium">
+                        {song.genre} • {formatDate(song.releaseDate)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4 text-zinc-500 text-xs font-bold uppercase tracking-wider pr-4">
+                      <div className="hidden sm:flex items-center gap-1.5">
+                        <Calendar className="h-3 w-3" />
+                        {formatDate(song.releaseDate)}
+                      </div>
+                      <div className="flex items-center gap-1.5 w-12 justify-end">
+                        <Clock className="h-3 w-3" />
+                        {formatDuration(song.durationMs)}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </InfiniteScrollContainer>
         </div>
 
         <div className="space-y-6">
@@ -224,7 +246,9 @@ function ArtistDetailsPage() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-500">Tracks</span>
-                <span className="text-white font-medium">{songs.length}</span>
+                <span className="text-white font-medium">
+                  {songsData?.pages[0]?.meta?.totalItems || songs.length}
+                </span>
               </div>
             </div>
           </div>

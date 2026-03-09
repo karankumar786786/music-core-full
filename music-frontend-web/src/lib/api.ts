@@ -74,8 +74,8 @@ export const musicApi = {
         const response = await api.get(`/playlists?page=${page}&limit=${limit}`)
         return response.data
     },
-    getPlaylist: async (id: string) => {
-        const response = await api.get(`/playlists/${id}`)
+    getPlaylist: async (id: string, page = 1, limit = 20) => {
+        const response = await api.get(`/playlists/${id}?page=${page}&limit=${limit}`)
         return response.data
     },
     getSongs: async (page = 1, limit = 20) => {
