@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { z } from "zod";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Play, ListMusic, ChevronRight, Music } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FavoriteButton } from "@/components/custom/SongActions";
+import { InfiniteScrollContainer } from "@/components/custom/InfiniteScrollContainer";
 import { getCoverImageUrl } from "@/lib/s3";
 import { playerActions } from "@/Store/playerStore";
 import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
@@ -50,10 +51,23 @@ function HomeFeed() {
     queryFn: () => musicApi.getTrending(),
   });
 
-  const { data: songsData, isLoading: songsLoading } = useQuery({
+  const {
+    data: songsData,
+    isLoading: songsLoading,
+    fetchNextPage: fetchNextSongs,
+    hasNextPage: hasNextSongs,
+    isFetchingNextPage: isFetchingNextSongs,
+  } = useInfiniteQuery({
     queryKey: ["songs"],
-    queryFn: () => musicApi.getSongs(1, 10),
+    queryFn: ({ pageParam = 1 }) => musicApi.getSongs(pageParam, 20),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage?.data || lastPage.data.length < 20) return undefined;
+      return lastPage.meta.page + 1;
+    },
   });
+
+  const allSongs = songsData?.pages.flatMap((page) => page.data) || [];
 
   const { data: artistsData, isLoading: artistsLoading } = useQuery({
     queryKey: ["artists"],
@@ -344,9 +358,220 @@ function HomeFeed() {
           </Button>
         </div>
 
-        <div className="flex flex-col gap-1 max-h-[600px] overflow-y-auto no-scrollbar pb-10">
-          {songsLoading
-            ? Array.from({ length: 10 }).map((_, i) => (
+        <InfiniteScrollContainer
+          fetchNextPage={fetchNextSongs}
+          hasNextPage={hasNextSongs}
+          isFetchingNextPage={isFetchingNextSongs}
+        >
+          <div className="flex flex-col gap-1 pb-10">
+            {songsLoading
+              ? Array.from({ length: 10 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-4 p-3 rounded-xl animate-pulse"
+                  >
+                    <div className="h-12 w-12 rounded-lg bg-zinc-900" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3 w-1/3 bg-zinc-900" />
+                      <div className="h-2 w-1/4 bg-zinc-900" />
+                    </div>
+                  </div>
+                ))
+              : allSongs.map((song: any, index: number) => (
+                  <div
+                    key={song.id}
+                    className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                  >
+                    <div className="w-8 text-center text-zinc-600 font-mono text-xs group-hover:text-primary transition-colors">
+                      {String(index + 1).padStart(2, "0")}
+                    </div>
+
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
+                      {song.storageKey ? (
+                        <img
+                          src={
+                            getCoverImageUrl(song.storageKey, "small", true) ||
+                            ""
+                          }
+                          alt={song.title}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+                          <ListMusic className="h-6 w-6 text-zinc-700" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Play className="h-4 w-4 fill-current text-white" />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
+                        {song.title}
+                      </h3>
+                      <p className="text-[10px] text-zinc-500 truncate font-medium">
+                        {song.artistName}
+                      </p>
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-2">
+                      <FavoriteButton
+                        songId={song.id}
+                        isLiked={song.isLiked || false}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          playerActions.setCurrentSong(mapToPlayerSong(song));
+                          playerActions.setQueue(
+                            mapListToPlayerSongs(allSongs),
+                          );
+                        }}
+                      >
+                        <Play className="h-4 w-4 fill-current" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+          </div>
+        </InfiniteScrollContainer>
+      </section>
+    </div>
+  );
+}
+
+function ArtistsView() {
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteQuery({
+      queryKey: ["artists"],
+      queryFn: ({ pageParam = 1 }) => musicApi.getArtists(pageParam, 20),
+      initialPageParam: 1,
+      getNextPageParam: (lastPage) => {
+        if (!lastPage?.data || lastPage.data.length < 20) return undefined;
+        return lastPage.meta.page + 1;
+      },
+    });
+
+  const artists = data?.pages.flatMap((page) => page.data) || [];
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-4xl font-black tracking-tighter text-white">
+          Artists
+        </h1>
+        <p className="text-zinc-500">Discover your favorite artists</p>
+      </div>
+
+      <InfiniteScrollContainer
+        fetchNextPage={fetchNextPage}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+      >
+        <div className="flex flex-col gap-2">
+          {isLoading
+            ? Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-6 p-4">
+                  <Skeleton className="h-20 w-20 rounded-full bg-zinc-900" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-6 w-1/4 bg-zinc-900" />
+                    <Skeleton className="h-4 w-1/2 bg-zinc-900" />
+                  </div>
+                </div>
+              ))
+            : artists.map((artist: any) => (
+                <Link
+                  key={artist.id}
+                  to="/artists/$artistId"
+                  params={{ artistId: artist.id }}
+                  className="group flex items-center gap-6 p-4 rounded-2xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/5"
+                >
+                  <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full ring-2 ring-zinc-900 group-hover:ring-primary/50 transition-all">
+                    {artist.storageKey ? (
+                      <img
+                        src={
+                          getCoverImageUrl(artist.storageKey, "medium") || ""
+                        }
+                        alt={artist.artistName}
+                        className="h-full w-full object-cover transform group-hover:scale-110 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary text-2xl font-bold">
+                        {artist.artistName?.[0]?.toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h2 className="text-xl font-bold text-white tracking-tight group-hover:text-primary transition-colors">
+                        {artist.artistName}
+                      </h2>
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] uppercase tracking-widest bg-zinc-900 text-zinc-500 border-zinc-800"
+                      >
+                        Artist
+                      </Badge>
+                    </div>
+                    <p className="text-zinc-400 text-sm line-clamp-1 max-w-2xl font-medium opacity-80 group-hover:opacity-100 transition-opacity">
+                      {artist.bio || "No bio available for this artist."}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0 p-2 text-zinc-500 hover:text-white">
+                    <ChevronRight className="w-6 h-6" />
+                  </div>
+                </Link>
+              ))}
+        </div>
+      </InfiniteScrollContainer>
+
+      {!isLoading && artists.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+          <p className="text-lg">No artists found</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FavouritesView() {
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteQuery({
+      queryKey: ["favourites"],
+      queryFn: ({ pageParam = 1 }) => musicApi.getFavourites(pageParam, 50),
+      initialPageParam: 1,
+      getNextPageParam: (lastPage) => {
+        if (!lastPage?.data || lastPage.data.length < 50) return undefined;
+        return lastPage.meta.page + 1;
+      },
+    });
+
+  const favorites = data?.pages.flatMap((page) => page.data) || [];
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-4xl font-black tracking-tighter text-white">
+          Favourites
+        </h1>
+        <p className="text-zinc-500">Your collection of liked songs</p>
+      </div>
+
+      <InfiniteScrollContainer
+        fetchNextPage={fetchNextPage}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        className="pb-10"
+      >
+        <div className="flex flex-col gap-1">
+          {isLoading
+            ? Array.from({ length: 8 }).map((_, i) => (
                 <div
                   key={i}
                   className="flex items-center gap-4 p-3 rounded-xl animate-pulse"
@@ -358,244 +583,74 @@ function HomeFeed() {
                   </div>
                 </div>
               ))
-            : songsData?.data?.map((song: any, index: number) => (
-                <div
-                  key={song.id}
-                  className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
-                >
-                  <div className="w-8 text-center text-zinc-600 font-mono text-xs group-hover:text-primary transition-colors">
-                    {String(index + 1).padStart(2, "0")}
-                  </div>
+            : favorites.map((item: any, index: number) => {
+                const song = item.song;
+                if (!song) return null;
 
-                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
-                    {song.storageKey ? (
-                      <img
-                        src={
-                          getCoverImageUrl(song.storageKey, "small", true) || ""
-                        }
-                        alt={song.title}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-zinc-900">
-                        <ListMusic className="h-6 w-6 text-zinc-700" />
+                return (
+                  <div
+                    key={item.id}
+                    className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                  >
+                    <div className="w-8 text-center text-zinc-600 font-mono text-xs group-hover:text-primary transition-colors">
+                      {String(index + 1).padStart(2, "0")}
+                    </div>
+
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
+                      {song.storageKey ? (
+                        <img
+                          src={
+                            getCoverImageUrl(song.storageKey, "small", true) ||
+                            ""
+                          }
+                          alt={song.title}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+                          <ListMusic className="h-6 w-6 text-zinc-700" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Play className="h-4 w-4 fill-current text-white" />
                       </div>
-                    )}
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Play className="h-4 w-4 fill-current text-white" />
+                    </div>
+
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
+                        {song.title}
+                      </h3>
+                      <p className="text-[10px] text-zinc-500 truncate font-medium">
+                        {song.artistName}
+                      </p>
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-2">
+                      <FavoriteButton songId={song.id} isLiked={true} />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          playerActions.setCurrentSong(mapToPlayerSong(song));
+                          playerActions.setQueue(
+                            mapListToPlayerSongs(
+                              favorites.map((i: any) => i.song).filter(Boolean),
+                            ),
+                          );
+                        }}
+                      >
+                        <Play className="h-4 w-4 fill-current" />
+                      </Button>
                     </div>
                   </div>
-
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
-                      {song.title}
-                    </h3>
-                    <p className="text-[10px] text-zinc-500 truncate font-medium">
-                      {song.artistName}
-                    </p>
-                  </div>
-
-                  <div className="shrink-0 flex items-center gap-2">
-                    <FavoriteButton
-                      songId={song.id}
-                      isLiked={song.isLiked || false}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        playerActions.setCurrentSong(mapToPlayerSong(song));
-                        playerActions.setQueue(
-                          mapListToPlayerSongs(songsData.data),
-                        );
-                      }}
-                    >
-                      <Play className="h-4 w-4 fill-current" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
         </div>
-      </section>
-    </div>
-  );
-}
+      </InfiniteScrollContainer>
 
-function ArtistsView() {
-  const { data, isLoading } = useQuery({
-    queryKey: ["artists"],
-    queryFn: () => musicApi.getArtists(),
-  });
-
-  return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-4xl font-black tracking-tighter text-white">
-          Artists
-        </h1>
-        <p className="text-zinc-500">Discover your favorite artists</p>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        {isLoading
-          ? Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-6 p-4">
-                <Skeleton className="h-20 w-20 rounded-full bg-zinc-900" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-6 w-1/4 bg-zinc-900" />
-                  <Skeleton className="h-4 w-1/2 bg-zinc-900" />
-                </div>
-              </div>
-            ))
-          : data?.data?.map((artist: any) => (
-              <Link
-                key={artist.id}
-                to="/artists/$artistId"
-                params={{ artistId: artist.id }}
-                className="group flex items-center gap-6 p-4 rounded-2xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/5"
-              >
-                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full ring-2 ring-zinc-900 group-hover:ring-primary/50 transition-all">
-                  {artist.storageKey ? (
-                    <img
-                      src={getCoverImageUrl(artist.storageKey, "medium") || ""}
-                      alt={artist.artistName}
-                      className="h-full w-full object-cover transform group-hover:scale-110 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary text-2xl font-bold">
-                      {artist.artistName?.[0]?.toUpperCase()}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-col min-w-0 flex-1">
-                  <div className="flex items-center gap-3 mb-1">
-                    <h2 className="text-xl font-bold text-white tracking-tight group-hover:text-primary transition-colors">
-                      {artist.artistName}
-                    </h2>
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] uppercase tracking-widest bg-zinc-900 text-zinc-500 border-zinc-800"
-                    >
-                      Artist
-                    </Badge>
-                  </div>
-                  <p className="text-zinc-400 text-sm line-clamp-1 max-w-2xl font-medium opacity-80 group-hover:opacity-100 transition-opacity">
-                    {artist.bio || "No bio available for this artist."}
-                  </p>
-                </div>
-
-                <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0 p-2 text-zinc-500 hover:text-white">
-                  <ChevronRight className="w-6 h-6" />
-                </div>
-              </Link>
-            ))}
-      </div>
-      {!isLoading && (!data?.data || data.data.length === 0) && (
-        <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
-          <p className="text-lg">No artists found</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function FavouritesView() {
-  const { data, isLoading } = useQuery({
-    queryKey: ["favourites"],
-    queryFn: () => musicApi.getFavourites(),
-  });
-
-  return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-4xl font-black tracking-tighter text-white">
-          Favourites
-        </h1>
-        <p className="text-zinc-500">Your collection of liked songs</p>
-      </div>
-
-      <div className="flex flex-col gap-1 pb-10">
-        {isLoading
-          ? Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-4 p-3 rounded-xl animate-pulse"
-              >
-                <div className="h-12 w-12 rounded-lg bg-zinc-900" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-3 w-1/3 bg-zinc-900" />
-                  <div className="h-2 w-1/4 bg-zinc-900" />
-                </div>
-              </div>
-            ))
-          : data?.data?.map((item: any, index: number) => {
-              const song = item.song;
-              if (!song) return null;
-
-              return (
-                <div
-                  key={item.id}
-                  className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
-                >
-                  <div className="w-8 text-center text-zinc-600 font-mono text-xs group-hover:text-primary transition-colors">
-                    {String(index + 1).padStart(2, "0")}
-                  </div>
-
-                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
-                    {song.storageKey ? (
-                      <img
-                        src={
-                          getCoverImageUrl(song.storageKey, "small", true) || ""
-                        }
-                        alt={song.title}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-zinc-900">
-                        <ListMusic className="h-6 w-6 text-zinc-700" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Play className="h-4 w-4 fill-current text-white" />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
-                      {song.title}
-                    </h3>
-                    <p className="text-[10px] text-zinc-500 truncate font-medium">
-                      {song.artistName}
-                    </p>
-                  </div>
-
-                  <div className="shrink-0 flex items-center gap-2">
-                    <FavoriteButton songId={song.id} isLiked={true} />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        playerActions.setCurrentSong(mapToPlayerSong(song));
-                        playerActions.setQueue(
-                          mapListToPlayerSongs(
-                            data.data.map((i: any) => i.song).filter(Boolean),
-                          ),
-                        );
-                      }}
-                    >
-                      <Play className="h-4 w-4 fill-current" />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-      </div>
-      {!isLoading && (!data?.data || data.data.length === 0) && (
+      {!isLoading && favorites.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
           <p className="text-lg">No favourites yet</p>
         </div>
@@ -605,10 +660,18 @@ function FavouritesView() {
 }
 
 function HistoryView() {
-  const { data, isLoading } = useQuery({
-    queryKey: ["history"],
-    queryFn: () => musicApi.getHistory(),
-  });
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteQuery({
+      queryKey: ["history"],
+      queryFn: ({ pageParam = 1 }) => musicApi.getHistory(pageParam, 50),
+      initialPageParam: 1,
+      getNextPageParam: (lastPage) => {
+        if (!lastPage?.data || lastPage.data.length < 50) return undefined;
+        return lastPage.meta.page + 1;
+      },
+    });
+
+  const historyItems = data?.pages.flatMap((page) => page.data) || [];
 
   return (
     <div className="space-y-8">
@@ -619,84 +682,94 @@ function HistoryView() {
         <p className="text-zinc-500">Songs you've recently played</p>
       </div>
 
-      <div className="flex flex-col gap-2">
-        {isLoading
-          ? Array.from({ length: 12 }).map((_, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-4 p-3 border-b border-zinc-900/30"
-              >
-                <Skeleton className="h-12 w-12 rounded-lg bg-zinc-900" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-1/3 bg-zinc-900" />
-                  <Skeleton className="h-3 w-1/4 bg-zinc-900" />
-                </div>
-              </div>
-            ))
-          : data?.data?.map((item: any) => {
-              const song = item.song;
-              if (!song) return null;
-
-              return (
+      <InfiniteScrollContainer
+        fetchNextPage={fetchNextPage}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+      >
+        <div className="flex flex-col gap-2">
+          {isLoading
+            ? Array.from({ length: 12 }).map((_, i) => (
                 <div
-                  key={item.id}
-                  className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                  key={i}
+                  className="flex items-center gap-4 p-3 border-b border-zinc-900/30"
                 >
-                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
-                    {song.storageKey ? (
-                      <img
-                        src={
-                          getCoverImageUrl(song.storageKey, "small", true) || ""
-                        }
-                        alt={song.title}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-zinc-900">
-                        <ListMusic className="h-6 w-6 text-zinc-700" />
+                  <Skeleton className="h-12 w-12 rounded-lg bg-zinc-900" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-1/3 bg-zinc-900" />
+                    <Skeleton className="h-3 w-1/4 bg-zinc-900" />
+                  </div>
+                </div>
+              ))
+            : historyItems.map((item: any) => {
+                const song = item.song;
+                if (!song) return null;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                  >
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
+                      {song.storageKey ? (
+                        <img
+                          src={
+                            getCoverImageUrl(song.storageKey, "small", true) ||
+                            ""
+                          }
+                          alt={song.title}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+                          <ListMusic className="h-6 w-6 text-zinc-700" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Play className="h-4 w-4 fill-current text-white" />
                       </div>
-                    )}
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Play className="h-4 w-4 fill-current text-white" />
+                    </div>
+
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
+                        {song.title}
+                      </h3>
+                      <p className="text-[10px] text-zinc-500 truncate font-medium">
+                        {song.artistName}
+                      </p>
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-2">
+                      <FavoriteButton
+                        songId={song.id}
+                        isLiked={song.isLiked || false}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          playerActions.setCurrentSong(mapToPlayerSong(song));
+                          playerActions.setQueue(
+                            mapListToPlayerSongs(
+                              historyItems
+                                .map((i: any) => i.song)
+                                .filter(Boolean),
+                            ),
+                          );
+                        }}
+                      >
+                        <Play className="h-4 w-4 fill-current" />
+                      </Button>
                     </div>
                   </div>
+                );
+              })}
+        </div>
+      </InfiniteScrollContainer>
 
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
-                      {song.title}
-                    </h3>
-                    <p className="text-[10px] text-zinc-500 truncate font-medium">
-                      {song.artistName}
-                    </p>
-                  </div>
-
-                  <div className="shrink-0 flex items-center gap-2">
-                    <FavoriteButton
-                      songId={song.id}
-                      isLiked={song.isLiked || false}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        playerActions.setCurrentSong(mapToPlayerSong(song));
-                        playerActions.setQueue(
-                          mapListToPlayerSongs(
-                            data.data.map((i: any) => i.song).filter(Boolean),
-                          ),
-                        );
-                      }}
-                    >
-                      <Play className="h-4 w-4 fill-current" />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-      </div>
-      {!isLoading && (!data?.data || data.data.length === 0) && (
+      {!isLoading && historyItems.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
           <p className="text-lg">No history yet</p>
         </div>
@@ -706,10 +779,18 @@ function HistoryView() {
 }
 
 function PlaylistsView() {
-  const { data, isLoading } = useQuery({
-    queryKey: ["playlists"],
-    queryFn: () => musicApi.getPlaylists(),
-  });
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteQuery({
+      queryKey: ["playlists"],
+      queryFn: ({ pageParam = 1 }) => musicApi.getPlaylists(pageParam, 20),
+      initialPageParam: 1,
+      getNextPageParam: (lastPage) => {
+        if (!lastPage?.data || lastPage.data.length < 20) return undefined;
+        return lastPage.meta.page + 1;
+      },
+    });
+
+  const playlists = data?.pages.flatMap((page) => page.data) || [];
 
   return (
     <div className="space-y-8">
@@ -720,70 +801,78 @@ function PlaylistsView() {
         <p className="text-zinc-500">Hand-picked collections for you</p>
       </div>
 
-      <div className="flex flex-col">
-        {isLoading
-          ? Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-6 p-5 border-b border-zinc-900/50"
-              >
-                <Skeleton className="h-20 w-20 rounded-lg bg-zinc-900" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-6 w-1/3 bg-zinc-900" />
-                  <Skeleton className="h-4 w-1/2 bg-zinc-900" />
+      <InfiniteScrollContainer
+        fetchNextPage={fetchNextPage}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+      >
+        <div className="flex flex-col">
+          {isLoading
+            ? Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-6 p-5 border-b border-zinc-900/50"
+                >
+                  <Skeleton className="h-20 w-20 rounded-lg bg-zinc-900" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-6 w-1/3 bg-zinc-900" />
+                    <Skeleton className="h-4 w-1/2 bg-zinc-900" />
+                  </div>
                 </div>
-              </div>
-            ))
-          : data?.data?.map((playlist: any) => (
-              <Link
-                key={playlist.id}
-                to="/playlists/$playlistId"
-                params={{ playlistId: playlist.id }}
-                className="group flex items-center justify-between p-5 rounded-2xl hover:bg-zinc-800/50 transition-all duration-200 cursor-pointer border-b border-zinc-900/50"
-              >
-                <div className="flex items-center gap-6 flex-1">
-                  <div className="relative h-20 w-20 shrink-0 shadow-2xl">
-                    {playlist.storageKey ? (
-                      <img
-                        src={
-                          getCoverImageUrl(playlist.storageKey, "medium") || ""
-                        }
-                        alt={playlist.title}
-                        className="rounded-xl object-cover w-full h-full transform group-hover:scale-105 transition-transform duration-500"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-zinc-900 rounded-xl border border-white/5">
-                        <ListMusic className="h-10 w-10 text-zinc-700" />
+              ))
+            : playlists.map((playlist: any) => (
+                <Link
+                  key={playlist.id}
+                  to="/playlists/$playlistId"
+                  params={{ playlistId: playlist.id }}
+                  className="group flex items-center justify-between p-5 rounded-2xl hover:bg-zinc-800/50 transition-all duration-200 cursor-pointer border-b border-zinc-900/50"
+                >
+                  <div className="flex items-center gap-6 flex-1">
+                    <div className="relative h-20 w-20 shrink-0 shadow-2xl">
+                      {playlist.storageKey ? (
+                        <img
+                          src={
+                            getCoverImageUrl(playlist.storageKey, "medium") ||
+                            ""
+                          }
+                          alt={playlist.title}
+                          className="rounded-xl object-cover w-full h-full transform group-hover:scale-105 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-zinc-900 rounded-xl border border-white/5">
+                          <ListMusic className="h-10 w-10 text-zinc-700" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl">
+                        <Play
+                          fill="white"
+                          size={24}
+                          className="text-white transform scale-90 group-hover:scale-100 transition-transform duration-200"
+                        />
                       </div>
-                    )}
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl">
-                      <Play
-                        fill="white"
-                        size={24}
-                        className="text-white transform scale-90 group-hover:scale-100 transition-transform duration-200"
-                      />
+                    </div>
+
+                    <div className="flex flex-col min-w-0 space-y-1">
+                      <h3 className="text-white font-bold text-lg truncate group-hover:text-primary transition-colors">
+                        {playlist.title}
+                      </h3>
+                      <p className="text-zinc-500 text-sm font-medium line-clamp-1">
+                        {playlist.description || "Public Playlist • One Melody"}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="flex flex-col min-w-0 space-y-1">
-                    <h3 className="text-white font-bold text-lg truncate group-hover:text-primary transition-colors">
-                      {playlist.title}
-                    </h3>
-                    <p className="text-zinc-500 text-sm font-medium line-clamp-1">
-                      {playlist.description || "Public Playlist • One Melody"}
+                  <div className="text-right flex-shrink-0 ml-4 hidden sm:block">
+                    <p className="text-zinc-500 text-xs font-semibold group-hover:text-zinc-300 transition-colors uppercase tracking-widest">
+                      Playlist
                     </p>
                   </div>
-                </div>
+                </Link>
+              ))}
+        </div>
+      </InfiniteScrollContainer>
 
-                <div className="text-right flex-shrink-0 ml-4 hidden sm:block">
-                  <p className="text-zinc-500 text-xs font-semibold group-hover:text-zinc-300 transition-colors uppercase tracking-widest">
-                    Playlist
-                  </p>
-                </div>
-              </Link>
-            ))}
-      </div>
-      {!isLoading && (!data?.data || data.data.length === 0) && (
+      {!isLoading && playlists.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
           <p className="text-lg">No playlists found</p>
         </div>
