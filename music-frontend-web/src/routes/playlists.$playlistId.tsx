@@ -112,6 +112,13 @@ function PlaylistDetailsPage() {
             <Button
               size="lg"
               className="rounded-full px-8 font-bold gap-2 bg-primary hover:bg-primary/90 shadow-xl shadow-primary/20"
+              disabled={songs.length === 0}
+              onClick={() => {
+                if (songs.length > 0) {
+                  playerActions.setCurrentSong(mapToPlayerSong(songs[0]));
+                  playerActions.setQueue(mapListToPlayerSongs(songs));
+                }
+              }}
             >
               <Play className="h-5 w-5 fill-current" /> Play Now
             </Button>
@@ -159,13 +166,10 @@ function PlaylistDetailsPage() {
               </p>
             </div>
           ) : (
-            songs.map((item: any, index: number) => {
-              const song = item.song;
-              if (!song) return null;
-
+            songs.map((song: any, index: number) => {
               return (
                 <div
-                  key={item.id}
+                  key={song.id}
                   className="group grid grid-cols-12 w-full items-center p-3 rounded-2xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/5"
                   onClick={() => {
                     playerActions.setCurrentSong(mapToPlayerSong(song));

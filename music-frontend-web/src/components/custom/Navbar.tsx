@@ -18,8 +18,8 @@ import {
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 export default function Navbar() {
-  const navigate = useNavigate({ from: "/" });
-  const search = useSearch({ from: "/" }) as any;
+  const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as any;
   const [query, setQuery] = useState(search.q || "");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const queryClient = useQueryClient();

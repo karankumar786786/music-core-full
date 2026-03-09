@@ -105,6 +105,21 @@ function ArtistDetailsPage() {
               <span className="w-1.5 h-1.5 rounded-full bg-primary" />
               {songs.length} Tracks in Library
             </p>
+            <div className="pt-4 flex items-center gap-4">
+              <Button
+                size="lg"
+                className="rounded-full px-8 font-bold gap-2 bg-primary hover:bg-primary/90 shadow-xl shadow-primary/20"
+                disabled={songs.length === 0}
+                onClick={() => {
+                  if (songs.length > 0) {
+                    playerActions.setCurrentSong(mapToPlayerSong(songs[0]));
+                    playerActions.setQueue(mapListToPlayerSongs(songs));
+                  }
+                }}
+              >
+                <Play className="h-5 w-5 fill-current" /> Play Now
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -116,7 +131,17 @@ function ArtistDetailsPage() {
             <h3 className="text-2xl font-bold text-white tracking-tight">
               Popular Tracks
             </h3>
-            <Button variant="link" className="text-primary p-0">
+            <Button
+              variant="link"
+              className="text-primary p-0"
+              disabled={songs.length === 0}
+              onClick={() => {
+                if (songs.length > 0) {
+                  playerActions.setCurrentSong(mapToPlayerSong(songs[0]));
+                  playerActions.setQueue(mapListToPlayerSongs(songs));
+                }
+              }}
+            >
               Play All
             </Button>
           </div>
