@@ -1,19 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
-import { getCoverImageUrl, getBannerImageUrl } from "@/lib/s3";
+import { getCoverImageUrl } from "@/lib/s3";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Play,
   Music,
   ArrowLeft,
   Clock,
-  Calendar,
   ListMusic,
   MoreHorizontal,
 } from "lucide-react";
+import { playerActions } from "@/Store/playerStore";
+import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
 
 export const Route = createFileRoute("/playlists/$playlistId")({
   component: PlaylistDetailsPage,
@@ -27,7 +27,8 @@ function PlaylistDetailsPage() {
     queryFn: () => musicApi.getPlaylist(playlistId),
   });
 
-  const songs = playlist?.songs?.data || [];
+  const songsData = playlist?.songs?.data || [];
+  const songs = songsData.map((item: any) => item.song).filter(Boolean);
 
   const formatDuration = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -78,13 +79,9 @@ function PlaylistDetailsPage() {
 
         {/* Cover Image */}
         <div className="relative h-64 w-64 shrink-0 overflow-hidden rounded-2xl shadow-2xl shadow-black/50 border border-white/10 mx-auto md:mx-0">
-          {playlist.coverImage ||
-          getCoverImageUrl(playlist.storageKey, "large") ? (
+          {getCoverImageUrl(playlist.storageKey, "medium") ? (
             <img
-              src={
-                playlist.coverImage ||
-                getCoverImageUrl(playlist.storageKey, "large")!
-              }
+              src={getCoverImageUrl(playlist.storageKey, "medium")!}
               alt={playlist.title}
               className="h-full w-full object-cover"
             />
@@ -170,6 +167,10 @@ function PlaylistDetailsPage() {
                 <div
                   key={item.id}
                   className="group grid grid-cols-12 w-full items-center p-3 rounded-2xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/5"
+                  onClick={() => {
+                    playerActions.setCurrentSong(mapToPlayerSong(song));
+                    playerActions.setQueue(mapListToPlayerSongs(songs));
+                  }}
                 >
                   <div className="col-span-1 text-center text-zinc-600 font-bold text-sm group-hover:text-primary transition-colors">
                     {(index + 1).toString().padStart(2, "0")}
@@ -178,11 +179,9 @@ function PlaylistDetailsPage() {
                   <div className="col-span-11 md:col-span-11 grid grid-cols-11 items-center gap-4">
                     <div className="col-span-11 md:col-span-5 flex items-center gap-4">
                       <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/5 bg-zinc-900 shadow-lg">
-                        {song.coverImage ||
-                        getCoverImageUrl(song.storageKey, "small", true) ? (
+                        {getCoverImageUrl(song.storageKey, "small", true) ? (
                           <img
                             src={
-                              song.coverImage ||
                               getCoverImageUrl(song.storageKey, "small", true)!
                             }
                             alt={song.title}

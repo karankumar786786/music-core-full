@@ -10,30 +10,23 @@ import {
   SkipBack,
   Volume2,
   VolumeX,
-  ChevronDown,
+  Music,
+  Heart,
 } from "lucide-react";
 import Hls from "hls.js";
+import { musicApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-
-interface LyricCue {
-  start: number;
-  end: number;
-  text: string;
-}
+import { getCoverImageUrl } from "@/lib/s3";
 
 export default function RightSide() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const hlsRef = useRef<Hls | null>(null);
-  const lyricsContainerRef = useRef<HTMLDivElement>(null);
 
   const state = useStore(playerStore, (s) => s);
   const { currentSong, isPlaying, volume, isMuted, duration } = state;
 
   const [localTime, setLocalTime] = useState(0);
-  const [lyrics] = useState<LyricCue[]>([]);
-  const [currentCueIndex, setCurrentCueIndex] = useState<number>(-1);
-  const [showQualityMenu, setShowQualityMenu] = useState<boolean>(false);
 
   // Initialize HLS
   useEffect(() => {
@@ -57,35 +50,22 @@ export default function RightSide() {
     }
   }, [currentSong]);
 
-  // Sync isPlaying
+  // Sync isPlaying and Track Views
   useEffect(() => {
-    if (!audioRef.current) return;
+    if (!audioRef.current || !currentSong) return;
     if (isPlaying) {
       audioRef.current.play().catch(() => playerActions.setIsPlaying(false));
+      musicApi.addView(currentSong.id).catch(console.error);
     } else {
       audioRef.current.pause();
     }
-  }, [isPlaying]);
+  }, [isPlaying, currentSong?.id]);
 
   const handleTimeUpdate = () => {
     if (!audioRef.current) return;
     const time = audioRef.current.currentTime;
     setLocalTime(time);
     playerActions.setCurrentTime(time);
-
-    // Sync lyrics
-    if (lyrics.length > 0) {
-      const index = lyrics.findIndex(
-        (cue) => time >= cue.start && time <= cue.end,
-      );
-      if (index !== -1 && index !== currentCueIndex) {
-        setCurrentCueIndex(index);
-        const activeLine = lyricsContainerRef.current?.querySelector(
-          `[data-index="${index}"]`,
-        );
-        activeLine?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }
   };
 
   const handleLoadedMetadata = () => {
@@ -103,10 +83,14 @@ export default function RightSide() {
   if (!currentSong) {
     return (
       <div className="w-[350px] bg-black border-l border-white/5 flex flex-col h-full items-center justify-center text-zinc-500 text-sm italic p-6 text-center flex-none">
-        Select a track to start listening and view lyrics
+        <Music className="h-8 w-8 mb-4 opacity-20" />
+        <p>Select a track to start listening</p>
       </div>
     );
   }
+
+  const currentIndex = state.queue.findIndex((s) => s.id === currentSong.id);
+  const queueSongs = state.queue.filter((s) => s.id !== currentSong.id);
 
   return (
     <div className="w-[350px] bg-black border-l border-white/5 flex flex-col h-full overflow-hidden flex-none">
@@ -117,58 +101,35 @@ export default function RightSide() {
         onEnded={() => playerActions.playNext()}
       />
 
-      {/* Album Art Section */}
-      <div className="p-6">
-        <div className="aspect-square w-full shadow-2xl rounded-2xl overflow-hidden border border-white/10 group relative">
+      {/* Now Playing Header */}
+      <div className="px-6 pt-6 pb-4 border-b border-white/5">
+        <h2 className="text-xs font-black text-zinc-500 uppercase tracking-[0.2em]">
+          Now Playing
+        </h2>
+      </div>
+
+      {/* Cover Art + Song Info */}
+      <div className="p-6 space-y-5">
+        <div className="aspect-square w-full rounded-2xl overflow-hidden border border-white/5 shadow-lg bg-zinc-900">
           <img
-            src={currentSong.coverImageUrl}
+            src={
+              currentSong.storageKey
+                ? getCoverImageUrl(currentSong.storageKey, "large", true) ||
+                  currentSong.coverImageUrl
+                : currentSong.coverImageUrl
+            }
             alt={currentSong.title}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            className="h-full w-full object-cover"
           />
-          <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-            <p className="text-white text-xs font-medium">Currently Playing</p>
-          </div>
         </div>
-      </div>
 
-      {/* Lyrics Section */}
-      <div className="flex-1 px-6 overflow-y-auto no-scrollbar mask-fade-edge">
-        <div ref={lyricsContainerRef} className="space-y-6 py-10">
-          {lyrics.length > 0 ? (
-            lyrics.map((cue, index) => (
-              <div
-                key={index}
-                data-index={index}
-                className={`text-2xl font-bold leading-tight cursor-pointer transition-all duration-300 ${
-                  index === currentCueIndex
-                    ? "text-white scale-100 opacity-100"
-                    : "text-white/20 scale-95 hover:text-white/40"
-                }`}
-                onClick={() => {
-                  if (audioRef.current)
-                    audioRef.current.currentTime = cue.start;
-                }}
-              >
-                {cue.text}
-              </div>
-            ))
-          ) : (
-            <div className="text-center text-zinc-600 py-20 italic">
-              <div className="text-4xl mb-4 opacity-20">🎤</div>
-              <p>Lyrics synchronization coming soon</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Compact Player Controls */}
-      <div className="mt-auto bg-zinc-900/20 backdrop-blur-md border-t border-white/5 p-6 space-y-4">
-        {/* Song Info */}
-        <div>
-          <h3 className="text-white font-bold text-lg truncate leading-tight">
+        <div className="space-y-1">
+          <h3 className="font-semibold text-white text-sm truncate">
             {currentSong.title}
           </h3>
-          <p className="text-zinc-500 text-sm truncate">{currentSong.artist}</p>
+          <p className="text-[10px] text-zinc-500 truncate font-medium">
+            {currentSong.artist}
+          </p>
         </div>
 
         {/* Progress */}
@@ -185,79 +146,117 @@ export default function RightSide() {
             }}
             className="w-full"
           />
-          <div className="flex justify-between text-[10px] tabular-nums text-zinc-500 font-bold tracking-wider">
+          <div className="flex justify-between text-[10px] tabular-nums text-zinc-500 font-mono">
             <span>{formatTime(localTime)}</span>
             <span>{formatTime(duration)}</span>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between">
+        {/* Controls */}
+        <div className="flex items-center justify-center gap-6">
           <Button
             variant="ghost"
             size="icon"
-            className="text-zinc-500 hover:text-white"
+            className="h-8 w-8 text-zinc-500 hover:text-white"
             onClick={() => playerActions.playPrevious()}
           >
-            <SkipBack className="h-5 w-5 fill-current" />
+            <SkipBack className="h-4 w-4 fill-current" />
           </Button>
 
           <Button
-            className="h-14 w-14 rounded-full bg-primary text-primary-foreground hover:scale-105 transition-transform shadow-lg shadow-primary/20"
+            className="h-12 w-12 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
             onClick={() => playerActions.setIsPlaying(!isPlaying)}
           >
             {isPlaying ? (
-              <Pause className="h-7 w-7 fill-current" />
+              <Pause className="h-5 w-5 fill-current" />
             ) : (
-              <Play className="h-7 w-7 fill-current ml-1" />
+              <Play className="h-5 w-5 fill-current ml-0.5" />
             )}
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
-            className="text-zinc-500 hover:text-white"
+            className="h-8 w-8 text-zinc-500 hover:text-white"
             onClick={() => playerActions.playNext()}
           >
-            <SkipForward className="h-5 w-5 fill-current" />
+            <SkipForward className="h-4 w-4 fill-current" />
           </Button>
         </div>
 
-        {/* Volume & Quality */}
-        <div className="flex items-center gap-4 pt-2">
-          <div className="flex items-center gap-2 flex-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-zinc-500 p-0"
-              onClick={() => playerActions.setIsMuted(!isMuted)}
-            >
-              {isMuted ? (
-                <VolumeX className="h-4 w-4 text-red-500" />
-              ) : (
-                <Volume2 className="h-4 w-4" />
-              )}
-            </Button>
-            <Slider
-              value={[isMuted ? 0 : volume * 100]}
-              max={100}
-              onValueChange={(val: any) => {
-                const v = Array.isArray(val) ? val[0] : val;
-                if (v !== undefined) playerActions.setVolume(v / 100);
-              }}
-              className="flex-1"
-            />
-          </div>
+        {/* Volume */}
+        <div className="flex items-center gap-2">
           <Button
-            variant="outline"
-            size="sm"
-            className="h-8 border-white/10 bg-transparent text-[10px] font-bold text-zinc-400 hover:text-white uppercase tracking-tighter"
-            onClick={() => setShowQualityMenu(!showQualityMenu)}
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-zinc-500 p-0"
+            onClick={() => playerActions.setIsMuted(!isMuted)}
           >
-            High <ChevronDown className="ml-1 h-3 w-3" />
+            {isMuted ? (
+              <VolumeX className="h-4 w-4 text-red-500" />
+            ) : (
+              <Volume2 className="h-4 w-4" />
+            )}
           </Button>
+          <Slider
+            value={[isMuted ? 0 : volume * 100]}
+            max={100}
+            onValueChange={(val: any) => {
+              const v = Array.isArray(val) ? val[0] : val;
+              if (v !== undefined) playerActions.setVolume(v / 100);
+            }}
+            className="flex-1"
+          />
         </div>
       </div>
+
+      {/* Queue — styled like "One Melody" section */}
+      {queueSongs.length > 0 && (
+        <div className="flex-1 overflow-hidden flex flex-col border-t border-white/5">
+          <div className="flex items-center justify-between px-6 pt-4 pb-2">
+            <h2 className="text-xs font-black text-zinc-500 uppercase tracking-[0.2em]">
+              Up Next
+            </h2>
+            <span className="text-[10px] text-zinc-600 font-mono">
+              {queueSongs.length} tracks
+            </span>
+          </div>
+
+          <div className="flex-1 flex flex-col gap-1 overflow-y-auto no-scrollbar px-2 pb-6">
+            {queueSongs.map((song, index) => (
+              <div
+                key={song.id}
+                className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                onClick={() => playerActions.setCurrentSong(song)}
+              >
+                <div className="w-6 text-center text-zinc-600 font-mono text-xs group-hover:text-primary transition-colors">
+                  {String(index + 1).padStart(2, "0")}
+                </div>
+
+                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg shadow-lg">
+                  <img
+                    src={song.coverImageUrl}
+                    alt={song.title}
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Play className="h-3.5 w-3.5 fill-current text-white" />
+                  </div>
+                </div>
+
+                <div className="flex flex-col min-w-0 flex-1">
+                  <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
+                    {song.title}
+                  </h3>
+                  <p className="text-[10px] text-zinc-500 truncate font-medium">
+                    {song.artist}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

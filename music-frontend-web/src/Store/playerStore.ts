@@ -6,6 +6,7 @@ export interface Song {
     artist: string
     coverImageUrl: string
     songBaseUrl: string
+    storageKey?: string
 }
 
 interface PlayerState {

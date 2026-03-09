@@ -97,5 +97,13 @@ export const musicApi = {
     getHistory: async (page = 1, limit = 50) => {
         const response = await api.get(`/interaction/history?page=${page}&limit=${limit}`)
         return response.data
+    },
+    addSearchHistory: async (data: { searchString: string }) => {
+        const response = await api.post('/interaction/search-history', data)
+        return response.data
+    },
+    addView: async (songId: string) => {
+        const response = await api.post('/interaction/views', { songId })
+        return response.data
     }
 }

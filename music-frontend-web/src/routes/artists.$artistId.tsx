@@ -4,8 +4,9 @@ import { musicApi } from "@/lib/api";
 import { getCoverImageUrl, getBannerImageUrl } from "@/lib/s3";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Play, Music, ArrowLeft, Clock, Calendar } from "lucide-react";
+import { playerActions } from "@/Store/playerStore";
+import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
 
 export const Route = createFileRoute("/artists/$artistId")({
   component: ArtistDetailsPage,
@@ -68,12 +69,9 @@ function ArtistDetailsPage() {
 
       {/* Hero Banner */}
       <div className="relative h-[300px] w-full overflow-hidden rounded-3xl border border-white/5 bg-zinc-900 shadow-2xl">
-        {artist.bannerImage || getBannerImageUrl(artist.storageKey, "large") ? (
+        {getBannerImageUrl(artist.storageKey, "large") ? (
           <img
-            src={
-              artist.bannerImage ||
-              getBannerImageUrl(artist.storageKey, "large")!
-            }
+            src={getBannerImageUrl(artist.storageKey, "large")!}
             alt={artist.artistName}
             className="h-full w-full object-cover opacity-60"
           />
@@ -84,13 +82,9 @@ function ArtistDetailsPage() {
 
         <div className="absolute bottom-8 left-8 flex items-end gap-6">
           <div className="h-40 w-40 shrink-0 overflow-hidden rounded-2xl border-4 border-black bg-zinc-900 shadow-2xl shadow-primary/20">
-            {artist.coverImage ||
-            getCoverImageUrl(artist.storageKey, "large") ? (
+            {getCoverImageUrl(artist.storageKey, "medium") ? (
               <img
-                src={
-                  artist.coverImage ||
-                  getCoverImageUrl(artist.storageKey, "large")!
-                }
+                src={getCoverImageUrl(artist.storageKey, "medium")!}
                 alt={artist.artistName}
                 className="h-full w-full object-cover"
               />
@@ -140,18 +134,18 @@ function ArtistDetailsPage() {
                 <div
                   key={song.id}
                   className="group flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/5"
+                  onClick={() => {
+                    playerActions.setCurrentSong(mapToPlayerSong(song));
+                    playerActions.setQueue(mapListToPlayerSongs(songs));
+                  }}
                 >
                   <div className="w-8 text-center text-zinc-600 font-bold text-sm group-hover:text-primary transition-colors">
                     {(index + 1).toString().padStart(2, "0")}
                   </div>
                   <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/5 bg-zinc-900 shadow-lg">
-                    {song.coverImage ||
-                    getCoverImageUrl(song.storageKey, "small", true) ? (
+                    {getCoverImageUrl(song.storageKey, "small", true) ? (
                       <img
-                        src={
-                          song.coverImage ||
-                          getCoverImageUrl(song.storageKey, "small", true)!
-                        }
+                        src={getCoverImageUrl(song.storageKey, "small", true)!}
                         alt={song.title}
                         className="h-full w-full object-cover transform group-hover:scale-110 transition-transform duration-500"
                       />

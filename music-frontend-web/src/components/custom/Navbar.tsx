@@ -15,8 +15,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { useNavigate, useSearch } from "@tanstack/react-router";
+
 export default function Navbar() {
-  const [query, setQuery] = useState("");
+  const navigate = useNavigate({ from: "/" });
+  const search = useSearch({ from: "/" }) as any;
+  const [query, setQuery] = useState(search.q || "");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const queryClient = useQueryClient();
 
@@ -30,17 +34,34 @@ export default function Navbar() {
   // Using TanStack Pacer for debounced search logic
   const debouncedSearch = useDebouncedCallback(
     (val: string) => {
-      console.log("Searching for:", val);
-      // Here you would trigger the search API call
+      if (val.trim()) {
+        navigate({
+          to: "/",
+          search: (prev: any) => ({ ...prev, tab: "search", q: val }),
+          replace: true,
+        });
+        // Call backend to add to search history
+        musicApi.addSearchHistory({ searchString: val }).catch(console.error);
+      } else if (search.tab === "search") {
+        navigate({
+          to: "/",
+          search: (prev: any) => ({ ...prev, tab: "home", q: undefined }),
+          replace: true,
+        });
+      }
     },
     {
-      wait: 300,
+      wait: 500,
     },
   );
 
   useEffect(() => {
+    setQuery(search.q || "");
+  }, [search.q]);
+
+  useEffect(() => {
     debouncedSearch(query);
-  }, [query, debouncedSearch]);
+  }, [query]);
 
   const handleLogout = () => {
     musicApi.logout();

@@ -4,15 +4,17 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
-import { Play, ListMusic, ChevronRight, Heart } from "lucide-react";
+import { Play, ListMusic, ChevronRight, Heart, Music } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getCoverImageUrl } from "@/lib/s3";
 
 const homeSearchSchema = z.object({
   tab: z
-    .enum(["home", "artist", "playlist", "favourites", "history"])
+    .enum(["home", "artist", "playlist", "favourites", "history", "search"])
     .catch("home")
     .optional(),
+  q: z.string().optional(),
 });
 
 export const Route = createFileRoute("/")({
@@ -22,7 +24,9 @@ export const Route = createFileRoute("/")({
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { playerActions } from "@/Store/playerStore";
 import AuthModal from "@/components/custom/AuthModal";
+import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
 
 function FavoriteButton({
   songId,
@@ -104,6 +108,8 @@ function HomeComponent() {
       return <FavouritesView />;
     case "history":
       return <HistoryView />;
+    case "search":
+      return <SearchResultsView />;
     case "home":
     default:
       return <HomeFeed />;
@@ -119,6 +125,16 @@ function HomeFeed() {
   const { data: songsData, isLoading: songsLoading } = useQuery({
     queryKey: ["songs"],
     queryFn: () => musicApi.getSongs(1, 10),
+  });
+
+  const { data: artistsData, isLoading: artistsLoading } = useQuery({
+    queryKey: ["artists"],
+    queryFn: () => musicApi.getArtists(),
+  });
+
+  const { data: playlistsData, isLoading: playlistsLoading } = useQuery({
+    queryKey: ["playlists"],
+    queryFn: () => musicApi.getPlaylists(),
   });
 
   return (
@@ -148,48 +164,6 @@ function HomeFeed() {
         </div>
       </section>
 
-      {/* Personalized Feed Section */}
-      <section>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white tracking-tight">
-            Personalized Feed
-          </h2>
-          <Button
-            variant="link"
-            className="text-primary hover:text-primary/80 font-semibold p-0"
-          >
-            View all
-          </Button>
-        </div>
-        <div className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <div
-              key={i}
-              className="flex-none w-[160px] group relative space-y-3 cursor-pointer"
-            >
-              <div className="relative aspect-square overflow-hidden rounded-3xl bg-zinc-900 border border-white/5 shadow-2xl">
-                <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[2px]">
-                  <Button
-                    size="icon"
-                    className="h-12 w-12 rounded-full bg-primary hover:scale-110 transition-transform shadow-2xl shadow-primary/40"
-                  >
-                    <Play className="h-6 w-6 fill-current text-white" />
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-1 px-1">
-                <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
-                  Ocean Vibes {i}
-                </h3>
-                <p className="text-[10px] text-zinc-500 truncate font-medium">
-                  Lofi Girl, Chillhop Music
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* Top Artists Section */}
       <section>
         <div className="flex items-center justify-between mb-6">
@@ -199,31 +173,125 @@ function HomeFeed() {
           <Button
             variant="link"
             className="text-primary hover:text-primary/80 font-semibold p-0"
+            onClick={() => {
+              // Navigate to artist tab
+            }}
           >
             Explore
           </Button>
         </div>
         <div className="flex flex-row overflow-x-auto gap-8 pb-4 no-scrollbar">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-            <div
-              key={i}
-              className="flex-none w-[128px] group relative space-y-4 cursor-pointer text-center"
-            >
-              <div className="relative aspect-square overflow-hidden rounded-full bg-zinc-900 border border-white/5 mx-auto ring-offset-4 ring-offset-black ring-0 group-hover:ring-2 ring-primary transition-all duration-300">
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[1px]">
-                  <Play className="h-8 w-8 fill-current text-white transform scale-75 group-hover:scale-100 transition-transform" />
+          {artistsLoading
+            ? Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="flex-none w-[128px] space-y-4">
+                  <Skeleton className="aspect-square w-full rounded-full bg-zinc-900/50" />
+                  <Skeleton className="h-4 w-3/4 bg-zinc-900/50 mx-auto" />
                 </div>
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors text-sm">
-                  Artist Name {i}
-                </h3>
-                <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">
-                  Artist
-                </p>
-              </div>
-            </div>
-          ))}
+              ))
+            : artistsData?.data?.map((artist: any) => (
+                <Link
+                  key={artist.id}
+                  to="/artists/$artistId"
+                  params={{ artistId: artist.id }}
+                  className="flex-none w-[128px] group relative space-y-4 cursor-pointer text-center"
+                >
+                  <div className="relative aspect-square overflow-hidden rounded-full bg-zinc-900 border border-white/5 mx-auto ring-offset-4 ring-offset-black ring-0 group-hover:ring-2 ring-primary transition-all duration-300">
+                    {artist.storageKey ? (
+                      <img
+                        src={
+                          getCoverImageUrl(artist.storageKey, "medium") || ""
+                        }
+                        alt={artist.artistName}
+                        className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center bg-primary/10 text-primary">
+                        <span className="text-2xl font-black">
+                          {artist.artistName?.[0]?.toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[1px]">
+                      <Play className="h-8 w-8 fill-current text-white transform scale-75 group-hover:scale-100 transition-transform" />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors text-sm">
+                      {artist.artistName}
+                    </h3>
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">
+                      Artist
+                    </p>
+                  </div>
+                </Link>
+              ))}
+        </div>
+      </section>
+
+      {/* Playlists Section */}
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-white tracking-tight">
+            Featured Playlists
+          </h2>
+          <Button
+            variant="link"
+            className="text-primary hover:text-primary/80 font-semibold p-0"
+          >
+            See all
+          </Button>
+        </div>
+        <div className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar">
+          {playlistsLoading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex-none w-[130px] space-y-4">
+                  <Skeleton className="aspect-square w-full rounded-2xl bg-zinc-900/50" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-3/4 bg-zinc-900/50" />
+                    <Skeleton className="h-3 w-1/2 bg-zinc-900/50" />
+                  </div>
+                </div>
+              ))
+            : playlistsData?.data?.map((playlist: any) => (
+                <Link
+                  key={playlist.id}
+                  to="/playlists/$playlistId"
+                  params={{ playlistId: playlist.id }}
+                  className="flex-none w-[130px] group relative space-y-3 cursor-pointer"
+                >
+                  <div className="relative aspect-square overflow-hidden rounded-2xl bg-zinc-900 border border-white/5 shadow-2xl">
+                    {playlist.storageKey ? (
+                      <img
+                        src={
+                          getCoverImageUrl(playlist.storageKey, "medium") || ""
+                        }
+                        alt={playlist.title}
+                        className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center bg-primary/10 text-primary">
+                        <ListMusic className="h-10 w-10 opacity-20" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[2px]">
+                      <Button
+                        size="icon"
+                        className="h-10 w-10 rounded-full bg-primary hover:scale-110 transition-transform shadow-2xl shadow-primary/40"
+                      >
+                        <Play className="h-5 w-5 fill-current text-white" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-1 px-1">
+                    <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-lg">
+                      {playlist.title}
+                    </h3>
+                    <p className="text-sm text-zinc-500 truncate font-medium">
+                      {playlist.description || "Collection"}
+                    </p>
+                  </div>
+                </Link>
+              ))}
         </div>
       </section>
 
@@ -251,9 +319,12 @@ function HomeFeed() {
                   className="flex-none w-[200px] group relative space-y-4 cursor-pointer"
                 >
                   <div className="relative aspect-4/3 overflow-hidden rounded-3xl bg-zinc-900 border border-white/5 shadow-xl">
-                    {song.coverImage ? (
+                    {song.storageKey ? (
                       <img
-                        src={song.coverImage}
+                        src={
+                          getCoverImageUrl(song.storageKey, "medium", true) ||
+                          ""
+                        }
                         alt={song.title}
                         className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700"
                       />
@@ -266,6 +337,13 @@ function HomeFeed() {
                       <Button
                         size="icon"
                         className="h-12 w-12 rounded-full bg-primary hover:scale-110 transition-transform shadow-2xl shadow-primary/40"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          playerActions.setCurrentSong(mapToPlayerSong(song));
+                          playerActions.setQueue(
+                            mapListToPlayerSongs(trendingData.data),
+                          );
+                        }}
                       >
                         <Play className="h-6 w-6 fill-current text-white" />
                       </Button>
@@ -325,9 +403,11 @@ function HomeFeed() {
                   </div>
 
                   <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
-                    {song.coverImage ? (
+                    {song.storageKey ? (
                       <img
-                        src={song.coverImage}
+                        src={
+                          getCoverImageUrl(song.storageKey, "small", true) || ""
+                        }
                         alt={song.title}
                         className="h-full w-full object-cover"
                       />
@@ -359,6 +439,13 @@ function HomeFeed() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        playerActions.setCurrentSong(mapToPlayerSong(song));
+                        playerActions.setQueue(
+                          mapListToPlayerSongs(songsData.data),
+                        );
+                      }}
                     >
                       <Play className="h-4 w-4 fill-current" />
                     </Button>
@@ -405,9 +492,9 @@ function ArtistsView() {
                 className="group flex items-center gap-6 p-4 rounded-2xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/5"
               >
                 <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full ring-2 ring-zinc-900 group-hover:ring-primary/50 transition-all">
-                  {artist.coverImage ? (
+                  {artist.storageKey ? (
                     <img
-                      src={artist.coverImage}
+                      src={getCoverImageUrl(artist.storageKey, "medium") || ""}
                       alt={artist.artistName}
                       className="h-full w-full object-cover transform group-hover:scale-110 transition-transform duration-500"
                     />
@@ -489,9 +576,11 @@ function FavouritesView() {
                 </div>
 
                 <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
-                  {song.coverImage ? (
+                  {song.storageKey ? (
                     <img
-                      src={song.coverImage}
+                      src={
+                        getCoverImageUrl(song.storageKey, "small", true) || ""
+                      }
                       alt={song.title}
                       className="h-full w-full object-cover"
                     />
@@ -520,6 +609,11 @@ function FavouritesView() {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      playerActions.setCurrentSong(mapToPlayerSong(song));
+                      playerActions.setQueue(mapListToPlayerSongs(data.data));
+                    }}
                   >
                     <Play className="h-4 w-4 fill-current" />
                   </Button>
@@ -571,9 +665,11 @@ function HistoryView() {
                 className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
               >
                 <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
-                  {song.coverImage ? (
+                  {song.storageKey ? (
                     <img
-                      src={song.coverImage}
+                      src={
+                        getCoverImageUrl(song.storageKey, "small", true) || ""
+                      }
                       alt={song.title}
                       className="h-full w-full object-cover"
                     />
@@ -605,6 +701,11 @@ function HistoryView() {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      playerActions.setCurrentSong(mapToPlayerSong(song));
+                      playerActions.setQueue(mapListToPlayerSongs(data.data));
+                    }}
                   >
                     <Play className="h-4 w-4 fill-current" />
                   </Button>
@@ -659,9 +760,11 @@ function PlaylistsView() {
               >
                 <div className="flex items-center gap-6 flex-1">
                   <div className="relative h-20 w-20 shrink-0 shadow-2xl">
-                    {playlist.coverImage ? (
+                    {playlist.storageKey ? (
                       <img
-                        src={playlist.coverImage}
+                        src={
+                          getCoverImageUrl(playlist.storageKey, "medium") || ""
+                        }
                         alt={playlist.title}
                         className="rounded-xl object-cover w-full h-full transform group-hover:scale-105 transition-transform duration-500"
                       />
@@ -700,6 +803,203 @@ function PlaylistsView() {
       {!isLoading && (!data?.data || data.data.length === 0) && (
         <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
           <p className="text-lg">No playlists found</p>
+        </div>
+      )}
+    </div>
+  );
+}
+function SearchResultsView() {
+  const { q } = Route.useSearch();
+  const { data, isLoading } = useQuery({
+    queryKey: ["search", q],
+    queryFn: () => musicApi.search(q || ""),
+    enabled: !!q,
+  });
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-4xl font-black tracking-tighter text-white">
+          Search Results
+        </h1>
+        <p className="text-zinc-500">
+          {q ? `Showing results for "${q}"` : "Enter a search term"}
+        </p>
+      </div>
+
+      {!q ? (
+        <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+          <p className="text-lg">Try searching for songs, artists, or albums</p>
+        </div>
+      ) : isLoading ? (
+        <div className="flex flex-col gap-2">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-4 p-3 border-b border-zinc-900/30"
+            >
+              <Skeleton className="h-12 w-12 rounded-lg bg-zinc-900" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-1/3 bg-zinc-900" />
+                <Skeleton className="h-3 w-1/4 bg-zinc-900" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : !data?.data?.songs?.length &&
+        !data?.data?.artists?.length &&
+        !data?.data?.playlists?.length ? (
+        <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+          <p className="text-lg">No results found for "{q}"</p>
+        </div>
+      ) : (
+        <div className="space-y-10">
+          {/* Songs Results */}
+          {data.data.songs && data.data.songs.length > 0 && (
+            <section className="space-y-4">
+              <h2 className="text-2xl font-bold text-white tracking-tight">
+                Songs
+              </h2>
+              <div className="flex flex-col gap-2">
+                {data.data.songs.map((song: any) => (
+                  <div
+                    key={song.id}
+                    className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                  >
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
+                      {song.storageKey ? (
+                        <img
+                          src={
+                            getCoverImageUrl(song.storageKey, "small", true) ||
+                            ""
+                          }
+                          alt={song.title}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+                          <Music className="h-6 w-6 text-zinc-700" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Play className="h-4 w-4 fill-current text-white" />
+                      </div>
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
+                        {song.title}
+                      </h3>
+                      <p className="text-[10px] text-zinc-500 truncate font-medium">
+                        {song.artistName}
+                      </p>
+                    </div>
+                    <div className="shrink-0 flex items-center gap-2">
+                      <FavoriteButton
+                        songId={song.id}
+                        isLiked={song.isLiked || false}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          playerActions.setCurrentSong(mapToPlayerSong(song));
+                          playerActions.setQueue(
+                            mapListToPlayerSongs(data.data.songs),
+                          );
+                        }}
+                      >
+                        <Play className="h-4 w-4 fill-current" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Artist Results */}
+          {data.data.artists && data.data.artists.length > 0 && (
+            <section className="space-y-4">
+              <h2 className="text-2xl font-bold text-white tracking-tight">
+                Artists
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                {data.data.artists.map((artist: any) => (
+                  <Link
+                    key={artist.id}
+                    to="/artists/$artistId"
+                    params={{ artistId: artist.id }}
+                    className="group flex flex-col items-center gap-4 p-4 rounded-2xl hover:bg-white/5 transition-all text-center"
+                  >
+                    <div className="relative h-32 w-32 shrink-0 overflow-hidden rounded-full shadow-2xl border-4 border-white/5 bg-zinc-900">
+                      {artist.storageKey ? (
+                        <img
+                          src={
+                            getCoverImageUrl(artist.storageKey, "medium") || ""
+                          }
+                          alt={artist.artistName}
+                          className="h-full w-full object-cover transform group-hover:scale-110 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center bg-zinc-900 text-primary text-4xl font-black">
+                          {artist.artistName?.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <h4 className="font-bold text-white truncate group-hover:text-primary transition-colors w-full uppercase tracking-tighter text-sm">
+                      {artist.artistName}
+                    </h4>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Playlist Results */}
+          {data.data.playlists && data.data.playlists.length > 0 && (
+            <section className="space-y-4">
+              <h2 className="text-2xl font-bold text-white tracking-tight">
+                Playlists
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {data.data.playlists.map((playlist: any) => (
+                  <Link
+                    key={playlist.id}
+                    to="/playlists/$playlistId"
+                    params={{ playlistId: playlist.id }}
+                    className="group flex items-center gap-4 p-4 rounded-2xl hover:bg-white/5 transition-all border border-white/5 bg-zinc-900/50"
+                  >
+                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-white/5 bg-zinc-900">
+                      {playlist.storageKey ? (
+                        <img
+                          src={
+                            getCoverImageUrl(playlist.storageKey, "medium") ||
+                            ""
+                          }
+                          alt={playlist.title}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+                          <ListMusic className="h-8 w-8 text-zinc-700" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-white truncate group-hover:text-primary transition-colors">
+                        {playlist.title}
+                      </h4>
+                      <p className="text-xs text-zinc-500 line-clamp-1">
+                        {playlist.description || "Public Playlist"}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       )}
     </div>
