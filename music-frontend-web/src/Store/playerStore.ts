@@ -7,6 +7,7 @@ export interface Song {
     coverImageUrl: string
     songBaseUrl: string
     storageKey?: string
+    isLiked?: boolean
 }
 
 interface PlayerState {
@@ -35,10 +36,24 @@ export const playerStore = new Store<PlayerState>({
 
 export const playerActions = {
     setCurrentSong: (song: Song | null) => {
+        playerStore.setState((state) => {
+            if (state.currentSong?.id === song?.id && song !== null) {
+                return { ...state, isPlaying: true }
+            }
+            return {
+                ...state,
+                currentSong: song,
+                isPlaying: !!song,
+                currentTime: 0,
+                duration: 0,
+            }
+        })
+    },
+    hydrateSong: (song: Song | null) => {
         playerStore.setState((state) => ({
             ...state,
             currentSong: song,
-            isPlaying: !!song,
+            isPlaying: false,
             currentTime: 0,
             duration: 0,
         }))
@@ -114,5 +129,17 @@ export const playerActions = {
         if (currentIndex > 0) {
             playerActions.setCurrentSong(queue[currentIndex - 1])
         }
+    },
+    toggleFavourite: () => {
+        playerStore.setState((state) => {
+            if (!state.currentSong) return state
+            return {
+                ...state,
+                currentSong: {
+                    ...state.currentSong,
+                    isLiked: !state.currentSong.isLiked,
+                },
+            }
+        })
     },
 }

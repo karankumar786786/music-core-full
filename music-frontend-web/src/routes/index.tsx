@@ -1,13 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { z } from "zod";
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
-import { Play, ListMusic, ChevronRight, Heart, Music } from "lucide-react";
+import { Play, ListMusic, ChevronRight, Music } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FavoriteButton } from "@/components/custom/SongActions";
 import { getCoverImageUrl } from "@/lib/s3";
+import { playerActions } from "@/Store/playerStore";
+import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
 
 const homeSearchSchema = z.object({
   tab: z
@@ -21,80 +23,6 @@ export const Route = createFileRoute("/")({
   validateSearch: (search) => homeSearchSchema.parse(search),
   component: HomeComponent,
 });
-
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { playerActions } from "@/Store/playerStore";
-import AuthModal from "@/components/custom/AuthModal";
-import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
-
-function FavoriteButton({
-  songId,
-  isLiked,
-}: {
-  songId: string;
-  isLiked: boolean;
-}) {
-  const queryClient = useQueryClient();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const { data: user } = useQuery({
-    queryKey: ["me"],
-    queryFn: () => musicApi.getMe(),
-    retry: false,
-    enabled: !!localStorage.getItem("access_token"),
-  });
-
-  const toggleMutation = useMutation({
-    mutationFn: () =>
-      isLiked
-        ? musicApi.removeFavourite(songId)
-        : musicApi.addFavourite(songId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["favourites"] });
-      queryClient.invalidateQueries({ queryKey: ["trending"] });
-      queryClient.invalidateQueries({ queryKey: ["songs"] });
-      toast.success(
-        isLiked ? "Removed from favourites" : "Added to favourites",
-      );
-    },
-    onError: (error: any) => {
-      if (error.response?.status === 401) {
-        setIsAuthModalOpen(true);
-      } else {
-        toast.error("Failed to update favourites");
-      }
-    },
-  });
-
-  const handleToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!user) {
-      setIsAuthModalOpen(true);
-      return;
-    }
-    toggleMutation.mutate();
-  };
-
-  return (
-    <>
-      <Button
-        variant="ghost"
-        size="icon"
-        className={`rounded-full transition-all ${isLiked ? "text-primary" : "text-zinc-500 hover:text-white"}`}
-        onClick={handleToggle}
-        disabled={toggleMutation.isPending}
-      >
-        <Heart
-          className={`h-5 w-5 ${isLiked ? "fill-current scale-110" : "hover:scale-110"}`}
-        />
-      </Button>
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-      />
-    </>
-  );
-}
 
 function HomeComponent() {
   const { tab = "home" } = Route.useSearch();
@@ -137,32 +65,69 @@ function HomeFeed() {
     queryFn: () => musicApi.getPlaylists(),
   });
 
+  const { data: featuredData, isLoading: featuredLoading } = useQuery({
+    queryKey: ["featured"],
+    queryFn: () => musicApi.getFeatured(),
+  });
+
+  const featuredSong = featuredData?.data?.[0];
+
   return (
     <div className="space-y-10 pb-20">
       {/* Hero Section */}
-      <section className="relative h-[350px] overflow-hidden rounded-3xl bg-linear-to-br from-primary/20 via-black to-black border border-white/5 p-10 flex flex-col justify-end group">
-        <div className="absolute top-0 right-0 p-10 opacity-20 group-hover:opacity-30 transition-opacity">
-          <div className="h-64 w-64 rounded-full bg-primary blur-3xl animate-pulse" />
-        </div>
-        <Badge className="mb-4 w-fit bg-primary/20 text-primary border-primary/20 px-3 py-1 backdrop-blur-md">
-          New Release
-        </Badge>
-        <h1 className="text-6xl font-black tracking-tighter text-white mb-4 drop-shadow-2xl">
-          Midnight City
-        </h1>
-        <p className="max-w-md text-zinc-400 text-lg mb-8 italic">
-          Experience the ultimate synthwave journey through the neon-lit streets
-          of 1984.
-        </p>
-        <div className="flex gap-4">
-          <Button
-            size="lg"
-            className="rounded-full px-8 font-bold gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 hover:scale-105 transition-all"
-          >
-            <Play className="h-5 w-5 fill-current" /> Play Now
-          </Button>
-        </div>
-      </section>
+      {featuredLoading ? (
+        <Skeleton className="h-[350px] w-full rounded-3xl bg-zinc-900/50 border border-white/5" />
+      ) : (
+        featuredSong && (
+          <section className="relative h-[350px] overflow-hidden rounded-3xl bg-linear-to-br from-primary/20 via-black to-black border border-white/5 p-10 flex flex-col justify-end group transition-all duration-500">
+            {/* Background Image/Overlay */}
+            <div className="absolute inset-0 z-0">
+              {featuredSong.storageKey && (
+                <img
+                  src={
+                    getCoverImageUrl(featuredSong.storageKey, "large", true)!
+                  }
+                  alt=""
+                  className="h-full w-full object-cover opacity-20 group-hover:opacity-30 transition-opacity duration-700 blur-sm"
+                />
+              )}
+              <div className="absolute inset-0 bg-linear-to-t from-black via-black/20 to-transparent" />
+            </div>
+
+            <div className="relative z-10">
+              <div className="absolute top-[-100px] right-[-100px] p-10 opacity-20 group-hover:opacity-30 transition-opacity pointer-events-none">
+                <div className="h-64 w-64 rounded-full bg-primary blur-3xl animate-pulse" />
+              </div>
+              <Badge className="mb-4 w-fit bg-primary/20 text-primary border-primary/20 px-3 py-1 backdrop-blur-md">
+                Featured Release
+              </Badge>
+              <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-white mb-2 drop-shadow-2xl capitalize line-clamp-2 max-w-2xl">
+                {featuredSong.title}
+              </h1>
+              <p className="max-w-md text-zinc-300 text-lg mb-8 font-medium">
+                by{" "}
+                <span className="text-white font-bold">
+                  {featuredSong.artistName}
+                </span>
+              </p>
+              <div className="flex gap-4">
+                <Button
+                  size="lg"
+                  className="rounded-full px-8 font-bold gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 hover:scale-105 transition-all"
+                  onClick={() => {
+                    playerActions.setCurrentSong(mapToPlayerSong(featuredSong));
+                    playerActions.setQueue(
+                      mapListToPlayerSongs(featuredData.data),
+                    );
+                  }}
+                >
+                  <Play className="h-5 w-5 fill-current" /> Play Now
+                </Button>
+              </div>
+            </div>
+          </section>
+        )
+      )}
 
       {/* Top Artists Section */}
       <section>

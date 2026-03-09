@@ -1,11 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Play, Music, ArrowLeft, ListMusic } from "lucide-react";
+import { Play, Music, ArrowLeft, ListMusic, Trash2 } from "lucide-react";
 import { playerActions } from "@/Store/playerStore";
 import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
 import { getCoverImageUrl } from "@/lib/s3";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/user-playlists/$playlistId")({
   component: UserPlaylistDetailsPage,
@@ -13,21 +14,42 @@ export const Route = createFileRoute("/user-playlists/$playlistId")({
 
 function UserPlaylistDetailsPage() {
   const { playlistId } = Route.useParams();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: playlist, isLoading } = useQuery({
     queryKey: ["userPlaylist", playlistId],
     queryFn: () => musicApi.getUserPlaylist(playlistId),
   });
 
-  const songsData = playlist?.songs?.data || [];
-  const songs = songsData.map((item: any) => item.song).filter(Boolean);
+  const deletePlaylistMutation = useMutation({
+    mutationFn: () => musicApi.deleteUserPlaylist(playlistId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["userPlaylists"] });
+      toast.success("Playlist deleted");
+      navigate({ to: "/", search: { tab: "playlist" } });
+    },
+    onError: () => {
+      toast.error("Failed to delete playlist");
+    },
+  });
 
-  const formatDuration = (ms: number) => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  };
+  const songsData = playlist?.songs?.data || [];
+  const songs = songsData
+    .map(
+      (item: {
+        song: {
+          id: string;
+          title: string;
+          storageKey: string;
+          artistName: string;
+          genre: string;
+          durationMs: number;
+        };
+      }) => item.song,
+    )
+    .filter(Boolean);
+
 
   if (isLoading) return <PlaylistDetailsSkeleton />;
   if (!playlist)
@@ -48,11 +70,24 @@ function UserPlaylistDetailsPage() {
             <ArrowLeft className="h-5 w-5 text-zinc-400" />
           </Button>
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="text-3xl font-black tracking-tighter text-white">
             {playlist.title}
           </h1>
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full hover:bg-red-500/10 hover:text-red-500 border border-transparent transition-all"
+          onClick={() => {
+            if (confirm("Are you sure you want to delete this playlist?")) {
+              deletePlaylistMutation.mutate();
+            }
+          }}
+          disabled={deletePlaylistMutation.isPending}
+        >
+          <Trash2 className="h-5 w-5" />
+        </Button>
       </div>
 
       {/* Hero Section */}
@@ -115,58 +150,14 @@ function UserPlaylistDetailsPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-1">
-            {songs.map((song: any, index: number) => (
-              <div
+            {songs.map((song: PlaylistSong, index: number) => (
+              <PlaylistSongRow
                 key={song.id}
-                className="group grid grid-cols-12 w-full items-center p-3 rounded-2xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/5"
-                onClick={() => {
-                  playerActions.setCurrentSong(mapToPlayerSong(song));
-                  playerActions.setQueue(mapListToPlayerSongs(songs));
-                }}
-              >
-                <div className="col-span-1 text-center text-zinc-600 font-bold text-sm group-hover:text-primary transition-colors">
-                  {(index + 1).toString().padStart(2, "0")}
-                </div>
-
-                <div className="col-span-11 grid grid-cols-11 items-center gap-4">
-                  <div className="col-span-7 flex items-center gap-4">
-                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/5 bg-zinc-900 shadow-lg">
-                      {getCoverImageUrl(song.storageKey, "small", true) ? (
-                        <img
-                          src={
-                            getCoverImageUrl(song.storageKey, "small", true)!
-                          }
-                          alt={song.title}
-                          className="h-full w-full object-cover transform group-hover:scale-110 transition-transform duration-500"
-                        />
-                      ) : (
-                        <div className="h-full w-full flex items-center justify-center text-zinc-700">
-                          <Music className="h-5 w-5" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Play className="h-5 w-5 fill-current text-white" />
-                      </div>
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="font-bold text-white truncate group-hover:text-primary transition-colors capitalize">
-                        {song.title}
-                      </h4>
-                      <p className="text-xs text-zinc-500 font-medium">
-                        {song.artistName}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="col-span-3 text-zinc-400 text-sm font-medium truncate">
-                    {song.genre}
-                  </div>
-
-                  <div className="col-span-1 text-right text-zinc-500 text-xs font-bold font-mono tracking-tighter pr-4">
-                    {formatDuration(song.durationMs)}
-                  </div>
-                </div>
-              </div>
+                song={song}
+                index={index}
+                playlistId={playlistId}
+                songs={songs}
+              />
             ))}
           </div>
         )}
@@ -187,6 +178,118 @@ function PlaylistDetailsSkeleton() {
         {[1, 2, 3, 4, 5].map((i) => (
           <div key={i} className="h-16 w-full bg-zinc-900 rounded-2xl" />
         ))}
+      </div>
+    </div>
+  );
+}
+
+interface PlaylistSong {
+  id: string;
+  title: string;
+  storageKey: string;
+  artistName: string;
+  genre: string;
+  durationMs: number;
+}
+
+function PlaylistSongRow({
+  song,
+  index,
+  playlistId,
+  songs,
+}: {
+  song: PlaylistSong;
+  index: number;
+  playlistId: string;
+  songs: PlaylistSong[];
+}) {
+  const queryClient = useQueryClient();
+  const removeSongMutation = useMutation({
+    mutationFn: () => musicApi.removeSongFromUserPlaylist(playlistId, song.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["userPlaylist", playlistId] });
+      toast.success("Song removed from playlist");
+    },
+    onError: () => {
+      toast.error("Failed to remove song from playlist");
+    },
+  });
+
+  const formatDuration = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
+
+  return (
+    <div
+      className="group grid grid-cols-12 w-full items-center p-3 rounded-2xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/5"
+      onClick={() => {
+        playerActions.setCurrentSong(mapToPlayerSong(song));
+        playerActions.setQueue(mapListToPlayerSongs(songs));
+      }}
+    >
+      <div className="col-span-1 text-center text-zinc-600 font-bold text-sm group-hover:text-primary transition-colors">
+        {(index + 1).toString().padStart(2, "0")}
+      </div>
+
+      <div className="col-span-11 grid grid-cols-11 items-center gap-4">
+        <div className="col-span-7 flex items-center gap-4">
+          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/5 bg-zinc-900 shadow-lg">
+            {getCoverImageUrl(song.storageKey, "small", true) ? (
+              <img
+                src={getCoverImageUrl(song.storageKey, "small", true)!}
+                alt={song.title}
+                className="h-full w-full object-cover transform group-hover:scale-110 transition-transform duration-500"
+              />
+            ) : (
+              <div className="h-full w-full flex items-center justify-center text-zinc-700">
+                <Music className="h-5 w-5" />
+              </div>
+            )}
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <Play className="h-5 w-5 fill-current text-white" />
+            </div>
+          </div>
+          <div className="min-w-0">
+            <h4 className="font-bold text-white truncate group-hover:text-primary transition-colors capitalize">
+              {song.title}
+            </h4>
+            <p className="text-xs text-zinc-500 font-medium">
+              {song.artistName}
+            </p>
+          </div>
+        </div>
+
+        <div className="col-span-2 text-zinc-400 text-sm font-medium truncate">
+          {song.genre}
+        </div>
+
+        <div className="col-span-1 text-right text-zinc-500 text-xs font-bold font-mono tracking-tighter pr-4">
+          {formatDuration(song.durationMs)}
+        </div>
+
+        <div className="col-span-1 flex justify-end">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full text-zinc-500 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (confirm("Remove this song from playlist?")) {
+                removeSongMutation.mutate();
+              }
+            }}
+            disabled={removeSongMutation.isPending}
+          >
+            {removeSongMutation.isPending ? (
+              <div className="h-4 w-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -11,8 +11,12 @@ import { Toaster } from "@/components/ui/sonner";
 import Leftside from "@/components/custom/Leftside";
 import RightSide from "@/components/custom/RightSide";
 import Navbar from "@/components/custom/Navbar";
+import { useStore } from "@tanstack/react-store";
 import { musicApi } from "@/lib/api";
 import AuthModal from "@/components/custom/AuthModal";
+import { mapToPlayerSong } from "@/lib/player-utils";
+import { playerActions, playerStore } from "@/Store/playerStore";
+import { useEffect } from "react";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +38,23 @@ function MainLayout() {
   });
 
   const isAuthenticated = !!user;
+
+  const currentSong = useStore(playerStore, (s: any) => s.currentSong);
+
+  const { data: historyData } = useQuery({
+    queryKey: ["history", "recent"],
+    queryFn: () => musicApi.getHistory(1, 1),
+    enabled: isAuthenticated,
+  });
+
+  useEffect(() => {
+    if (isAuthenticated && historyData?.data?.[0] && !currentSong) {
+      const lastSong = historyData.data[0].song;
+      if (lastSong) {
+        playerActions.hydrateSong(mapToPlayerSong(lastSong));
+      }
+    }
+  }, [isAuthenticated, historyData, currentSong]);
 
   if (!isAuthenticated && !isLoading) {
     return (

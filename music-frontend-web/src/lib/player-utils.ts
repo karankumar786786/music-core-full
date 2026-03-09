@@ -9,6 +9,7 @@ export const mapToPlayerSong = (song: any): PlayerSong => {
         coverImageUrl: getCoverImageUrl(song.storageKey, "small", true) || "",
         songBaseUrl: song.songBaseUrl || "",
         storageKey: song.storageKey,
+        isLiked: song.isLiked,
     };
 };
 

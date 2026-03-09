@@ -114,6 +114,10 @@ export const musicApi = {
         const response = await api.post('/userplaylists', data)
         return response.data
     },
+    deleteUserPlaylist: async (id: string) => {
+        const response = await api.delete(`/userplaylists/${id}`)
+        return response.data
+    },
     addSongToUserPlaylist: async (playlistId: string, songId: string) => {
         const response = await api.post(`/userplaylists/${playlistId}/songs`, { songId })
         return response.data
