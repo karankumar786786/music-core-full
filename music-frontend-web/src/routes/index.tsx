@@ -566,60 +566,69 @@ function FavouritesView() {
                 </div>
               </div>
             ))
-          : data?.data?.map((song: any, index: number) => (
-              <div
-                key={song.id}
-                className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
-              >
-                <div className="w-8 text-center text-zinc-600 font-mono text-xs group-hover:text-primary transition-colors">
-                  {String(index + 1).padStart(2, "0")}
-                </div>
+          : data?.data?.map((item: any, index: number) => {
+              const song = item.song;
+              if (!song) return null;
 
-                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
-                  {song.storageKey ? (
-                    <img
-                      src={
-                        getCoverImageUrl(song.storageKey, "small", true) || ""
-                      }
-                      alt={song.title}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-zinc-900">
-                      <ListMusic className="h-6 w-6 text-zinc-700" />
+              return (
+                <div
+                  key={item.id}
+                  className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                >
+                  <div className="w-8 text-center text-zinc-600 font-mono text-xs group-hover:text-primary transition-colors">
+                    {String(index + 1).padStart(2, "0")}
+                  </div>
+
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
+                    {song.storageKey ? (
+                      <img
+                        src={
+                          getCoverImageUrl(song.storageKey, "small", true) || ""
+                        }
+                        alt={song.title}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+                        <ListMusic className="h-6 w-6 text-zinc-700" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Play className="h-4 w-4 fill-current text-white" />
                     </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Play className="h-4 w-4 fill-current text-white" />
+                  </div>
+
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
+                      {song.title}
+                    </h3>
+                    <p className="text-[10px] text-zinc-500 truncate font-medium">
+                      {song.artistName}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 flex items-center gap-2">
+                    <FavoriteButton songId={song.id} isLiked={true} />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        playerActions.setCurrentSong(mapToPlayerSong(song));
+                        playerActions.setQueue(
+                          mapListToPlayerSongs(
+                            data.data.map((i: any) => i.song).filter(Boolean),
+                          ),
+                        );
+                      }}
+                    >
+                      <Play className="h-4 w-4 fill-current" />
+                    </Button>
                   </div>
                 </div>
-
-                <div className="flex flex-col min-w-0 flex-1">
-                  <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
-                    {song.title}
-                  </h3>
-                  <p className="text-[10px] text-zinc-500 truncate font-medium">
-                    {song.artistName}
-                  </p>
-                </div>
-
-                <div className="shrink-0 flex items-center gap-2">
-                  <FavoriteButton songId={song.id} isLiked={true} />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      playerActions.setCurrentSong(mapToPlayerSong(song));
-                      playerActions.setQueue(mapListToPlayerSongs(data.data));
-                    }}
-                  >
-                    <Play className="h-4 w-4 fill-current" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
       </div>
       {!isLoading && (!data?.data || data.data.length === 0) && (
         <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
@@ -659,59 +668,68 @@ function HistoryView() {
                 </div>
               </div>
             ))
-          : data?.data?.map((song: any) => (
-              <div
-                key={song.id}
-                className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
-              >
-                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
-                  {song.storageKey ? (
-                    <img
-                      src={
-                        getCoverImageUrl(song.storageKey, "small", true) || ""
-                      }
-                      alt={song.title}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-zinc-900">
-                      <ListMusic className="h-6 w-6 text-zinc-700" />
+          : data?.data?.map((item: any) => {
+              const song = item.song;
+              if (!song) return null;
+
+              return (
+                <div
+                  key={item.id}
+                  className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                >
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
+                    {song.storageKey ? (
+                      <img
+                        src={
+                          getCoverImageUrl(song.storageKey, "small", true) || ""
+                        }
+                        alt={song.title}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+                        <ListMusic className="h-6 w-6 text-zinc-700" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Play className="h-4 w-4 fill-current text-white" />
                     </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Play className="h-4 w-4 fill-current text-white" />
+                  </div>
+
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
+                      {song.title}
+                    </h3>
+                    <p className="text-[10px] text-zinc-500 truncate font-medium">
+                      {song.artistName}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 flex items-center gap-2">
+                    <FavoriteButton
+                      songId={song.id}
+                      isLiked={song.isLiked || false}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        playerActions.setCurrentSong(mapToPlayerSong(song));
+                        playerActions.setQueue(
+                          mapListToPlayerSongs(
+                            data.data.map((i: any) => i.song).filter(Boolean),
+                          ),
+                        );
+                      }}
+                    >
+                      <Play className="h-4 w-4 fill-current" />
+                    </Button>
                   </div>
                 </div>
-
-                <div className="flex flex-col min-w-0 flex-1">
-                  <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
-                    {song.title}
-                  </h3>
-                  <p className="text-[10px] text-zinc-500 truncate font-medium">
-                    {song.artistName}
-                  </p>
-                </div>
-
-                <div className="shrink-0 flex items-center gap-2">
-                  <FavoriteButton
-                    songId={song.id}
-                    isLiked={song.isLiked || false}
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      playerActions.setCurrentSong(mapToPlayerSong(song));
-                      playerActions.setQueue(mapListToPlayerSongs(data.data));
-                    }}
-                  >
-                    <Play className="h-4 w-4 fill-current" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
       </div>
       {!isLoading && (!data?.data || data.data.length === 0) && (
         <div className="flex flex-col items-center justify-center py-20 text-zinc-500">

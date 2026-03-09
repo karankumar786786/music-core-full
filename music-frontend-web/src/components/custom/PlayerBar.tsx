@@ -17,6 +17,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import Hls from "hls.js";
+import { getSongBaseUrl } from "@/lib/s3";
 
 export default function PlayerBar() {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -26,29 +27,56 @@ export default function PlayerBar() {
 
   const { currentSong, isPlaying, volume, isMuted, duration } = state;
 
-  // Initialize HLS
+  // Initialize HLS — re-runs only when song changes
   useEffect(() => {
     if (!audioRef.current || !currentSong) return;
 
-    const streamUrl = `${currentSong.songBaseUrl}/master.m3u8`;
+    const baseUrl = getSongBaseUrl(currentSong.storageKey) || currentSong.songBaseUrl;
+    if (!baseUrl) return;
+
+    const streamUrl = `${baseUrl}/master.m3u8`;
+
+    // Destroy previous instance before creating new one
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
 
     if (Hls.isSupported()) {
-      if (hlsRef.current) hlsRef.current.destroy();
-
-      const hls = new Hls();
+      const hls = new Hls({
+        enableWorker: true,
+        maxBufferLength: 40,
+        maxMaxBufferLength: 60,
+      });
       hlsRef.current = hls;
       hls.loadSource(streamUrl);
       hls.attachMedia(audioRef.current);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (isPlaying) audioRef.current?.play();
+        if (isPlaying) audioRef.current?.play().catch(console.error);
+      });
+
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (data.fatal) {
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+          else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+          else hls.destroy();
+        }
       });
     } else if (audioRef.current.canPlayType("application/vnd.apple.mpegurl")) {
+      // Safari native HLS
       audioRef.current.src = streamUrl;
     }
-  }, [currentSong]);
 
-  // Sync isPlaying
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [currentSong?.id]);
+
+  // Sync play/pause state to audio element
   useEffect(() => {
     if (!audioRef.current) return;
     if (isPlaying) {
@@ -58,7 +86,13 @@ export default function PlayerBar() {
     }
   }, [isPlaying]);
 
-  // Handle Time Update
+  // Sync volume and mute state to audio element
+  useEffect(() => {
+    if (!audioRef.current) return;
+    audioRef.current.volume = isMuted ? 0 : volume;
+    audioRef.current.muted = isMuted;
+  }, [volume, isMuted]);
+
   const handleTimeUpdate = () => {
     if (!audioRef.current) return;
     setLocalTime(audioRef.current.currentTime);
@@ -66,11 +100,12 @@ export default function PlayerBar() {
   };
 
   const handleLoadedMetadata = () => {
-    if (!audioRef.current) return;
+    if (!audioRef.current || !isFinite(audioRef.current.duration)) return;
     playerActions.setDuration(audioRef.current.duration);
   };
 
   const formatTime = (time: number) => {
+    if (isNaN(time) || !isFinite(time)) return "0:00";
     const mins = Math.floor(time / 60);
     const secs = Math.floor(time % 60);
     return `${mins}:${secs.toString().padStart(2, "0")}`;
@@ -94,7 +129,7 @@ export default function PlayerBar() {
 
       {/* Song Info */}
       <div className="flex items-center gap-4 w-[30%]">
-        <div className="h-16 w-16 overflow-hidden rounded-xl border border-white/10 shadow-lg">
+        <div className="h-16 w-16 overflow-hidden rounded-xl border border-white/10 shadow-lg shrink-0">
           <img
             src={currentSong.coverImageUrl}
             alt={currentSong.title}
@@ -102,15 +137,13 @@ export default function PlayerBar() {
           />
         </div>
         <div className="flex flex-col overflow-hidden">
-          <h4 className="text-sm font-bold text-white truncate">
-            {currentSong.title}
-          </h4>
+          <h4 className="text-sm font-bold text-white truncate">{currentSong.title}</h4>
           <p className="text-xs text-zinc-500 truncate">{currentSong.artist}</p>
         </div>
         <Button
           variant="ghost"
           size="icon"
-          className="text-zinc-500 hover:text-red-500 ml-2"
+          className="text-zinc-500 hover:text-red-500 ml-2 shrink-0"
         >
           <Heart className="h-5 w-5" />
         </Button>
@@ -119,11 +152,7 @@ export default function PlayerBar() {
       {/* Controls & Progress */}
       <div className="flex flex-col items-center gap-2 flex-1 max-w-[40%]">
         <div className="flex items-center gap-6">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-zinc-500 hover:text-white h-8 w-8"
-          >
+          <Button variant="ghost" size="icon" className="text-zinc-500 hover:text-white h-8 w-8">
             <Shuffle className="h-4 w-4" />
           </Button>
           <Button
@@ -135,14 +164,10 @@ export default function PlayerBar() {
             <SkipBack className="h-6 w-6 fill-current" />
           </Button>
           <Button
-            className="h-12 w-12 rounded-full bg-white text-black hover:scale-105 transition-transform"
+            className="h-12 w-12 rounded-full bg-white text-black hover:scale-105 transition-transform shrink-0"
             onClick={() => playerActions.setIsPlaying(!isPlaying)}
           >
-            {isPlaying ? (
-              <Pause className="h-6 w-6 fill-current" />
-            ) : (
-              <Play className="h-6 w-6 fill-current ml-1" />
-            )}
+            {isPlaying ? <Pause className="h-6 w-6 fill-current" /> : <Play className="h-6 w-6 fill-current ml-1" />}
           </Button>
           <Button
             variant="ghost"
@@ -152,34 +177,24 @@ export default function PlayerBar() {
           >
             <SkipForward className="h-6 w-6 fill-current" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-zinc-500 hover:text-white h-8 w-8"
-          >
+          <Button variant="ghost" size="icon" className="text-zinc-500 hover:text-white h-8 w-8">
             <Repeat className="h-4 w-4" />
           </Button>
         </div>
 
         <div className="flex items-center gap-3 w-full">
-          <span className="text-[10px] tabular-nums text-zinc-500 font-medium">
-            {formatTime(localTime)}
-          </span>
+          <span className="text-[10px] tabular-nums text-zinc-500 font-medium">{formatTime(localTime)}</span>
           <Slider
             value={[localTime]}
             max={duration || 100}
             step={0.1}
             onValueChange={(val: any) => {
               const v = Array.isArray(val) ? val[0] : val;
-              if (audioRef.current && v !== undefined) {
-                audioRef.current.currentTime = v;
-              }
+              if (audioRef.current && v !== undefined) audioRef.current.currentTime = v;
             }}
             className="flex-1"
           />
-          <span className="text-[10px] tabular-nums text-zinc-500 font-medium">
-            {formatTime(duration)}
-          </span>
+          <span className="text-[10px] tabular-nums text-zinc-500 font-medium">{formatTime(duration)}</span>
         </div>
       </div>
 
@@ -189,14 +204,13 @@ export default function PlayerBar() {
           <Button
             variant="ghost"
             size="icon"
-            className="text-zinc-500 group-hover:text-white h-8 w-8"
+            className="text-zinc-500 group-hover:text-white h-8 w-8 shrink-0"
             onClick={() => playerActions.setIsMuted(!isMuted)}
           >
-            {isMuted ? (
-              <VolumeX className="h-4 w-4 text-red-500" />
-            ) : (
-              <Volume2 className="h-4 w-4" />
-            )}
+            {isMuted || volume === 0
+              ? <VolumeX className="h-4 w-4 text-red-500" />
+              : <Volume2 className="h-4 w-4" />
+            }
           </Button>
           <Slider
             value={[isMuted ? 0 : volume * 100]}
@@ -205,23 +219,16 @@ export default function PlayerBar() {
               const v = Array.isArray(val) ? val[0] : val;
               if (v !== undefined) {
                 playerActions.setVolume(v / 100);
+                if (v > 0 && isMuted) playerActions.setIsMuted(false);
               }
             }}
             className="flex-1"
           />
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-zinc-500 hover:text-white h-8 w-8"
-        >
+        <Button variant="ghost" size="icon" className="text-zinc-500 hover:text-white h-8 w-8">
           <ListMusic className="h-4 w-4" />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-zinc-500 hover:text-white h-8 w-8"
-        >
+        <Button variant="ghost" size="icon" className="text-zinc-500 hover:text-white h-8 w-8">
           <Maximize2 className="h-4 w-4" />
         </Button>
       </div>

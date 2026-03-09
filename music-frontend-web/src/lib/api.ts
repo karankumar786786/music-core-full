@@ -102,6 +102,26 @@ export const musicApi = {
         const response = await api.post('/interaction/search-history', data)
         return response.data
     },
+    getUserPlaylists: async (page = 1, limit = 20) => {
+        const response = await api.get(`/userplaylists?page=${page}&limit=${limit}`)
+        return response.data
+    },
+    getUserPlaylist: async (id: string, page = 1, limit = 50) => {
+        const response = await api.get(`/userplaylists/${id}?page=${page}&limit=${limit}`)
+        return response.data
+    },
+    createUserPlaylist: async (data: { title: string }) => {
+        const response = await api.post('/userplaylists', data)
+        return response.data
+    },
+    addSongToUserPlaylist: async (playlistId: string, songId: string) => {
+        const response = await api.post(`/userplaylists/${playlistId}/songs`, { songId })
+        return response.data
+    },
+    removeSongFromUserPlaylist: async (playlistId: string, songId: string) => {
+        const response = await api.delete(`/userplaylists/${playlistId}/songs/${songId}`)
+        return response.data
+    },
     addView: async (songId: string) => {
         const response = await api.post('/interaction/views', { songId })
         return response.data

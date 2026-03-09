@@ -51,6 +51,18 @@ export default function RightSide() {
   const [showQualityMenu, setShowQualityMenu] = useState<boolean>(false);
   const [currentBitrate, setCurrentBitrate] = useState<number | null>(null);
 
+  // Reset state when song changes
+  useEffect(() => {
+    setLocalTime(0);
+    setBuffered(0);
+    setLyrics([]);
+    setCurrentCueIndex(-1);
+    currentCueIndexRef.current = -1;
+    setQualityLevels([]);
+    setCurrentQuality(-1);
+    setCurrentBitrate(null);
+  }, [currentSong?.id]);
+
   // Load captions/lyrics
   useEffect(() => {
     const loadLyrics = async () => {
@@ -82,8 +94,7 @@ export default function RightSide() {
           }
         }
         setLyrics(parsedCues);
-      } catch (error) {
-        console.warn("Lyrics error:", error);
+      } catch {
         setLyrics([]);
       }
     };
@@ -105,9 +116,20 @@ export default function RightSide() {
     if (!baseUrl) return;
     const streamUrl = `${baseUrl}/master.m3u8`;
 
+    // Destroy previous instance
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+
     if (Hls.isSupported()) {
-      if (hlsRef.current) hlsRef.current.destroy();
-      const hls = new Hls({ enableWorker: true, lowLatencyMode: false, maxBufferLength: 40, maxMaxBufferLength: 60, backBufferLength: 30 });
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        maxBufferLength: 40,
+        maxMaxBufferLength: 60,
+        backBufferLength: 30,
+      });
       hlsRef.current = hls;
       hls.loadSource(streamUrl);
       hls.attachMedia(audioRef.current);
@@ -135,7 +157,13 @@ export default function RightSide() {
     } else if (audioRef.current.canPlayType("application/vnd.apple.mpegurl")) {
       audioRef.current.src = streamUrl;
     }
-    return () => { if (hlsRef.current) hlsRef.current.destroy(); };
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
   }, [currentSong?.id]);
 
   // Sync Play/Pause
@@ -148,6 +176,13 @@ export default function RightSide() {
       audioRef.current.pause();
     }
   }, [isPlaying, currentSong?.id]);
+
+  // Sync volume to audio element
+  useEffect(() => {
+    if (!audioRef.current) return;
+    audioRef.current.volume = isMuted ? 0 : volume;
+    audioRef.current.muted = isMuted;
+  }, [volume, isMuted]);
 
   const handleTimeUpdate = () => {
     if (!audioRef.current) return;
@@ -169,7 +204,9 @@ export default function RightSide() {
         setCurrentCueIndex(newCueIndex);
 
         if (newCueIndex !== -1 && lyricsContainerRef.current) {
-          const activeLine = lyricsContainerRef.current.querySelector(`[data-index="${newCueIndex}"]`);
+          const activeLine = lyricsContainerRef.current.querySelector(
+            `[data-index="${newCueIndex}"]`
+          );
           if (activeLine) {
             activeLine.scrollIntoView({ behavior: "smooth", block: "center" });
           }
@@ -216,7 +253,10 @@ export default function RightSide() {
           if (audioRef.current?.buffered.length)
             setBuffered(audioRef.current.buffered.end(audioRef.current.buffered.length - 1));
         }}
-        onLoadedMetadata={() => audioRef.current && playerActions.setDuration(audioRef.current.duration)}
+        onLoadedMetadata={() => {
+          if (audioRef.current && isFinite(audioRef.current.duration))
+            playerActions.setDuration(audioRef.current.duration);
+        }}
         onEnded={() => playerActions.playNext()}
       />
 
@@ -255,14 +295,15 @@ export default function RightSide() {
                 key={index}
                 data-index={index}
                 onClick={() => { if (audioRef.current) audioRef.current.currentTime = cue.start; }}
+                // NOTE: No scale transform here — it causes scroll position miscalculation
                 className={`cursor-pointer transition-all duration-500 text-center flex flex-col gap-2 ${
-                  isActive ? "scale-105" : isPast ? "opacity-30" : "opacity-40"
+                  isActive ? "" : isPast ? "opacity-30" : "opacity-40 hover:opacity-70"
                 }`}
               >
                 {segments.map((segment, si) => (
                   <span
                     key={si}
-                    className={`block font-bold tracking-tight leading-tight transition-all duration-500 ${
+                    className={`block font-bold tracking-tight leading-tight transition-all duration-300 ${
                       isActive ? "text-white text-[1.6rem]" : "text-zinc-600 text-[1.3rem]"
                     }`}
                   >
@@ -384,7 +425,12 @@ export default function RightSide() {
           </Button>
 
           <div className="flex items-center gap-7">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-transparent hover:scale-110 active:scale-95 transition-all" onClick={() => playerActions.playPrevious()}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-transparent hover:scale-110 active:scale-95 transition-all"
+              onClick={() => playerActions.playPrevious()}
+            >
               <SkipBack className="h-5 w-5 fill-current" />
             </Button>
             <Button
@@ -393,12 +439,21 @@ export default function RightSide() {
             >
               {isPlaying ? <Pause className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current ml-0.5" />}
             </Button>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-transparent hover:scale-110 active:scale-95 transition-all" onClick={() => playerActions.playNext()}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:bg-transparent hover:scale-110 active:scale-95 transition-all"
+              onClick={() => playerActions.playNext()}
+            >
               <SkipForward className="h-5 w-5 fill-current" />
             </Button>
           </div>
 
-          <Button variant="ghost" size="icon" className="text-zinc-500 hover:text-white hover:bg-transparent transition-colors">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-zinc-500 hover:text-white hover:bg-transparent transition-colors"
+          >
             <Heart className="h-5 w-5" />
           </Button>
         </div>
@@ -413,13 +468,18 @@ export default function RightSide() {
             onChange={(e) => {
               const v = parseFloat(e.target.value) / 100;
               playerActions.setVolume(v);
-              if (audioRef.current) audioRef.current.volume = v;
+              if (v > 0 && isMuted) playerActions.setIsMuted(false);
             }}
             className="flex-1 h-1 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md hover:[&::-webkit-slider-thumb]:scale-110 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-0"
             style={{ background: `linear-gradient(to right, #1ed760 ${volProgress}%, #333 ${volProgress}%)` }}
           />
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-white p-0 hover:bg-transparent transition-transform hover:scale-110" onClick={() => playerActions.setIsMuted(!isMuted)}>
-            {isMuted ? <VolumeX className="h-6 w-6 text-red-500" /> : <Volume2 className="h-6 w-6" />}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-white p-0 hover:bg-transparent transition-transform hover:scale-110"
+            onClick={() => playerActions.setIsMuted(!isMuted)}
+          >
+            {isMuted || volume === 0 ? <VolumeX className="h-5 w-5 text-red-500" /> : <Volume2 className="h-5 w-5" />}
           </Button>
         </div>
       </div>
