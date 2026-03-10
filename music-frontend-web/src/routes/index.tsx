@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
