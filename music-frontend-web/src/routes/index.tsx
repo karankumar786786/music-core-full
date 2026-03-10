@@ -163,7 +163,7 @@ function HomeFeed() {
         <div className="flex flex-row overflow-x-auto pl-2 pt-2 gap-8 pb-4 no-scrollbar">
           {artistsLoading
             ? Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="flex-none w-[128px] space-y-4">
+                <div key={i} className="flex-none w-[120px] space-y-4">
                   <Skeleton className="aspect-square w-full rounded-full bg-zinc-900/50" />
                   <Skeleton className="h-4 w-3/4 bg-zinc-900/50 mx-auto" />
                 </div>
@@ -224,7 +224,7 @@ function HomeFeed() {
         <div className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar">
           {playlistsLoading
             ? Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex-none w-[130px] space-y-4">
+                <div key={i} className="flex-none w-[104px] space-y-4">
                   <Skeleton className="aspect-square w-full rounded-2xl bg-zinc-900/50" />
                   <div className="space-y-2">
                     <Skeleton className="h-4 w-3/4 bg-zinc-900/50" />
@@ -237,7 +237,7 @@ function HomeFeed() {
                   key={playlist.id}
                   to="/playlists/$playlistId"
                   params={{ playlistId: playlist.id }}
-                  className="flex-none w-[180px] group relative space-y-4 cursor-pointer hover-scale"
+                  className="flex-none w-[144px] group relative space-y-4 cursor-pointer hover-scale"
                 >
                   <div className="relative aspect-square overflow-hidden rounded-3xl bg-zinc-900 border border-white/5 shadow-2xl group-hover:border-white/10 transition-colors">
                     {playlist.storageKey ? (
@@ -285,7 +285,7 @@ function HomeFeed() {
         <div className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar">
           {trendingLoading
             ? Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex-none w-[200px] space-y-4">
+                <div key={i} className="flex-none w-[180px] space-y-4">
                   <Skeleton className="aspect-4/3 w-full rounded-3xl bg-zinc-900/50" />
                   <div className="space-y-2">
                     <Skeleton className="h-4 w-3/4 bg-zinc-900/50" />
@@ -406,7 +406,7 @@ function HomeFeed() {
                     </div>
 
                     <div className="flex flex-col min-w-0 flex-1">
-                      <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors text-sm tracking-tight text-glow-green">
+                      <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors text-sm tracking-tight">
                         {song.title}
                       </h3>
                       <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest truncate">

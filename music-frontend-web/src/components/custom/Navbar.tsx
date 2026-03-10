@@ -70,7 +70,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className="flex h-20 items-center justify-between border-b border-white/5 glass-effect px-8 sticky top-0 z-50">
+    <header className="flex h-20 items-center justify-between   glass-effect px-8 sticky top-0 z-50">
       {/* Search Bar */}
       <div className="relative w-[400px] group">
         <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 group-focus-within:text-primary transition-colors" />

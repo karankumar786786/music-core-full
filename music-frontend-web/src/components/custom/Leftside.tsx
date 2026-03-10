@@ -94,7 +94,7 @@ export default function Leftside() {
   const userInitial = user?.name?.[0]?.toUpperCase() || "?";
 
   return (
-    <div className="h-full w-[260px] flex flex-col glass-effect border-r border-white/5 flex-none overflow-hidden relative z-50">
+    <div className="h-full w-[260px] flex flex-col glass-effect  flex-none overflow-hidden relative z-50">
       {/* Logo */}
       <Link to="/">
         <div className="flex items-center gap-3 px-6 py-8">

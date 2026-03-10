@@ -112,18 +112,18 @@ function UserPlaylistDetailsPage() {
         </div>
 
         {/* Placeholder Cover */}
-        <div className="relative h-64 w-64 shrink-0 overflow-hidden rounded-3xl shadow-2xl border-8 border-black group-hover:scale-[1.02] transition-transform duration-700 mx-auto md:mx-0 flex items-center justify-center bg-zinc-900">
-          <ListMusic className="h-24 w-24 text-zinc-800" />
+        <div className="relative h-64 w-64 shrink-0 overflow-hidden rounded-3xl shadow-2xl border-8 border-black group-hover:scale-[1.02] transition-transform duration-700 mx-auto md:mx-0 flex items-center justify-center bg-primary">
+          <ListMusic className="h-24 w-24 text-black" />
           <div className="absolute inset-0 bg-linear-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
 
         {/* Info */}
         <div className="flex flex-col justify-end gap-6 flex-1">
           <div className="space-y-2">
-            <Badge className="glass-effect text-primary border-primary/30 px-4 py-1.5 mb-2 font-bold uppercase text-[10px] tracking-widest w-fit">
+            <Badge className="glass-effect  border-primary/30 px-4 py-1.5 mb-2 font-bold uppercase text-[10px] tracking-widest w-fit">
               My Playlist
             </Badge>
-            <h2 className="text-5xl md:text-7xl font-black text-white tracking-tighter drop-shadow-2xl text-glow-green capitalize">
+            <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter drop-shadow-2xl  capitalize">
               {playlist.title}
             </h2>
             <p className="text-zinc-500 text-lg font-bold">
@@ -134,7 +134,7 @@ function UserPlaylistDetailsPage() {
           <div className="flex items-center gap-6 pt-4">
             <Button
               size="lg"
-              className="rounded-full px-10 h-14 font-black gap-3 bg-white text-black hover:bg-white/90 shadow-2xl shadow-black/50 hover:scale-105 active:scale-95 transition-all duration-300"
+              className="rounded-full px-5 h-10 font-black gap-3 bg-primary text-black hover:bg-white/90 shadow-2xl shadow-black/50 hover:scale-105 active:scale-95 transition-all duration-300"
               disabled={songs.length === 0}
               onClick={() => {
                 if (songs.length > 0) {
@@ -271,7 +271,7 @@ function PlaylistSongRow({
       </div>
 
       <div className="flex flex-col min-w-0 flex-1">
-        <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors text-base tracking-tight text-glow-green">
+        <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors text-base tracking-tight ">
           {song.title}
         </h3>
         <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest truncate">
