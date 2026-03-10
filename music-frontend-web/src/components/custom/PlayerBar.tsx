@@ -57,6 +57,9 @@ export default function PlayerBar() {
       hls.attachMedia(audioRef.current);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (audioRef.current) {
+          audioRef.current.volume = isMuted ? 0 : volume * 0.6;
+        }
         if (isPlaying) audioRef.current?.play().catch(console.error);
       });
 
@@ -94,7 +97,7 @@ export default function PlayerBar() {
   // Sync volume and mute state to audio element
   useEffect(() => {
     if (!audioRef.current) return;
-    audioRef.current.volume = isMuted ? 0 : volume;
+    audioRef.current.volume = isMuted ? 0 : volume * 0.6;
     audioRef.current.muted = isMuted;
   }, [volume, isMuted]);
 
@@ -107,6 +110,7 @@ export default function PlayerBar() {
   const handleLoadedMetadata = () => {
     if (!audioRef.current || !isFinite(audioRef.current.duration)) return;
     playerActions.setDuration(audioRef.current.duration);
+    audioRef.current.volume = isMuted ? 0 : volume * 0.6;
   };
 
   const formatTime = (time: number) => {

@@ -9,7 +9,7 @@
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
-    "start:dev": "nest start --watch",
+    "dev": "nest start --watch",
     "inngest": "npx inngest-cli@latest dev -u http://127.0.0.1:3000/api/inngest -u http://127.0.0.1:3005/api/inngest -u http://127.0.0.1:8000/api/inngest --no-discovery",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",

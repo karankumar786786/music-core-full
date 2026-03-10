@@ -367,16 +367,13 @@ function HomeFeed() {
                       </Button>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors text-base tracking-tight">
-                        {song.title}
-                      </h3>
-                      <p className="text-xs text-zinc-500 truncate font-semibold">
-                        {song.artistName}
-                      </p>
-                    </div>
-                    <FavoriteButton songId={song.id} isLiked={song.isLiked} />
+                  <div className="flex flex-col min-w-0">
+                    <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors text-base tracking-tight">
+                      {song.title}
+                    </h3>
+                    <p className="text-xs text-zinc-500 truncate font-semibold">
+                      {song.artistName}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -1195,192 +1192,182 @@ function ProfileView() {
   if (!user) return null;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-12 pb-20">
-      <div className="relative group">
-        <div className="h-48 w-full rounded-[40px] glass-effect border border-white/5 overflow-hidden">
-          <div className="absolute inset-0 bg-linear-to-b from-primary/10 to-black/40 blur-xl" />
+    <div className="max-w-4xl mx-auto h-full overflow-hidden">
+      {/* Banner */}
+      <div className="relative h-48 w-full rounded-[40px] overflow-hidden glass-effect border border-white/5">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/5 to-black/60" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+      </div>
+
+      {/* Avatar + Name row — overlaps banner */}
+      <div className="relative px-10 -mt-20 mb-8 flex items-end gap-8">
+        {/* Avatar */}
+        <div
+          className="relative group cursor-pointer shrink-0"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <div className="h-36 w-36 rounded-[28px] overflow-hidden border-4 border-black bg-zinc-900 shadow-2xl transition-transform duration-300 group-hover:scale-[1.03]">
+            {user.profilePictureKey ? (
+              <img
+                src={getCoverImageUrl(user.profilePictureKey, "large") || ""}
+                alt={user.name}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="h-full w-full flex items-center justify-center bg-primary/20 text-primary">
+                <User className="h-16 w-16" />
+              </div>
+            )}
+            {uploadMutation.isPending && (
+              <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            )}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+              <Camera className="h-8 w-8 text-white" />
+            </div>
+          </div>
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept="image/*"
+            onChange={handleFileChange}
+          />
         </div>
 
-        <div className="absolute -bottom-16 left-12 flex items-end gap-8">
-          <div className="relative group cursor-pointer">
-            <div className="h-40 w-40 rounded-[32px] overflow-hidden border-4 border-black bg-zinc-900 shadow-2xl relative transition-transform duration-500 group-hover:scale-[1.02]">
-              {user.profilePictureKey ? (
-                <img
-                  src={getCoverImageUrl(user.profilePictureKey, "large") || ""}
-                  alt={user.name}
-                  className="h-full w-full object-cover"
+        {/* Name + meta */}
+        <div className="pb-2 flex-1 min-w-0">
+          <div className="flex items-center gap-3 mb-2 flex-wrap">
+            {isEditing ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="text-2xl font-black bg-white/5 border-white/10 h-12 w-72 rounded-2xl focus:ring-primary/20"
+                  autoFocus
                 />
-              ) : (
-                <div className="h-full w-full flex items-center justify-center bg-primary/20 text-primary">
-                  <User className="h-20 w-20" />
-                </div>
-              )}
-              {uploadMutation.isPending && (
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                </div>
-              )}
-              <div
-                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[2px]"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Camera className="h-10 w-10 text-white" />
+                <Button
+                  size="icon"
+                  className="h-12 w-12 rounded-2xl bg-primary text-black hover:bg-white"
+                  onClick={handleSave}
+                  disabled={updateProfileMutation.isPending}
+                >
+                  {updateProfileMutation.isPending ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Check className="h-5 w-5" />
+                  )}
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-12 w-12 rounded-2xl bg-white/5 text-white hover:bg-white/10"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditName(user.name);
+                  }}
+                >
+                  <X className="h-5 w-5" />
+                </Button>
               </div>
-            </div>
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept="image/*"
-              onChange={handleFileChange}
-            />
+            ) : (
+              <>
+                <h1 className="text-4xl font-black tracking-tighter text-white truncate">
+                  {user.name}
+                </h1>
+                <Button
+                  variant="ghost"
+                  className="h-9 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white text-sm shrink-0"
+                  onClick={() => {
+                    setEditName(user.name);
+                    setIsEditing(true);
+                  }}
+                >
+                  Edit Profile
+                </Button>
+              </>
+            )}
           </div>
-
-          <div className="mb-4">
-            <div className="flex items-center gap-4 mb-2">
-              {isEditing ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="text-4xl font-black bg-white/5 border-white/10 h-14 w-80 rounded-2xl focus:ring-primary/20"
-                    autoFocus
-                  />
-                  <Button
-                    size="icon"
-                    className="h-14 w-14 rounded-2xl bg-primary text-black hover:bg-white"
-                    onClick={handleSave}
-                    disabled={updateProfileMutation.isPending}
-                  >
-                    {updateProfileMutation.isPending ? (
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                    ) : (
-                      <Check className="h-6 w-6" />
-                    )}
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-14 w-14 rounded-2xl bg-white/5 text-white hover:bg-white/10"
-                    onClick={() => {
-                      setIsEditing(false);
-                      setEditName(user.name);
-                    }}
-                  >
-                    <X className="h-6 w-6" />
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <h1 className="text-5xl font-black tracking-tighter text-white">
-                    {user.name}
-                  </h1>
-                  <Button
-                    variant="ghost"
-                    className="h-10 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white"
-                    onClick={() => setIsEditing(true)}
-                  >
-                    Edit Profile
-                  </Button>
-                </>
-              )}
+          <div className="flex items-center gap-5 text-zinc-400 text-sm font-medium flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <Mail className="h-3.5 w-3.5" />
+              <span>{user.email}</span>
             </div>
-            <div className="flex items-center gap-6 text-zinc-400 font-medium">
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                <span>{user.email}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                <span className="capitalize">{user.role || "Member"}</span>
-              </div>
+            <div className="flex items-center gap-1.5">
+              <User className="h-3.5 w-3.5" />
+              <span className="capitalize">{user.role || "Member"}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-12">
-        <div className="col-span-1 space-y-6">
-          <div className="glass-effect rounded-[32px] border border-white/5 p-8 space-y-6">
-            <h3 className="text-lg font-bold text-white tracking-tight">
-              Statistics
-            </h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5">
-                <span className="text-zinc-400 font-medium">Playlists</span>
-                <span className="text-xl font-bold text-white">
-                  {user.playlistCount || 0}
-                </span>
+      {/* Content grid */}
+      <div className="px-2 grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* Left — Account Settings */}
+        <div className="md:col-span-2 space-y-4">
+          <h2 className="text-xl font-bold text-white tracking-tight">
+            Account Settings
+          </h2>
+          <div className="glass-effect rounded-[32px] border border-white/5 overflow-hidden divide-y divide-white/5">
+            <div className="p-6 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between group">
+              <div className="space-y-0.5">
+                <p className="font-bold text-white group-hover:text-primary transition-colors">
+                  Change Email
+                </p>
+                <p className="text-xs text-zinc-500 font-medium">
+                  Manage your contact and login email
+                </p>
               </div>
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5">
-                <span className="text-zinc-400 font-medium">Followers</span>
-                <span className="text-xl font-bold text-white">0</span>
+              <ChevronRight className="h-5 w-5 text-zinc-700 group-hover:text-primary transition-colors" />
+            </div>
+            <div className="p-6 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between group">
+              <div className="space-y-0.5">
+                <p className="font-bold text-white group-hover:text-primary transition-colors">
+                  Security & Password
+                </p>
+                <p className="text-xs text-zinc-500 font-medium">
+                  Update your password and security settings
+                </p>
               </div>
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5">
-                <span className="text-zinc-400 font-medium">Following</span>
-                <span className="text-xl font-bold text-white">0</span>
+              <ChevronRight className="h-5 w-5 text-zinc-700 group-hover:text-primary transition-colors" />
+            </div>
+            <div className="p-6 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between group">
+              <div className="space-y-0.5">
+                <p className="font-bold text-white group-hover:text-primary transition-colors">
+                  Preferences
+                </p>
+                <p className="text-xs text-zinc-500 font-medium">
+                  Control notifications and display settings
+                </p>
               </div>
+              <ChevronRight className="h-5 w-5 text-zinc-700 group-hover:text-primary transition-colors" />
             </div>
           </div>
-
-          <Button
-            variant="ghost"
-            className="w-full h-14 rounded-[24px] bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border-none font-bold transition-all duration-300"
-            onClick={() => {
-              musicApi.logout();
-              window.location.reload();
-            }}
-          >
-            <LogOut className="mr-3 h-5 w-5" />
-            Sign Out
-          </Button>
         </div>
 
-        <div className="col-span-2 space-y-8">
-          <section className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white tracking-tight">
-                Account Settings
-              </h2>
+        {/* Right — Sign Out */}
+        <div className="md:col-span-1 space-y-4">
+          <h2 className="text-xl font-bold text-white tracking-tight">
+            Session
+          </h2>
+          <div className="glass-effect rounded-[32px] border border-white/5 p-6 space-y-4">
+            <div className="space-y-1">
+              <p className="text-sm font-bold text-white">Signed in as</p>
+              <p className="text-xs text-zinc-500 truncate">{user.email}</p>
             </div>
-            <div className="glass-effect rounded-[32px] border border-white/5 overflow-hidden">
-              <div className="divide-y divide-white/5">
-                <div className="p-6 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between group">
-                  <div className="space-y-1">
-                    <p className="font-bold text-white group-hover:text-primary transition-colors">
-                      Change Email
-                    </p>
-                    <p className="text-xs text-zinc-500 font-medium">
-                      Manage your contact and login email
-                    </p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-zinc-700" />
-                </div>
-                <div className="p-6 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between group">
-                  <div className="space-y-1">
-                    <p className="font-bold text-white group-hover:text-primary transition-colors">
-                      Security & Password
-                    </p>
-                    <p className="text-xs text-zinc-500 font-medium">
-                      Update your password and security settings
-                    </p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-zinc-700" />
-                </div>
-                <div className="p-6 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between group">
-                  <div className="space-y-1">
-                    <p className="font-bold text-white group-hover:text-primary transition-colors">
-                      Preferences
-                    </p>
-                    <p className="text-xs text-zinc-500 font-medium">
-                      Control notifications and display settings
-                    </p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-zinc-700" />
-                </div>
-              </div>
-            </div>
-          </section>
+            <Button
+              variant="ghost"
+              className="w-full h-12 rounded-2xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white border border-red-500/10 font-bold transition-all duration-300"
+              onClick={() => {
+                musicApi.logout();
+                window.location.reload();
+              }}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </div>
     </div>

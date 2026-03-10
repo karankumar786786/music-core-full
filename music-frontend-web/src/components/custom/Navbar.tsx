@@ -9,6 +9,7 @@ import AuthModal from "./AuthModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -97,27 +98,30 @@ export default function Navbar() {
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56 bg-zinc-900 border-white/10 text-white">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-white/5" />
-              <DropdownMenuItem
-                className="hover:bg-zinc-800 cursor-pointer focus:bg-zinc-800"
-                onClick={() =>
-                  navigate({
-                    to: "/",
-                    search: (prev: any) => ({ ...prev, tab: "profile" }),
-                  })
-                }
-              >
-                <UserCircle className="mr-2 h-4 w-4 text-primary" />
-                <span>Profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="hover:bg-zinc-800 cursor-pointer text-red-400 focus:text-red-400 focus:bg-zinc-800"
-                onClick={handleLogout}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownMenuItem>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-white/5" />
+                <DropdownMenuItem
+                  className="hover:bg-zinc-800 cursor-pointer focus:bg-zinc-800"
+                  onClick={() =>
+                    navigate({
+                      to: "/",
+                      search: (prev: any) => ({ ...prev, tab: "profile" }),
+                    })
+                  }
+                >
+                  <UserCircle className="mr-2 h-4 w-4 text-primary" />
+                  <span>Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-white/5" />
+                <DropdownMenuItem
+                  className="hover:bg-zinc-800 cursor-pointer text-red-400 focus:text-red-400 focus:bg-zinc-800"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (

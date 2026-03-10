@@ -13,12 +13,13 @@ import {
   Music,
   ChevronDown,
   Activity,
+  Repeat1,
 } from "lucide-react";
 import Hls from "hls.js";
 import { musicApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { getCoverImageUrl, getSongBaseUrl } from "@/lib/s3";
-import { FavoriteButton, PlaylistButton } from "./SongActions";
+import { PlaylistButton } from "./SongActions";
 
 interface LyricCue {
   start: number;
@@ -38,7 +39,8 @@ export default function RightSide() {
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
 
   const state = useStore(playerStore, (s) => s);
-  const { currentSong, isPlaying, volume, isMuted, duration } = state;
+  const { currentSong, isPlaying, volume, isMuted, duration, repeatMode } =
+    state;
 
   const [localTime, setLocalTime] = useState(0);
   const [buffered, setBuffered] = useState(0);
@@ -158,6 +160,9 @@ export default function RightSide() {
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setQualityLevels(hls.levels as QualityLevel[]);
+        if (audioRef.current) {
+          audioRef.current.volume = isMuted ? 0 : volume * 0.6;
+        }
         if (isPlaying) audioRef.current?.play().catch(console.error);
       });
       hls.on(Hls.Events.LEVEL_LOADED, (_, data) => {
@@ -209,7 +214,7 @@ export default function RightSide() {
   // Sync volume to audio element
   useEffect(() => {
     if (!audioRef.current) return;
-    audioRef.current.volume = isMuted ? 0 : volume;
+    audioRef.current.volume = isMuted ? 0 : volume * 0.6;
     audioRef.current.muted = isMuted;
   }, [volume, isMuted]);
 
@@ -297,8 +302,17 @@ export default function RightSide() {
         onLoadedMetadata={() => {
           if (audioRef.current && isFinite(audioRef.current.duration))
             playerActions.setDuration(audioRef.current.duration);
+          if (audioRef.current)
+            audioRef.current.volume = isMuted ? 0 : volume * 0.6;
         }}
-        onEnded={() => playerActions.playNext()}
+        onEnded={() => {
+          if (repeatMode === "one" && audioRef.current) {
+            audioRef.current.currentTime = 0;
+            audioRef.current.play().catch(console.error);
+          } else {
+            playerActions.playNext();
+          }
+        }}
       />
 
       {/* Album Art — 20vh */}
@@ -539,11 +553,19 @@ export default function RightSide() {
             </Button>
           </div>
 
-          <FavoriteButton
-            songId={currentSong.id}
-            isLiked={!!currentSong.isLiked}
-            onToggle={() => playerActions.toggleFavourite()}
-          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`h-8 w-8 p-0 hover:bg-transparent transition-all hover:scale-110 active:scale-95 ${
+              repeatMode === "one"
+                ? "text-primary"
+                : "text-zinc-500 hover:text-white"
+            }`}
+            onClick={() => playerActions.toggleRepeat()}
+            title={repeatMode === "one" ? "Repeat: One" : "Repeat: Off"}
+          >
+            <Repeat1 className="h-5 w-5" />
+          </Button>
         </div>
 
         {/* Volume */}

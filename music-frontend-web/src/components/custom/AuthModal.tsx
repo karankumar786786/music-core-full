@@ -78,15 +78,14 @@ export default function AuthModal({
         onClose();
       }}
     >
-      <DialogContent className="sm:max-w-[420px] bg-zinc-950 border-white/10 p-8 rounded-[32px] overflow-hidden">
-        {isClosable && (
+      <DialogContent className="sm:max-w-[420px] bg-zinc-950 border-white/10 p-8 rounded-[32px] overflow-hidden [&>button]:hidden">
+        {/* {isClosable && (
           <button
             className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
             onClick={onClose}
           >
-            {/* Close icon normally provided by DialogClose, but we'll use a manual one just in case if we want to customize it */}
           </button>
-        )}
+        )} */}
         <div className="absolute top-0 right-0 -mr-20 -mt-20 opacity-20 pointer-events-none">
           <div className="h-64 w-64 rounded-full bg-primary blur-3xl" />
         </div>
