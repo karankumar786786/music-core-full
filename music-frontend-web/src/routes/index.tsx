@@ -113,7 +113,7 @@ function HomeFeed() {
               <div className="absolute top-[-100px] right-[-100px] p-10 opacity-20 group-hover:opacity-40 transition-opacity duration-1000 pointer-events-none">
                 <div className="h-64 w-64 rounded-full bg-primary blur-[120px] animate-pulse" />
               </div>
-              <Badge className="mb-6 w-fit glass-effect text-white border-primary/30 px-4 py-1.5 backdrop-blur-md font-bold tracking-wider text-[10px] uppercase">
+              <Badge className="mb-6 w-fit glass-effect  border-primary/30 px-4 py-1.5 backdrop-blur-md font-bold tracking-wider text-[10px] uppercase">
                 Featured Release
               </Badge>
               <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-white mb-2 drop-shadow-2xl capitalize line-clamp-2 max-w-2xl">
@@ -128,7 +128,7 @@ function HomeFeed() {
               <div className="flex gap-4">
                 <Button
                   size="lg"
-                  className="rounded-full px-10 h-14 font-black gap-3 bg-white text-black hover:bg-white/90 shadow-2xl shadow-black/50 hover:scale-105 active:scale-95 transition-all duration-300"
+                  className="rounded-full px-7 h-12 font-black gap-3 bg-primary text-black hover:bg-white/90 shadow-2xl shadow-black/50 hover:scale-105 active:scale-95 transition-all duration-300"
                   onClick={() => {
                     playerActions.setCurrentSong(mapToPlayerSong(featuredSong));
                     playerActions.setQueue(

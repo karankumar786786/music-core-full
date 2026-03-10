@@ -409,7 +409,7 @@ export default function RightSide() {
               }}
               className="w-full h-1 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md hover:[&::-webkit-slider-thumb]:scale-110 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-0"
               style={{
-                background: `linear-gradient(to right, #22c55e ${safeProgress}%, #ffffff ${safeProgress}%, #ffffff ${safeBufferedProgress}%, #2a2a2a ${safeBufferedProgress}%)`,
+                background: `linear-gradient(to right, var(--primary) ${safeProgress}%, #ffffff ${safeProgress}%, #ffffff ${safeBufferedProgress}%, #2a2a2a ${safeBufferedProgress}%)`,
               }}
             />
           </div>
@@ -418,7 +418,7 @@ export default function RightSide() {
         {/* Bitrate & Quality */}
         <div className="space-y-2">
           <div className="flex items-center justify-center gap-2">
-            <div className="w-2 h-2 bg-[#1ed760] rounded-full shadow-[0_0_8px_#1ed760]" />
+            <div className="w-2 h-2 bg-primary rounded-full shadow-[0_0_8px_#1ed760]" />
             <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-tighter">
               Streaming at {currentBitrate || 128} kbps
             </span>
@@ -430,7 +430,7 @@ export default function RightSide() {
                 onClick={() => setShowQualityMenu(!showQualityMenu)}
                 className="bg-[#121212] border border-white/5 rounded-[1.2rem] p-3 flex items-center gap-3 cursor-pointer hover:bg-[#1f1f1f] transition-all"
               >
-                <div className="w-8 h-8 bg-[#1ed760] rounded-lg flex items-center justify-center text-black font-black text-xs shadow-lg shadow-[#1ed760]/10">
+                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-black font-black text-xs shadow-lg shadow-[#1ed760]/10">
                   {currentQuality === -1
                     ? "Auto"
                     : getQualityMeta(
@@ -470,7 +470,7 @@ export default function RightSide() {
                   >
                     Auto Quality (Recommended)
                     {currentQuality === -1 && (
-                      <div className="w-1.5 h-1.5 bg-[#1ed760] rounded-full" />
+                      <div className="w-1.5 h-1.5 bg-primary rounded-full" />
                     )}
                   </button>
                   {qualityLevels
@@ -496,7 +496,7 @@ export default function RightSide() {
                             </span>
                           </span>
                           {currentQuality === idx && (
-                            <div className="w-1.5 h-1.5 bg-[#1ed760] rounded-full" />
+                            <div className="w-1.5 h-1.5 bg-primary rounded-full" />
                           )}
                         </button>
                       );
@@ -560,7 +560,7 @@ export default function RightSide() {
             }}
             className="flex-1 h-1 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md hover:[&::-webkit-slider-thumb]:scale-110 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-0"
             style={{
-              background: `linear-gradient(to right, #1ed760 ${volProgress}%, #333 ${volProgress}%)`,
+              background: `linear-gradient(to right, var(--primary) ${volProgress}%, #333 ${volProgress}%)`,
             }}
           />
           <Button
