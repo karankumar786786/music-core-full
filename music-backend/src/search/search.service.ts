@@ -1,4 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { getPrismaClient } from '../lib/helpers/prisma/getPrismaClient';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { Prisma } from '@prisma/client';
@@ -7,8 +9,7 @@ import { Prisma } from '@prisma/client';
 export class SearchService {
     private prisma = getPrismaClient();
 
-    private cache = new Map<string, { data: any; expiresAt: number }>();
-    private readonly CACHE_TTL_MS = 30_000;
+    constructor(@Inject(CACHE_MANAGER) private cache: Cache) { }
 
     private getCacheKey(query: string, page: number, limit: number) {
         return `search:${query}:${page}:${limit}`;
@@ -19,18 +20,16 @@ export class SearchService {
         const { page = 1, limit = 10 } = paginationQuery;
         const skip = (page - 1) * limit;
 
-        // if (searchString.length < 3) {
-        //     return {
-        //         data: { songs: [], artists: [], playlists: [] },
-        //         meta: { page: Number(page), limit: Number(limit), hasMore: { songs: false, artists: false, playlists: false } }
-        //     };
-        // }
+        if (searchString.length < 3) {
+            return {
+                data: { songs: [], artists: [], playlists: [] },
+                meta: { page: Number(page), limit: Number(limit), hasMore: { songs: false, artists: false, playlists: false } }
+            };
+        }
 
         const cacheKey = this.getCacheKey(searchString, page, limit);
-        const cached = this.cache.get(cacheKey);
-        if (cached && cached.expiresAt > Date.now()) {
-            return cached.data;
-        }
+        const cached = await this.cache.get(cacheKey);
+        if (cached) return cached;
 
         const threshold = 0.2;
 
@@ -127,14 +126,7 @@ export class SearchService {
             },
         };
 
-        this.cache.set(cacheKey, { data: result, expiresAt: Date.now() + this.CACHE_TTL_MS });
-
-        if (this.cache.size > 500) {
-            const now = Date.now();
-            for (const [key, val] of this.cache.entries()) {
-                if (val.expiresAt < now) this.cache.delete(key);
-            }
-        }
+        await this.cache.set(cacheKey, result);
 
         return result;
     }
