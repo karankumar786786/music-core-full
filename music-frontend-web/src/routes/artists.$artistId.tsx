@@ -38,7 +38,7 @@ function ArtistDetailsPage() {
     },
   });
 
-  const songs = songsData?.pages.flatMap((page) => page.data) || [];
+  const songs = songsData?.pages?.flatMap((page) => page.data) || [];
 
   const formatDuration = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -68,33 +68,33 @@ function ArtistDetailsPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full hover:bg-zinc-900 border border-white/5"
+            className="rounded-full hover:bg-white/5 border border-white/5 group h-10 w-10 transition-all duration-300 active:scale-90"
           >
-            <ArrowLeft className="h-5 w-5 text-zinc-400" />
+            <ArrowLeft className="h-5 w-5 text-zinc-400 group-hover:text-primary transition-colors" />
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-black tracking-tighter text-white capitalize">
+          <h1 className="text-3xl font-black tracking-tighter text-white capitalize text-glow-green">
             {artist.artistName}
           </h1>
         </div>
       </div>
 
       {/* Hero Banner */}
-      <div className="relative h-[300px] w-full overflow-hidden rounded-3xl border border-white/5 bg-zinc-900 shadow-2xl">
+      <div className="relative h-[350px] w-full overflow-hidden rounded-[40px] border border-white/5 glass-effect shadow-2xl group">
         {getBannerImageUrl(artist.storageKey, "large") ? (
           <img
             src={getBannerImageUrl(artist.storageKey, "large")!}
             alt={artist.artistName}
-            className="h-full w-full object-cover opacity-60"
+            className="h-full w-full object-cover opacity-60 transition-transform duration-1000 group-hover:scale-110"
           />
         ) : (
-          <div className="h-full w-full bg-linear-to-br from-primary/10 via-black to-black" />
+          <div className="h-full w-full bg-linear-to-br from-primary/20 via-black to-black" />
         )}
         <div className="absolute inset-0 bg-linear-to-t from-black via-black/20 to-transparent" />
 
-        <div className="absolute bottom-8 left-8 flex items-end gap-6">
-          <div className="h-40 w-40 shrink-0 overflow-hidden rounded-2xl border-4 border-black bg-zinc-900 shadow-2xl shadow-primary/20">
+        <div className="absolute bottom-10 left-10 flex items-end gap-8">
+          <div className="h-44 w-44 shrink-0 overflow-hidden rounded-3xl border-8 border-black shadow-2xl group-hover:scale-105 transition-transform duration-500">
             {getCoverImageUrl(artist.storageKey, "medium") ? (
               <img
                 src={getCoverImageUrl(artist.storageKey, "medium")!}
@@ -102,27 +102,27 @@ function ArtistDetailsPage() {
                 className="h-full w-full object-cover"
               />
             ) : (
-              <div className="h-full w-full flex items-center justify-center bg-primary/10 text-primary text-6xl font-black">
+              <div className="h-full w-full flex items-center justify-center bg-zinc-900 text-zinc-700 text-6xl font-black">
                 {artist.artistName?.charAt(0).toUpperCase()}
               </div>
             )}
           </div>
-          <div className="pb-2 space-y-1">
-            <Badge className="bg-primary/20 text-primary border-primary/20 px-3 py-1 mb-2">
+          <div className="pb-2 space-y-2">
+            <Badge className="glass-effect text-primary border-primary/30 px-4 py-1.5 mb-2 font-bold uppercase text-[10px] tracking-widest">
               Verified Artist
             </Badge>
-            <h2 className="text-5xl font-black text-white tracking-tighter drop-shadow-xl capitalize">
+            <h2 className="text-6xl font-black text-white tracking-tighter drop-shadow-2xl capitalize text-glow-green">
               {artist.artistName}
             </h2>
-            <p className="text-zinc-400 font-medium flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+            <p className="text-zinc-400 font-bold flex items-center gap-3 text-sm">
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
               {songsData?.pages[0]?.meta?.totalItems || songs.length} Tracks in
               Library
             </p>
-            <div className="pt-4 flex items-center gap-4">
+            <div className="pt-6 flex items-center gap-4">
               <Button
                 size="lg"
-                className="rounded-full px-8 font-bold gap-2 bg-primary hover:bg-primary/90 shadow-xl shadow-primary/20"
+                className="rounded-full px-10 h-14 font-black gap-3 bg-white text-black hover:bg-white/90 shadow-2xl shadow-black/50 hover:scale-105 active:scale-95 transition-all duration-300"
                 disabled={songs.length === 0}
                 onClick={() => {
                   if (songs.length > 0) {
@@ -131,7 +131,7 @@ function ArtistDetailsPage() {
                   }
                 }}
               >
-                <Play className="h-5 w-5 fill-current" /> Play Now
+                <Play className="h-6 w-6 fill-current" /> Play Now
               </Button>
             </div>
           </div>

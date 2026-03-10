@@ -70,15 +70,15 @@ export default function Navbar() {
   };
 
   return (
-    <header className="flex h-20 items-center justify-between border-b border-white/10 bg-black px-8">
+    <header className="flex h-20 items-center justify-between border-b border-white/5 glass-effect px-8 sticky top-0 z-50">
       {/* Search Bar */}
-      <div className="relative w-[400px]">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+      <div className="relative w-[400px] group">
+        <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 group-focus-within:text-primary transition-colors" />
         <Input
           placeholder="Search for songs, artists, or albums..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="h-10 w-full rounded-full border-white/5 bg-zinc-900/50 pl-10 text-sm text-white placeholder:text-zinc-500 focus:bg-zinc-900 focus:ring-primary/20"
+          className="h-11 w-full rounded-2xl border-white/5 bg-white/5 pl-11 text-sm text-white placeholder:text-zinc-600 focus:bg-white/10 focus:ring-primary/20 transition-all duration-300 focus:border-white/10"
         />
       </div>
 
@@ -95,11 +95,11 @@ export default function Navbar() {
         {user ? (
           <DropdownMenu>
             <DropdownMenuTrigger>
-              <div className="flex items-center gap-3 rounded-full border border-white/10 bg-zinc-900/50 p-1 pr-4 pl-1 hover:bg-zinc-900 transition-colors cursor-pointer group">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary">
+              <div className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/5 p-1.5 pr-4 pl-1.5 hover:bg-white/10 transition-all duration-300 cursor-pointer group hover:border-primary/20">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/20 text-primary border border-primary/20 group-hover:scale-105 transition-transform">
                   <UserCircle className="h-5 w-5" />
                 </div>
-                <span className="text-sm font-medium text-zinc-300 group-hover:text-white transition-colors">
+                <span className="text-sm font-bold text-zinc-300 group-hover:text-white transition-colors">
                   {user.name}
                 </span>
               </div>

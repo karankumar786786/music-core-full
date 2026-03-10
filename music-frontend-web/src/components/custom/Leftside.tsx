@@ -94,7 +94,10 @@ export default function Leftside() {
   const userInitial = user?.name?.[0]?.toUpperCase() || "?";
 
   return (
-    <div className="h-full w-[260px] flex flex-col bg-black border-r border-white/5 flex-none overflow-hidden">
+    <div className="h-full w-[260px] flex flex-col glass-effect border-r border-white/5 flex-none overflow-hidden relative z-50">
+      {/* Subtle top glow */}
+      <div className="absolute top-0 left-0 w-full h-px bg-linear-to-r from-transparent via-primary/20 to-transparent" />
+
       {/* Logo */}
       <Link to="/">
         <div className="flex items-center gap-3 px-6 py-8">
@@ -131,12 +134,12 @@ export default function Leftside() {
               key={item.label}
               to="/"
               search={{ tab: item.tab }}
-              className="flex items-center gap-4 px-3 py-2.5 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-lg transition-all [&.active]:bg-zinc-900 [&.active]:text-white"
+              className="flex items-center gap-4 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-300 [&.active]:bg-primary/10 [&.active]:text-primary group"
               activeProps={{ className: "active" }}
               activeOptions={{ exact: false, includeSearch: true }}
             >
-              <item.icon className="w-5 h-5 shrink-0 transition-colors" />
-              <span className="font-semibold text-sm">{item.label}</span>
+              <item.icon className="w-5 h-5 shrink-0 transition-all group-hover:scale-110" />
+              <span className="font-bold text-sm">{item.label}</span>
             </Link>
           ))}
         </nav>
@@ -199,13 +202,13 @@ export default function Leftside() {
                   key={playlist.id}
                   to="/user-playlists/$playlistId"
                   params={{ playlistId: playlist.id }}
-                  className="flex items-center gap-3 px-3 py-2 text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-lg transition-all [&.active]:bg-zinc-900 [&.active]:text-white"
+                  className="flex items-center gap-3 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-300 [&.active]:bg-primary/10 [&.active]:text-primary group"
                   activeProps={{ className: "active" }}
                 >
-                  <div className="w-8 h-8 rounded-md bg-zinc-800 flex items-center justify-center shrink-0">
-                    <ListMusic className="w-4 h-4 text-zinc-600" />
+                  <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center shrink-0 border border-white/5 group-hover:border-primary/20 transition-colors">
+                    <ListMusic className="w-4 h-4 text-zinc-600 group-hover:text-primary transition-colors" />
                   </div>
-                  <span className="text-sm font-medium truncate">
+                  <span className="text-sm font-bold truncate">
                     {playlist.title}
                   </span>
                 </Link>
@@ -217,15 +220,15 @@ export default function Leftside() {
 
       {/* Profile Footer */}
       <div className="mt-auto border-t border-white/5 p-4">
-        <div className="flex items-center gap-3 rounded-xl bg-zinc-900/50 p-3 border border-white/5">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold shrink-0">
+        <div className="flex items-center gap-3 rounded-2xl bg-white/5 p-3 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
+          <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-bold shrink-0 border border-primary/20 group-hover:scale-105 transition-transform">
             {user ? userInitial : <UserCircle className="h-5 w-5" />}
           </div>
           <div className="flex flex-1 flex-col overflow-hidden">
-            <span className="truncate text-sm font-semibold text-white">
+            <span className="truncate text-sm font-bold text-white group-hover:text-primary transition-colors">
               {user?.name || "Guest"}
             </span>
-            <span className="truncate text-xs text-zinc-500">
+            <span className="truncate text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
               {user?.email || "Not logged in"}
             </span>
           </div>

@@ -124,7 +124,7 @@ export default function PlayerBar() {
     );
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 h-28 bg-black/90 backdrop-blur-2xl border-t border-white/5 px-6 flex items-center justify-between z-50">
+    <div className="fixed bottom-0 left-0 right-0 h-32 glass-effect-strong border-t border-white/10 px-8 flex items-center justify-between z-50">
       <audio
         ref={audioRef}
         onTimeUpdate={handleTimeUpdate}
@@ -134,18 +134,21 @@ export default function PlayerBar() {
 
       {/* Song Info */}
       <div className="flex items-center gap-4 w-[30%]">
-        <div className="h-16 w-16 overflow-hidden rounded-xl border border-white/10 shadow-lg shrink-0">
+        <div className="h-20 w-20 overflow-hidden rounded-2xl border border-white/10 shadow-2xl shrink-0 group relative">
           <img
             src={currentSong.coverImageUrl}
             alt={currentSong.title}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-500"
           />
+          <div className="absolute inset-0 bg-black/20 group-hover:opacity-0 transition-opacity" />
         </div>
         <div className="flex flex-col overflow-hidden">
-          <h4 className="text-sm font-bold text-white truncate">
+          <h4 className="text-base font-black text-white truncate text-glow-green">
             {currentSong.title}
           </h4>
-          <p className="text-xs text-zinc-500 truncate">{currentSong.artist}</p>
+          <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest truncate">
+            {currentSong.artist}
+          </p>
         </div>
         <div className="flex items-center ml-2 shrink-0">
           <FavoriteButton
@@ -176,19 +179,19 @@ export default function PlayerBar() {
             <SkipBack className="h-6 w-6 fill-current" />
           </Button>
           <Button
-            className="h-12 w-12 rounded-full bg-white text-black hover:scale-105 transition-transform shrink-0"
+            className="h-14 w-14 rounded-full bg-white text-black hover:scale-110 active:scale-95 transition-all shadow-2xl shadow-white/10"
             onClick={() => playerActions.setIsPlaying(!isPlaying)}
           >
             {isPlaying ? (
-              <Pause className="h-6 w-6 fill-current" />
+              <Pause className="h-7 w-7 fill-current" />
             ) : (
-              <Play className="h-6 w-6 fill-current ml-1" />
+              <Play className="h-7 w-7 fill-current ml-1" />
             )}
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="text-white h-10 w-10"
+            className="text-white h-10 w-10 hover:text-primary transition-colors"
             onClick={() => playerActions.playNext()}
           >
             <SkipForward className="h-6 w-6 fill-current" />

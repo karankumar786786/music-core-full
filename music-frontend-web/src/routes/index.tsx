@@ -87,13 +87,13 @@ function HomeFeed() {
   const featuredSong = featuredData?.data?.[0];
 
   return (
-    <div className="space-y-10 pb-20">
+    <div className="space-y-12 pb-20">
       {/* Hero Section */}
       {featuredLoading ? (
-        <Skeleton className="h-[350px] w-full rounded-3xl bg-zinc-900/50 border border-white/5" />
+        <Skeleton className="h-[400px] w-full rounded-[40px] bg-white/5 border border-white/5" />
       ) : (
         featuredSong && (
-          <section className="relative h-[350px] overflow-hidden rounded-3xl bg-linear-to-br from-primary/20 via-black to-black border border-white/5 p-10 flex flex-col justify-end group transition-all duration-500">
+          <section className="relative h-[400px] overflow-hidden rounded-[40px] glass-effect border border-white/10 p-12 flex flex-col justify-end group transition-all duration-700">
             {/* Background Image/Overlay */}
             <div className="absolute inset-0 z-0">
               {featuredSong.storageKey && (
@@ -109,10 +109,10 @@ function HomeFeed() {
             </div>
 
             <div className="relative z-10">
-              <div className="absolute top-[-100px] right-[-100px] p-10 opacity-20 group-hover:opacity-30 transition-opacity pointer-events-none">
-                <div className="h-64 w-64 rounded-full bg-primary blur-3xl animate-pulse" />
+              <div className="absolute top-[-100px] right-[-100px] p-10 opacity-20 group-hover:opacity-40 transition-opacity duration-1000 pointer-events-none">
+                <div className="h-64 w-64 rounded-full bg-primary blur-[120px] animate-pulse" />
               </div>
-              <Badge className="mb-4 w-fit bg-primary/20 text-primary border-primary/20 px-3 py-1 backdrop-blur-md">
+              <Badge className="mb-6 w-fit glass-effect  border-primary/30 px-4 py-1.5 backdrop-blur-md font-bold tracking-wider text-[10px] uppercase">
                 Featured Release
               </Badge>
               <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-white mb-2 drop-shadow-2xl capitalize line-clamp-2 max-w-2xl">
@@ -127,7 +127,7 @@ function HomeFeed() {
               <div className="flex gap-4">
                 <Button
                   size="lg"
-                  className="rounded-full px-8 font-bold gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 hover:scale-105 transition-all"
+                  className="rounded-full px-10 h-14 font-black gap-3 bg-white text-black hover:bg-white/90 shadow-2xl shadow-black/50 hover:scale-105 active:scale-95 transition-all duration-300"
                   onClick={() => {
                     playerActions.setCurrentSong(mapToPlayerSong(featuredSong));
                     playerActions.setQueue(
@@ -135,7 +135,7 @@ function HomeFeed() {
                     );
                   }}
                 >
-                  <Play className="h-5 w-5 fill-current" /> Play Now
+                  <Play className="h-6 w-6 fill-current" /> Play Now
                 </Button>
               </div>
             </div>
@@ -172,9 +172,9 @@ function HomeFeed() {
                   key={artist.id}
                   to="/artists/$artistId"
                   params={{ artistId: artist.id }}
-                  className="flex-none w-[128px] group relative space-y-4 cursor-pointer text-center"
+                  className="flex-none w-[140px] group relative space-y-4 cursor-pointer text-center"
                 >
-                  <div className="relative aspect-square overflow-hidden rounded-full bg-zinc-900 border border-white/5 mx-auto ring-offset-4 ring-offset-black ring-0 group-hover:ring-2 ring-primary transition-all duration-300">
+                  <div className="relative aspect-square overflow-hidden rounded-full bg-zinc-900 border border-white/5 mx-auto ring-offset-4 ring-offset-black ring-0 group-hover:ring-4 ring-primary/40 transition-all duration-700 shadow-2xl">
                     {artist.storageKey ? (
                       <img
                         src={
@@ -236,9 +236,9 @@ function HomeFeed() {
                   key={playlist.id}
                   to="/playlists/$playlistId"
                   params={{ playlistId: playlist.id }}
-                  className="flex-none w-[130px] group relative space-y-3 cursor-pointer"
+                  className="flex-none w-[180px] group relative space-y-4 cursor-pointer hover-scale"
                 >
-                  <div className="relative aspect-square overflow-hidden rounded-2xl bg-zinc-900 border border-white/5 shadow-2xl">
+                  <div className="relative aspect-square overflow-hidden rounded-3xl bg-zinc-900 border border-white/5 shadow-2xl group-hover:border-white/10 transition-colors">
                     {playlist.storageKey ? (
                       <img
                         src={
@@ -315,7 +315,7 @@ function HomeFeed() {
                     <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[2px]">
                       <Button
                         size="icon"
-                        className="h-12 w-12 rounded-full bg-primary hover:scale-110 transition-transform shadow-2xl shadow-primary/40"
+                        className="h-14 w-14 rounded-full bg-primary hover:scale-110 active:scale-90 transition-all shadow-2xl shadow-primary/40"
                         onClick={(e) => {
                           e.stopPropagation();
                           playerActions.setCurrentSong(mapToPlayerSong(song));
@@ -324,7 +324,7 @@ function HomeFeed() {
                           );
                         }}
                       >
-                        <Play className="h-6 w-6 fill-current text-white" />
+                        <Play className="h-7 w-7 fill-current text-white" />
                       </Button>
                     </div>
                   </div>
@@ -380,13 +380,17 @@ function HomeFeed() {
               : allSongs.map((song: any, index: number) => (
                   <div
                     key={song.id}
-                    className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                    className="group flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 transition-all duration-300 cursor-pointer border border-transparent hover:border-white/5 active:scale-[0.98]"
+                    onClick={() => {
+                      playerActions.setCurrentSong(mapToPlayerSong(song));
+                      playerActions.setQueue(mapListToPlayerSongs(allSongs));
+                    }}
                   >
-                    <div className="w-8 text-center text-zinc-600 font-mono text-xs group-hover:text-primary transition-colors">
+                    <div className="w-8 text-center text-zinc-600 font-black text-[10px] group-hover:text-primary transition-colors font-mono">
                       {String(index + 1).padStart(2, "0")}
                     </div>
 
-                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/5 shadow-lg group-hover:border-primary/20 transition-colors">
                       {song.storageKey ? (
                         <img
                           src={
@@ -394,28 +398,28 @@ function HomeFeed() {
                             ""
                           }
                           alt={song.title}
-                          className="h-full w-full object-cover"
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-zinc-900">
                           <ListMusic className="h-6 w-6 text-zinc-700" />
                         </div>
                       )}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Play className="h-4 w-4 fill-current text-white" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[1px]">
+                        <Play className="h-5 w-5 fill-current text-white transform scale-90 group-hover:scale-100 transition-transform" />
                       </div>
                     </div>
 
                     <div className="flex flex-col min-w-0 flex-1">
-                      <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
+                      <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors text-sm tracking-tight text-glow-green">
                         {song.title}
                       </h3>
-                      <p className="text-[10px] text-zinc-500 truncate font-medium">
+                      <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest truncate">
                         {song.artistName}
                       </p>
                     </div>
 
-                    <div className="shrink-0 flex items-center gap-2">
+                    <div className="shrink-0 flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
                       <FavoriteButton
                         songId={song.id}
                         isLiked={song.isLiked || false}
@@ -423,7 +427,7 @@ function HomeFeed() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
+                        className="h-10 w-10 rounded-full text-zinc-400 hover:text-primary hover:bg-primary/10 transition-colors border border-transparent hover:border-primary/20 shadow-2xl"
                         onClick={(e) => {
                           e.stopPropagation();
                           playerActions.setCurrentSong(mapToPlayerSong(song));
@@ -432,7 +436,7 @@ function HomeFeed() {
                           );
                         }}
                       >
-                        <Play className="h-4 w-4 fill-current" />
+                        <Play className="h-5 w-5 fill-current" />
                       </Button>
                     </div>
                   </div>
@@ -927,7 +931,7 @@ function SearchResultsView() {
       ) : (
         <div className="space-y-10">
           {/* Songs Results */}
-          {data?.data?.songs && data.data.songs.length > 0 && (
+          {data?.data?.songs && data?.data?.songs?.length > 0 && (
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-white tracking-tight">
                 Songs
@@ -992,7 +996,7 @@ function SearchResultsView() {
           )}
 
           {/* Artist Results */}
-          {data?.data?.artists && data.data.artists.length > 0 && (
+          {data?.data?.artists && data?.data?.artists?.length > 0 && (
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-white tracking-tight">
                 Artists
@@ -1030,7 +1034,7 @@ function SearchResultsView() {
           )}
 
           {/* Playlist Results */}
-          {data?.data?.playlists && data.data.playlists.length > 0 && (
+          {data?.data?.playlists && data?.data?.playlists?.length > 0 && (
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-white tracking-tight">
                 Playlists

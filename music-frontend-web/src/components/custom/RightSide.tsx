@@ -262,9 +262,12 @@ export default function RightSide() {
 
   if (!currentSong) {
     return (
-      <div className="w-[400px] bg-black border-l border-white/5 flex flex-col h-full items-center justify-center text-zinc-500 text-sm italic p-6 text-center flex-none">
-        <Music className="h-8 w-8 mb-4 opacity-20" />
-        <p>Select a track to start listening</p>
+      <div className="w-[400px] glass-effect-strong border-l border-white/5 flex flex-col h-full items-center justify-center text-zinc-500 text-sm italic p-6 text-center flex-none relative z-50">
+        <div className="absolute top-0 right-0 w-full h-px bg-linear-to-r from-transparent via-primary/10 to-transparent" />
+        <Music className="h-10 w-10 mb-4 opacity-20 animate-pulse" />
+        <p className="font-medium tracking-tight">
+          Select a track to start listening
+        </p>
       </div>
     );
   }
@@ -278,7 +281,8 @@ export default function RightSide() {
   const volProgress = isMuted ? 0 : volume * 100;
 
   return (
-    <div className="w-[400px] bg-black border-l border-white/10 flex flex-col h-full overflow-hidden flex-none">
+    <div className="w-[400px] glass-effect-strong border-l border-white/10 flex flex-col h-full overflow-hidden flex-none relative z-50">
+      <div className="absolute top-0 right-0 w-full h-px bg-linear-to-r from-transparent via-primary/20 to-transparent" />
       <audio
         ref={audioRef}
         onTimeUpdate={handleTimeUpdate}
@@ -298,8 +302,8 @@ export default function RightSide() {
       />
 
       {/* Album Art — 20vh */}
-      <div className="h-[20vh] px-6 pt-4 pb-2 flex-none">
-        <div className="h-full w-full rounded-xl overflow-hidden shadow-2xl bg-zinc-900">
+      <div className="h-[25vh] px-8 pt-8 pb-4 flex-none group">
+        <div className="h-full w-full rounded-2xl overflow-hidden shadow-2xl bg-zinc-900 border border-white/10 relative transition-transform duration-700 group-hover:scale-[1.02]">
           <img
             src={
               currentSong.storageKey
@@ -308,8 +312,9 @@ export default function RightSide() {
                 : currentSong.coverImageUrl
             }
             alt={currentSong.title}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-110"
           />
+          <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
       </div>
 

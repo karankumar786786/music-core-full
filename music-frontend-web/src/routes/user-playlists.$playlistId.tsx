@@ -5,6 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Play, Music, ArrowLeft, ListMusic, Trash2 } from "lucide-react";
 import { playerActions } from "@/Store/playerStore";
@@ -29,7 +30,7 @@ function UserPlaylistDetailsPage() {
         musicApi.getUserPlaylist(playlistId, pageParam, 50),
       initialPageParam: 1,
       getNextPageParam: (lastPage) => {
-        if (!lastPage?.songs?.data || lastPage.songs.data?.length < 50)
+        if (!lastPage?.songs?.data || lastPage.songs.data.length < 50)
           return undefined;
         return lastPage.songs.meta.page + 1;
       },
@@ -79,20 +80,20 @@ function UserPlaylistDetailsPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full hover:bg-zinc-900 border border-white/5"
+            className="rounded-full hover:bg-white/5 border border-white/5 group h-10 w-10 transition-all duration-300 active:scale-90"
           >
-            <ArrowLeft className="h-5 w-5 text-zinc-400" />
+            <ArrowLeft className="h-5 w-5 text-zinc-400 group-hover:text-primary transition-colors" />
           </Button>
         </Link>
         <div className="flex-1">
-          <h1 className="text-3xl font-black tracking-tighter text-white">
+          <h1 className="text-3xl font-black tracking-tighter text-white capitalize text-glow-green">
             {playlist.title}
           </h1>
         </div>
         <Button
           variant="ghost"
           size="icon"
-          className="rounded-full hover:bg-red-500/10 hover:text-red-500 border border-transparent transition-all"
+          className="rounded-full hover:bg-red-500/10 hover:text-red-500 border border-transparent transition-all h-10 w-10"
           onClick={() => {
             if (confirm("Are you sure you want to delete this playlist?")) {
               deletePlaylistMutation.mutate();
@@ -105,33 +106,35 @@ function UserPlaylistDetailsPage() {
       </div>
 
       {/* Hero Section */}
-      <div className="relative flex flex-col md:flex-row gap-8 p-8 rounded-3xl bg-linear-to-br from-zinc-900 via-black to-black border border-white/5 overflow-hidden">
-        <div className="absolute top-0 right-0 p-10 opacity-10 pointer-events-none">
-          <div className="h-64 w-64 rounded-full bg-primary blur-3xl" />
+      <div className="relative flex flex-col md:flex-row gap-10 p-12 rounded-[40px] glass-effect border border-white/10 overflow-hidden group shadow-2xl">
+        <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:opacity-20 transition-opacity duration-1000 pointer-events-none">
+          <div className="h-64 w-64 rounded-full bg-primary blur-[120px] animate-pulse" />
         </div>
 
         {/* Placeholder Cover */}
-        <div className="relative h-48 w-48 shrink-0 overflow-hidden rounded-2xl shadow-2xl shadow-black/50 border border-white/10 mx-auto md:mx-0">
-          <div className="h-full w-full flex items-center justify-center bg-zinc-900 text-zinc-700">
-            <ListMusic className="h-20 w-20" />
-          </div>
+        <div className="relative h-64 w-64 shrink-0 overflow-hidden rounded-3xl shadow-2xl border-8 border-black group-hover:scale-[1.02] transition-transform duration-700 mx-auto md:mx-0 flex items-center justify-center bg-zinc-900">
+          <ListMusic className="h-24 w-24 text-zinc-800" />
+          <div className="absolute inset-0 bg-linear-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
 
         {/* Info */}
-        <div className="flex flex-col justify-end gap-4 flex-1">
-          <div className="space-y-1">
-            <h2 className="text-5xl md:text-6xl font-black text-white tracking-tighter drop-shadow-2xl capitalize">
+        <div className="flex flex-col justify-end gap-6 flex-1">
+          <div className="space-y-2">
+            <Badge className="glass-effect text-primary border-primary/30 px-4 py-1.5 mb-2 font-bold uppercase text-[10px] tracking-widest w-fit">
+              My Playlist
+            </Badge>
+            <h2 className="text-5xl md:text-7xl font-black text-white tracking-tighter drop-shadow-2xl text-glow-green capitalize">
               {playlist.title}
             </h2>
-            <p className="text-zinc-400 text-lg font-medium">
-              Your personal playlist
+            <p className="text-zinc-500 text-lg font-bold">
+              Your personal curated collection
             </p>
           </div>
 
           <div className="flex items-center gap-6 pt-4">
             <Button
               size="lg"
-              className="rounded-full px-8 font-bold gap-2 bg-primary hover:bg-primary/90 shadow-xl shadow-primary/20"
+              className="rounded-full px-10 h-14 font-black gap-3 bg-white text-black hover:bg-white/90 shadow-2xl shadow-black/50 hover:scale-105 active:scale-95 transition-all duration-300"
               disabled={songs.length === 0}
               onClick={() => {
                 if (songs.length > 0) {
@@ -140,13 +143,16 @@ function UserPlaylistDetailsPage() {
                 }
               }}
             >
-              <Play className="h-5 w-5 fill-current" /> Play Now
+              <Play className="h-6 w-6 fill-current" /> Play Now
             </Button>
 
-            <div className="flex items-center gap-4 text-sm font-bold uppercase tracking-widest text-zinc-500 bg-zinc-900/50 px-5 py-2.5 rounded-full border border-white/5">
+            <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 glass-effect px-6 py-3 rounded-2xl">
               <span className="flex items-center gap-2">
                 <Music className="h-4 w-4 text-primary" />
-                {playlist.songs?.meta?.totalItems || songs.length} Songs
+                {playlist?.songs?.meta?.totalItems ||
+                  (songs && songs.length) ||
+                  0}{" "}
+                Songs
               </span>
             </div>
           </div>
@@ -235,79 +241,79 @@ function PlaylistSongRow({
     },
   });
 
-  const formatDuration = (ms: number) => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  };
-
   return (
     <div
-      className="group grid grid-cols-12 w-full items-center p-3 rounded-2xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/5"
+      className="group flex items-center gap-4 p-4 rounded-3xl hover:bg-white/5 transition-all duration-300 cursor-pointer border border-transparent hover:border-white/5 active:scale-[0.99] glass-effect-hover"
       onClick={() => {
         playerActions.setCurrentSong(mapToPlayerSong(song));
         playerActions.setQueue(mapListToPlayerSongs(songs));
       }}
     >
-      <div className="col-span-1 text-center text-zinc-600 font-bold text-sm group-hover:text-primary transition-colors">
+      <div className="w-10 text-center text-zinc-600 font-black text-xs group-hover:text-primary transition-colors font-mono">
         {(index + 1).toString().padStart(2, "0")}
       </div>
 
-      <div className="col-span-11 grid grid-cols-11 items-center gap-4">
-        <div className="col-span-7 flex items-center gap-4">
-          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/5 bg-zinc-900 shadow-lg">
-            {getCoverImageUrl(song.storageKey, "small", true) ? (
-              <img
-                src={getCoverImageUrl(song.storageKey, "small", true)!}
-                alt={song.title}
-                className="h-full w-full object-cover transform group-hover:scale-110 transition-transform duration-500"
-              />
-            ) : (
-              <div className="h-full w-full flex items-center justify-center text-zinc-700">
-                <Music className="h-5 w-5" />
-              </div>
-            )}
-            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <Play className="h-5 w-5 fill-current text-white" />
-            </div>
+      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-white/5 shadow-2xl group-hover:border-primary/20 transition-colors">
+        {getCoverImageUrl(song.storageKey, "small", true) ? (
+          <img
+            src={getCoverImageUrl(song.storageKey, "small", true)!}
+            alt={song.title}
+            className="h-full w-full object-cover transform group-hover:scale-110 transition-transform duration-500"
+          />
+        ) : (
+          <div className="h-full w-full flex items-center justify-center bg-zinc-900 border border-white/10">
+            <Music className="h-8 w-8 text-zinc-700" />
           </div>
-          <div className="min-w-0">
-            <h4 className="font-bold text-white truncate group-hover:text-primary transition-colors capitalize">
-              {song.title}
-            </h4>
-            <p className="text-xs text-zinc-500 font-medium">
-              {song.artistName}
-            </p>
-          </div>
+        )}
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[1px]">
+          <Play className="h-6 w-6 fill-current text-white transform scale-90 group-hover:scale-100 transition-transform" />
         </div>
+      </div>
 
-        <div className="col-span-2 text-zinc-400 text-sm font-medium truncate">
-          {song.genre}
-        </div>
+      <div className="flex flex-col min-w-0 flex-1">
+        <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors text-base tracking-tight text-glow-green">
+          {song.title}
+        </h3>
+        <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest truncate">
+          {song.artistName}
+        </p>
+      </div>
 
-        <div className="col-span-1 text-right text-zinc-500 text-xs font-bold font-mono tracking-tighter pr-4">
-          {formatDuration(song.durationMs)}
-        </div>
-
-        <div className="col-span-1 flex justify-end">
+      <div className="shrink-0 flex items-center gap-6 opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
+        <div
+          className="flex items-center gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 rounded-full text-zinc-500 hover:text-red-500 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
-            onClick={(e) => {
-              e.stopPropagation();
+            className="h-10 w-10 rounded-full text-zinc-500 hover:text-red-500 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
+            onClick={() => {
               if (confirm("Remove this song from playlist?")) {
                 removeSongMutation.mutate();
               }
             }}
             disabled={removeSongMutation.isPending}
+            title="Remove from playlist"
           >
             {removeSongMutation.isPending ? (
               <div className="h-4 w-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
             ) : (
               <Trash2 className="h-4 w-4" />
             )}
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-12 w-12 rounded-full text-zinc-400 hover:text-primary hover:bg-primary/10 transition-colors border border-transparent hover:border-primary/20 shadow-2xl"
+            onClick={(e) => {
+              e.stopPropagation();
+              playerActions.setCurrentSong(mapToPlayerSong(song));
+              playerActions.setQueue(mapListToPlayerSongs(songs));
+            }}
+          >
+            <Play className="h-6 w-6 fill-current" />
           </Button>
         </div>
       </div>
