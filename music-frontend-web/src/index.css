@@ -127,43 +127,45 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground bg-ambient-glow min-h-screen selection:bg-primary/30 selection:text-primary;
-  }
-}
-
-@layer utilities {
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Premium UI Polish Utilities */
-  .glass-effect {
-    @apply bg-black/40 backdrop-blur-xl border border-white/5;
-  }
-  
-  .glass-effect-strong {
-    @apply bg-black/60 backdrop-blur-2xl border border-white/10;
-  }
-
-  .hover-scale {
-    @apply transition-all duration-300 hover:scale-[1.02] active:scale-[0.98];
-  }
-
-  .bg-ambient-glow {
-    background: radial-gradient(
+    @apply bg-background text-foreground min-h-screen selection:bg-primary/30 selection:text-primary;
+    background-image: radial-gradient(
       circle at 50% -20%,
       oklch(0.77 0.17 142 / 10%),
       transparent 70%
     );
   }
+}
 
-  .text-glow-green {
-    text-shadow: 0 0 20px oklch(0.77 0.17 142 / 40%);
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
   }
+}
+
+@utility glass-effect {
+  @apply bg-black/40 backdrop-blur-xl border border-white/5;
+}
+
+@utility glass-effect-strong {
+  @apply bg-black/60 backdrop-blur-2xl border border-white/10;
+}
+
+@utility hover-scale {
+  @apply transition-all duration-300 hover:scale-[1.02] active:scale-[0.98];
+}
+
+@utility bg-ambient-glow {
+  background: radial-gradient(
+    circle at 50% -20%,
+    oklch(0.77 0.17 142 / 10%),
+    transparent 70%
+  );
+}
+
+@utility text-glow-green {
+  text-shadow: 0 0 20px oklch(0.77 0.17 142 / 40%);
 }
 
 /* Custom Scrollbar Polish */

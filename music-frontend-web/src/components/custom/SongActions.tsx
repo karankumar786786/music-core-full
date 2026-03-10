@@ -150,14 +150,8 @@ export function PlaylistButton({ songId }: PlaylistButtonProps) {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <Plus className="h-5 w-5" />
-          </Button>
+        <DropdownMenuTrigger className="rounded-full text-zinc-500 hover:text-white hover:bg-white/10 transition-colors h-10 w-10 flex items-center justify-center">
+          <Plus className="h-5 w-5" />
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="end"

@@ -62,12 +62,13 @@ function HomeFeed() {
     queryFn: ({ pageParam = 1 }) => musicApi.getSongs(pageParam, 20),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
-      if (!lastPage?.data || lastPage.data?.length < 20) return undefined;
-      return lastPage.meta.page + 1;
+      if (!lastPage || !lastPage?.data || lastPage.data?.length < 20)
+        return undefined;
+      return (lastPage.meta?.page ?? 0) + 1;
     },
   });
 
-  const allSongs = songsData?.pages.flatMap((page) => page.data || []) || [];
+  const allSongs = songsData?.pages?.flatMap((page) => page.data || []) || [];
 
   const { data: artistsData, isLoading: artistsLoading } = useQuery({
     queryKey: ["artists"],
@@ -112,7 +113,7 @@ function HomeFeed() {
               <div className="absolute top-[-100px] right-[-100px] p-10 opacity-20 group-hover:opacity-40 transition-opacity duration-1000 pointer-events-none">
                 <div className="h-64 w-64 rounded-full bg-primary blur-[120px] animate-pulse" />
               </div>
-              <Badge className="mb-6 w-fit glass-effect  border-primary/30 px-4 py-1.5 backdrop-blur-md font-bold tracking-wider text-[10px] uppercase">
+              <Badge className="mb-6 w-fit glass-effect text-white border-primary/30 px-4 py-1.5 backdrop-blur-md font-bold tracking-wider text-[10px] uppercase">
                 Featured Release
               </Badge>
               <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-white mb-2 drop-shadow-2xl capitalize line-clamp-2 max-w-2xl">
@@ -451,16 +452,17 @@ function HomeFeed() {
 function ArtistsView() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
-      queryKey: ["artists"],
+      queryKey: ["artists", "paginated"],
       queryFn: ({ pageParam = 1 }) => musicApi.getArtists(pageParam, 20),
       initialPageParam: 1,
       getNextPageParam: (lastPage) => {
-        if (!lastPage?.data || lastPage.data?.length < 20) return undefined;
-        return lastPage.meta.page + 1;
+        if (!lastPage || !lastPage?.data || lastPage.data?.length < 20)
+          return undefined;
+        return (lastPage.meta?.page ?? 0) + 1;
       },
     });
 
-  const artists = data?.pages.flatMap((page) => page.data || []) || [];
+  const artists = data?.pages?.flatMap((page) => page.data || []) || [];
 
   return (
     <div className="space-y-8">
@@ -547,16 +549,17 @@ function ArtistsView() {
 function FavouritesView() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
-      queryKey: ["favourites"],
+      queryKey: ["favourites", "paginated"],
       queryFn: ({ pageParam = 1 }) => musicApi.getFavourites(pageParam, 50),
       initialPageParam: 1,
       getNextPageParam: (lastPage) => {
-        if (!lastPage?.data || lastPage.data?.length < 50) return undefined;
-        return lastPage.meta.page + 1;
+        if (!lastPage || !lastPage?.data || lastPage.data?.length < 50)
+          return undefined;
+        return (lastPage.meta?.page ?? 0) + 1;
       },
     });
 
-  const favorites = data?.pages.flatMap((page) => page.data || []) || [];
+  const favorites = data?.pages?.flatMap((page) => page.data || []) || [];
 
   return (
     <div className="space-y-8">
@@ -666,16 +669,17 @@ function FavouritesView() {
 function HistoryView() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
-      queryKey: ["history"],
+      queryKey: ["history", "paginated"],
       queryFn: ({ pageParam = 1 }) => musicApi.getHistory(pageParam, 50),
       initialPageParam: 1,
       getNextPageParam: (lastPage) => {
-        if (!lastPage?.data || lastPage.data?.length < 50) return undefined;
-        return lastPage.meta.page + 1;
+        if (!lastPage || !lastPage?.data || lastPage.data?.length < 50)
+          return undefined;
+        return (lastPage.meta?.page ?? 0) + 1;
       },
     });
 
-  const historyItems = data?.pages.flatMap((page) => page.data || []) || [];
+  const historyItems = data?.pages?.flatMap((page) => page.data || []) || [];
 
   return (
     <div className="space-y-8">
@@ -785,16 +789,17 @@ function HistoryView() {
 function PlaylistsView() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
-      queryKey: ["playlists"],
+      queryKey: ["playlists", "paginated"],
       queryFn: ({ pageParam = 1 }) => musicApi.getPlaylists(pageParam, 20),
       initialPageParam: 1,
       getNextPageParam: (lastPage) => {
-        if (!lastPage?.data || lastPage.data?.length < 20) return undefined;
-        return lastPage.meta.page + 1;
+        if (!lastPage || !lastPage?.data || lastPage.data?.length < 20)
+          return undefined;
+        return (lastPage.meta?.page ?? 0) + 1;
       },
     });
 
-  const playlists = data?.pages.flatMap((page) => page.data || []) || [];
+  const playlists = data?.pages?.flatMap((page) => page.data || []) || [];
 
   return (
     <div className="space-y-8">
