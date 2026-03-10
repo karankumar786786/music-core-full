@@ -171,10 +171,7 @@ function HomeFeed() {
                   size="lg"
                   className="rounded-full px-7 h-12 font-black gap-3 bg-primary text-black hover:bg-white/90 shadow-2xl shadow-black/50 hover:scale-105 active:scale-95 transition-all duration-300"
                   onClick={() => {
-                    playerActions.setCurrentSong(mapToPlayerSong(featuredSong));
-                    playerActions.setQueue(
-                      mapListToPlayerSongs(featuredData.data),
-                    );
+                    playerActions.playSong(mapToPlayerSong(featuredSong));
                   }}
                 >
                   <Play className="h-6 w-6 fill-current" /> Play Now
@@ -349,10 +346,7 @@ function HomeFeed() {
                   className="flex-none w-[200px] group relative space-y-4 cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
-                    playerActions.setCurrentSong(mapToPlayerSong(song));
-                    playerActions.setQueue(
-                      mapListToPlayerSongs(trendingData.data),
-                    );
+                    playerActions.playSong(mapToPlayerSong(song));
                   }}
                 >
                   <div className="relative aspect-4/3 overflow-hidden rounded-3xl bg-zinc-900 border border-white/5 shadow-xl">
@@ -420,12 +414,7 @@ function HomeFeed() {
                   </div>
                 ))
               : allSongs.map((song: any, index: number) => (
-                  <SongRow
-                    key={song.id}
-                    song={song}
-                    index={index}
-                    queue={allSongs}
-                  />
+                  <SongRow key={song.id} song={song} index={index} />
                 ))}
           </div>
         </InfiniteScrollContainer>
@@ -579,14 +568,7 @@ function FavouritesView() {
                 const song = item.song;
                 if (!song) return null;
 
-                return (
-                  <SongRow
-                    key={item.id}
-                    song={song}
-                    index={index}
-                    queue={favorites.map((i: any) => i.song).filter(Boolean)}
-                  />
-                );
+                return <SongRow key={item.id} song={song} index={index} />;
               })}
         </div>
       </InfiniteScrollContainer>
@@ -647,14 +629,7 @@ function HistoryView() {
                 const song = item.song;
                 if (!song) return null;
 
-                return (
-                  <SongRow
-                    key={item.id}
-                    song={song}
-                    index={index}
-                    queue={historyItems.map((i: any) => i.song).filter(Boolean)}
-                  />
-                );
+                return <SongRow key={item.id} song={song} index={index} />;
               })}
         </div>
       </InfiniteScrollContainer>

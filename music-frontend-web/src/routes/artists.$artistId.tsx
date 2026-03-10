@@ -179,8 +179,7 @@ function ArtistDetailsPage() {
                     key={song.id}
                     className="group flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/5"
                     onClick={() => {
-                      playerActions.setCurrentSong(mapToPlayerSong(song));
-                      playerActions.setQueue(mapListToPlayerSongs(songs));
+                      playerActions.playSong(mapToPlayerSong(song));
                     }}
                   >
                     <div className="w-8 text-center text-zinc-600 font-bold text-sm group-hover:text-primary transition-colors">

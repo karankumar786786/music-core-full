@@ -191,8 +191,7 @@ function PlaylistDetailsPage() {
                     key={song.id}
                     className="group flex items-center gap-4 p-4 rounded-3xl hover:bg-white/5 transition-all duration-300 cursor-pointer border border-transparent hover:border-white/5 active:scale-[0.99] glass-effect-hover"
                     onClick={() => {
-                      playerActions.setCurrentSong(mapToPlayerSong(song));
-                      playerActions.setQueue(mapListToPlayerSongs(songs));
+                      playerActions.playSong(mapToPlayerSong(song));
                     }}
                   >
                     <div className="w-10 text-center text-zinc-600 font-black text-xs group-hover:text-primary transition-colors font-mono">
@@ -243,8 +242,7 @@ function PlaylistDetailsPage() {
                         className="h-12 w-12 rounded-full text-zinc-400 hover:text-primary hover:bg-primary/10 transition-colors border border-transparent hover:border-primary/20 shadow-2xl"
                         onClick={(e) => {
                           e.stopPropagation();
-                          playerActions.setCurrentSong(mapToPlayerSong(song));
-                          playerActions.setQueue(mapListToPlayerSongs(songs));
+                          playerActions.playSong(mapToPlayerSong(song));
                         }}
                       >
                         <Play className="h-6 w-6 fill-current" />

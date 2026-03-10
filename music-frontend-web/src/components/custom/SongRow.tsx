@@ -3,27 +3,20 @@ import { Button } from "@/components/ui/button";
 import { FavoriteButton } from "@/components/custom/SongActions";
 import { getCoverImageUrl } from "@/lib/s3";
 import { playerActions } from "@/Store/playerStore";
-import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
+import { mapToPlayerSong } from "@/lib/player-utils";
 
 interface SongRowProps {
   song: any;
   index: number;
-  queue: any[];
   showFavorite?: boolean;
 }
 
-export function SongRow({
-  song,
-  index,
-  queue,
-  showFavorite = true,
-}: SongRowProps) {
+export function SongRow({ song, index, showFavorite = true }: SongRowProps) {
   return (
     <div
       className="group flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 transition-all duration-300 cursor-pointer border border-transparent hover:border-white/5 active:scale-[0.98]"
       onClick={() => {
-        playerActions.setCurrentSong(mapToPlayerSong(song));
-        playerActions.setQueue(mapListToPlayerSongs(queue));
+        playerActions.playSong(mapToPlayerSong(song));
       }}
     >
       <div className="w-8 text-center text-zinc-600 font-black text-[10px] group-hover:text-primary transition-colors font-mono">
@@ -66,8 +59,7 @@ export function SongRow({
           className="h-10 w-10 rounded-full text-zinc-400 hover:text-primary hover:bg-primary/10 transition-colors border border-transparent hover:border-primary/20 shadow-2xl"
           onClick={(e) => {
             e.stopPropagation();
-            playerActions.setCurrentSong(mapToPlayerSong(song));
-            playerActions.setQueue(mapListToPlayerSongs(queue));
+            playerActions.playSong(mapToPlayerSong(song));
           }}
         >
           <Play className="h-5 w-5 fill-current" />

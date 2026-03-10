@@ -1,4 +1,6 @@
 import { Store } from '@tanstack/react-store'
+import { musicApi } from '@/lib/api'
+import { mapListToPlayerSongs } from '@/lib/player-utils'
 
 export interface Song {
     id: string
@@ -49,6 +51,42 @@ export const playerActions = {
             }
         })
     },
+    playSong: (song: Song) => {
+        const { queue, currentSong } = playerStore.state
+        const indexInQueue = queue.findIndex(s => s.id === song.id)
+
+        if (indexInQueue !== -1) {
+            // Song already in queue, just play it
+            playerActions.setCurrentSong(song)
+        } else {
+            // Insert after current song or at end if no current song
+            const currentIndex = currentSong ? queue.findIndex(s => s.id === currentSong.id) : -1
+            const newQueue = [...queue]
+            if (currentIndex !== -1) {
+                newQueue.splice(currentIndex + 1, 0, song)
+            } else {
+                newQueue.push(song)
+            }
+            playerStore.setState(state => ({ ...state, queue: newQueue }))
+            playerActions.setCurrentSong(song)
+        }
+    },
+    fetchAndAddFeedToQueue: async () => {
+        try {
+            const feedData = await musicApi.getFeed()
+            if (feedData && feedData.data) {
+                const newSongs = mapListToPlayerSongs(feedData.data)
+                playerStore.setState(state => ({
+                    ...state,
+                    queue: [...state.queue, ...newSongs]
+                }))
+                return newSongs
+            }
+        } catch (error) {
+            console.error('Failed to fetch feed:', error)
+        }
+        return []
+    },
     hydrateSong: (song: Song | null) => {
         playerStore.setState((state) => ({
             ...state,
@@ -85,9 +123,16 @@ export const playerActions = {
             return { ...state, repeatMode: next[state.repeatMode] }
         })
     },
-    playNext: () => {
+    playNext: async () => {
         const { currentSong, queue, isShuffle, repeatMode } = playerStore.state
-        if (!currentSong || queue.length === 0) return
+        if (!currentSong || queue.length === 0) {
+            // If no song or empty queue, try fetching feed if we want auto-playing
+            const newSongs = await playerActions.fetchAndAddFeedToQueue()
+            if (newSongs.length > 0) {
+                playerActions.setCurrentSong(newSongs[0])
+            }
+            return
+        }
 
         if (repeatMode === 'one') {
             // Restart same song — trigger re-render by re-setting
@@ -111,8 +156,13 @@ export const playerActions = {
             playerActions.setCurrentSong(queue[currentIndex + 1])
         } else if (repeatMode === 'all' && queue.length > 0) {
             playerActions.setCurrentSong(queue[0])
+        } else {
+            // End of queue, fetch more from feed
+            const newSongs = await playerActions.fetchAndAddFeedToQueue()
+            if (newSongs.length > 0) {
+                playerActions.setCurrentSong(newSongs[0])
+            }
         }
-        // else: end of queue, do nothing
     },
     playPrevious: () => {
         const { currentSong, queue, currentTime } = playerStore.state
