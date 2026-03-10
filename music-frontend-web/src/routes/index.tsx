@@ -61,12 +61,18 @@ function HomeFeed() {
   const { data: feedData, isLoading: feedLoading } = useQuery({
     queryKey: ["feed"],
     queryFn: () => musicApi.getFeed(),
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
   });
 
   // Fallback 1: Sync Trending Songs to queue if empty
   React.useEffect(() => {
     const horizontalQueue = playerStore.state.queue;
-    if (horizontalQueue.length === 0 && trendingData?.data && trendingData.data.length > 0) {
+    if (
+      horizontalQueue.length === 0 &&
+      trendingData?.data &&
+      trendingData.data.length > 0
+    ) {
       playerActions.syncFeedToQueue(mapListToPlayerSongs(trendingData.data));
     }
   }, [trendingData]);

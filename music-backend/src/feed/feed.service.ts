@@ -43,6 +43,8 @@ export class FeedService {
 
         const excludeIdsArray = Array.from(excludeSongIds);
 
+        console.log(`[FeedService] User ${userId}: ${signals.length} signals, excluding ${excludeIdsArray.length} songs`);
+
         if (signals.length === 0) {
             const fallbackSongs = await this.prisma.song.findMany({
                 orderBy: { releaseDate: 'desc' },
@@ -68,7 +70,9 @@ export class FeedService {
             }
 
             const data = await response.json();
-            const songIds: string[] = Array.isArray(data) ? data : [];
+            const songIds: string[] = Array.isArray(data?.songIds) ? data.songIds : [];
+
+            console.log(`[FeedService] Recommendation engine returned ${songIds.length} song IDs`);
 
             if (!songIds || songIds.length === 0) {
                 const fallbackSongs = await this.prisma.song.findMany({
