@@ -48,6 +48,10 @@ export const musicApi = {
         const response = await api.patch('/users/me', data)
         return response.data
     },
+    changePassword: async (data: { oldPassword?: string, newPassword?: string }) => {
+        const response = await api.patch('/users/me/password', data)
+        return response.data
+    },
 
     // Feed & Content
     getFeed: async () => {

@@ -1,6 +1,7 @@
 import { Controller, Get, Patch, Body, UseGuards, Request, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
@@ -19,6 +20,11 @@ export class UsersController {
     @Patch('me')
     updateProfile(@Request() req, @Body() updateProfileDto: UpdateProfileDto) {
         return this.usersService.updateProfile(req.user.id, updateProfileDto);
+    }
+
+    @Patch('me/password')
+    changePassword(@Request() req, @Body() changePasswordDto: ChangePasswordDto) {
+        return this.usersService.changePassword(req.user.id, changePasswordDto);
     }
 
     @Get('me/profile-picture-upload-url')

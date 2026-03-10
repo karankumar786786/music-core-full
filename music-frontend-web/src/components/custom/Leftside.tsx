@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { Link } from "@tanstack/react-router";
 import {
   House,
   History,
@@ -10,9 +10,8 @@ import {
   ListMusic,
   Plus,
   UserCircle,
-  LogOut,
 } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { toast } from "sonner";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -47,9 +46,6 @@ interface UserPlaylist {
 }
 
 export default function Leftside() {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-
   const { data: user } = useQuery({
     queryKey: ["me"],
     queryFn: () => musicApi.getProfile(),
@@ -65,12 +61,6 @@ export default function Leftside() {
       console.log("[Leftside] Profile URL:", url);
     }
   }, [user]);
-
-  const handleLogout = () => {
-    musicApi.logout();
-    queryClient.setQueryData(["me"], null);
-    queryClient.invalidateQueries({ queryKey: ["me"] });
-  };
 
   const { data: playlistsData } = useQuery({
     queryKey: ["userPlaylists"],

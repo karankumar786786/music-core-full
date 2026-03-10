@@ -7,7 +7,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { musicApi, api } from "@/lib/api";
+import { musicApi } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -22,17 +22,27 @@ import {
   X,
   Loader2,
   LogOut,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FavoriteButton } from "@/components/custom/SongActions";
 import { InfiniteScrollContainer } from "@/components/custom/InfiniteScrollContainer";
 import { getCoverImageUrl } from "@/lib/s3";
+import { SongRow } from "@/components/custom/SongRow";
 import { playerActions } from "@/Store/playerStore";
 import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
 import { useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 const homeSearchSchema = z.object({
   tab: z
@@ -337,6 +347,13 @@ function HomeFeed() {
                 <div
                   key={song.id}
                   className="flex-none w-[200px] group relative space-y-4 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    playerActions.setCurrentSong(mapToPlayerSong(song));
+                    playerActions.setQueue(
+                      mapListToPlayerSongs(trendingData.data),
+                    );
+                  }}
                 >
                   <div className="relative aspect-4/3 overflow-hidden rounded-3xl bg-zinc-900 border border-white/5 shadow-xl">
                     {song.storageKey ? (
@@ -357,13 +374,6 @@ function HomeFeed() {
                       <Button
                         size="icon"
                         className="h-14 w-14 rounded-full bg-primary hover:scale-110 active:scale-90 transition-all shadow-2xl shadow-primary/40"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          playerActions.setCurrentSong(mapToPlayerSong(song));
-                          playerActions.setQueue(
-                            mapListToPlayerSongs(trendingData.data),
-                          );
-                        }}
                       >
                         <Play className="h-7 w-7 fill-current text-white" />
                       </Button>
@@ -410,68 +420,12 @@ function HomeFeed() {
                   </div>
                 ))
               : allSongs.map((song: any, index: number) => (
-                  <div
+                  <SongRow
                     key={song.id}
-                    className="group flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 transition-all duration-300 cursor-pointer border border-transparent hover:border-white/5 active:scale-[0.98]"
-                    onClick={() => {
-                      playerActions.setCurrentSong(mapToPlayerSong(song));
-                      playerActions.setQueue(mapListToPlayerSongs(allSongs));
-                    }}
-                  >
-                    <div className="w-8 text-center text-zinc-600 font-black text-[10px] group-hover:text-primary transition-colors font-mono">
-                      {String(index + 1).padStart(2, "0")}
-                    </div>
-
-                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/5 shadow-lg group-hover:border-primary/20 transition-colors">
-                      {song.storageKey ? (
-                        <img
-                          src={
-                            getCoverImageUrl(song.storageKey, "small", true) ||
-                            ""
-                          }
-                          alt={song.title}
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-zinc-900">
-                          <ListMusic className="h-6 w-6 text-zinc-700" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[1px]">
-                        <Play className="h-5 w-5 fill-current text-white transform scale-90 group-hover:scale-100 transition-transform" />
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors text-sm tracking-tight">
-                        {song.title}
-                      </h3>
-                      <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest truncate">
-                        {song.artistName}
-                      </p>
-                    </div>
-
-                    <div className="shrink-0 flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                      <FavoriteButton
-                        songId={song.id}
-                        isLiked={song.isLiked || false}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-10 w-10 rounded-full text-zinc-400 hover:text-primary hover:bg-primary/10 transition-colors border border-transparent hover:border-primary/20 shadow-2xl"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          playerActions.setCurrentSong(mapToPlayerSong(song));
-                          playerActions.setQueue(
-                            mapListToPlayerSongs(allSongs),
-                          );
-                        }}
-                      >
-                        <Play className="h-5 w-5 fill-current" />
-                      </Button>
-                    </div>
-                  </div>
+                    song={song}
+                    index={index}
+                    queue={allSongs}
+                  />
                 ))}
           </div>
         </InfiniteScrollContainer>
@@ -626,71 +580,12 @@ function FavouritesView() {
                 if (!song) return null;
 
                 return (
-                  <div
+                  <SongRow
                     key={item.id}
-                    className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
-                    onClick={() => {
-                      playerActions.setCurrentSong(mapToPlayerSong(song));
-                      playerActions.setQueue(
-                        mapListToPlayerSongs(
-                          favorites.map((i: any) => i.song).filter(Boolean),
-                        ),
-                      );
-                    }}
-                  >
-                    <div className="w-8 text-center text-zinc-600 font-mono text-xs group-hover:text-primary transition-colors">
-                      {String(index + 1).padStart(2, "0")}
-                    </div>
-
-                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
-                      {song.storageKey ? (
-                        <img
-                          src={
-                            getCoverImageUrl(song.storageKey, "small", true) ||
-                            ""
-                          }
-                          alt={song.title}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-zinc-900">
-                          <ListMusic className="h-6 w-6 text-zinc-700" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Play className="h-4 w-4 fill-current text-white" />
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
-                        {song.title}
-                      </h3>
-                      <p className="text-[10px] text-zinc-500 truncate font-medium">
-                        {song.artistName}
-                      </p>
-                    </div>
-
-                    <div className="shrink-0 flex items-center gap-2">
-                      <FavoriteButton songId={song.id} isLiked={true} />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          playerActions.setCurrentSong(mapToPlayerSong(song));
-                          playerActions.setQueue(
-                            mapListToPlayerSongs(
-                              favorites.map((i: any) => i.song).filter(Boolean),
-                            ),
-                          );
-                        }}
-                      >
-                        <Play className="h-4 w-4 fill-current" />
-                      </Button>
-                    </div>
-                  </div>
+                    song={song}
+                    index={index}
+                    queue={favorites.map((i: any) => i.song).filter(Boolean)}
+                  />
                 );
               })}
         </div>
@@ -748,77 +643,17 @@ function HistoryView() {
                   </div>
                 </div>
               ))
-            : historyItems.map((item: any) => {
+            : historyItems.map((item: any, index: number) => {
                 const song = item.song;
                 if (!song) return null;
 
                 return (
-                  <div
+                  <SongRow
                     key={item.id}
-                    className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
-                    onClick={() => {
-                      playerActions.setCurrentSong(mapToPlayerSong(song));
-                      playerActions.setQueue(
-                        mapListToPlayerSongs(
-                          historyItems.map((i: any) => i.song).filter(Boolean),
-                        ),
-                      );
-                    }}
-                  >
-                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
-                      {song.storageKey ? (
-                        <img
-                          src={
-                            getCoverImageUrl(song.storageKey, "small", true) ||
-                            ""
-                          }
-                          alt={song.title}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-zinc-900">
-                          <ListMusic className="h-6 w-6 text-zinc-700" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Play className="h-4 w-4 fill-current text-white" />
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <h3 className="font-semibold text-white truncate group-hover:text-primary transition-colors text-sm">
-                        {song.title}
-                      </h3>
-                      <p className="text-[10px] text-zinc-500 truncate font-medium">
-                        {song.artistName}
-                      </p>
-                    </div>
-
-                    <div className="shrink-0 flex items-center gap-2">
-                      <FavoriteButton
-                        songId={song.id}
-                        isLiked={song.isLiked || false}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 rounded-full text-zinc-500 hover:text-primary hover:bg-zinc-800"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          playerActions.setCurrentSong(mapToPlayerSong(song));
-                          playerActions.setQueue(
-                            mapListToPlayerSongs(
-                              historyItems
-                                .map((i: any) => i.song)
-                                .filter(Boolean),
-                            ),
-                          );
-                        }}
-                      >
-                        <Play className="h-4 w-4 fill-current" />
-                      </Button>
-                    </div>
-                  </div>
+                    song={song}
+                    index={index}
+                    queue={historyItems.map((i: any) => i.song).filter(Boolean)}
+                  />
                 );
               })}
         </div>
@@ -1145,6 +980,15 @@ function ProfileView() {
   });
 
   const [editName, setEditName] = useState(user?.name || "");
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [passwords, setPasswords] = useState({
+    oldPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const updateProfileMutation = useMutation({
     mutationFn: (data: { name?: string; profilePictureKey?: string }) =>
@@ -1199,6 +1043,34 @@ function ProfileView() {
     updateProfileMutation.mutate({ name: editName });
   };
 
+  const changePasswordMutation = useMutation({
+    mutationFn: (data: any) => musicApi.changePassword(data),
+    onSuccess: () => {
+      toast.success("Password changed successfully");
+      setIsPasswordModalOpen(false);
+      setPasswords({ oldPassword: "", newPassword: "", confirmPassword: "" });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "Failed to change password");
+    },
+  });
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwords.newPassword.length < 6) {
+      toast.error("New password must be at least 6 characters");
+      return;
+    }
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+    changePasswordMutation.mutate({
+      oldPassword: passwords.oldPassword,
+      newPassword: passwords.newPassword,
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
@@ -1213,8 +1085,8 @@ function ProfileView() {
   return (
     <div className="max-w-4xl mx-auto h-full overflow-hidden">
       {/* Banner */}
-      <div className="relative h-48 w-full rounded-[40px] overflow-hidden glass-effect">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/5 to-black/60" />
+      <div className="relative h-48 w-full rounded-[40px] overflow-hidden">
+        <div className="absolute inset-0 " />
       </div>
 
       {/* Avatar + Name row — overlaps banner */}
@@ -1224,7 +1096,7 @@ function ProfileView() {
           className="relative group cursor-pointer shrink-0"
           onClick={() => fileInputRef.current?.click()}
         >
-          <Avatar className="h-36 w-36 rounded-[28px] border-4 border-black bg-zinc-900 shadow-2xl transition-transform duration-300 group-hover:scale-[1.03]">
+          <Avatar className="h-36 w-36 rounded-[28px]   shadow-2xl transition-transform duration-300 group-hover:scale-[1.03]">
             <AvatarImage
               src={getCoverImageUrl(user.profilePictureKey, "large") || ""}
               alt={user.name}
@@ -1326,18 +1198,10 @@ function ProfileView() {
             Account Settings
           </h2>
           <div className="glass-effect rounded-[32px] border border-white/5 overflow-hidden divide-y divide-white/5">
-            <div className="p-6 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between group">
-              <div className="space-y-0.5">
-                <p className="font-bold text-white group-hover:text-primary transition-colors">
-                  Change Email
-                </p>
-                <p className="text-xs text-zinc-500 font-medium">
-                  Manage your contact and login email
-                </p>
-              </div>
-              <ChevronRight className="h-5 w-5 text-zinc-700 group-hover:text-primary transition-colors" />
-            </div>
-            <div className="p-6 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between group">
+            <div
+              className="p-6 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between group"
+              onClick={() => setIsPasswordModalOpen(true)}
+            >
               <div className="space-y-0.5">
                 <p className="font-bold text-white group-hover:text-primary transition-colors">
                   Change Password
@@ -1375,6 +1239,119 @@ function ProfileView() {
           </div>
         </div>
       </div>
+
+      <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>
+        <DialogContent className="sm:max-w-md bg-zinc-950 border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black">
+              Change Password
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handlePasswordSubmit} className="space-y-4 pt-4">
+            <div className="space-y-2 relative">
+              <Label className="text-zinc-400 font-bold text-xs uppercase tracking-wider">
+                Current Password
+              </Label>
+              <div className="relative">
+                <Input
+                  type={showOldPassword ? "text" : "password"}
+                  value={passwords.oldPassword}
+                  onChange={(e) =>
+                    setPasswords({ ...passwords, oldPassword: e.target.value })
+                  }
+                  className="bg-zinc-900 border-white/5 pr-10"
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 text-zinc-400 hover:text-white"
+                  onClick={() => setShowOldPassword(!showOldPassword)}
+                >
+                  {showOldPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2 relative">
+              <Label className="text-zinc-400 font-bold text-xs uppercase tracking-wider">
+                New Password
+              </Label>
+              <div className="relative">
+                <Input
+                  type={showNewPassword ? "text" : "password"}
+                  value={passwords.newPassword}
+                  onChange={(e) =>
+                    setPasswords({ ...passwords, newPassword: e.target.value })
+                  }
+                  className="bg-zinc-900 border-white/5 pr-10"
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 text-zinc-400 hover:text-white"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                >
+                  {showNewPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2 relative">
+              <Label className="text-zinc-400 font-bold text-xs uppercase tracking-wider">
+                Confirm New Password
+              </Label>
+              <div className="relative">
+                <Input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={passwords.confirmPassword}
+                  onChange={(e) =>
+                    setPasswords({
+                      ...passwords,
+                      confirmPassword: e.target.value,
+                    })
+                  }
+                  className="bg-zinc-900 border-white/5 pr-10"
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 text-zinc-400 hover:text-white"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+            <Button
+              type="submit"
+              className="w-full bg-primary text-black font-bold hover:bg-primary/90 mt-6"
+              disabled={changePasswordMutation.isPending}
+            >
+              {changePasswordMutation.isPending ? (
+                <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+              ) : (
+                "Update Password"
+              )}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
