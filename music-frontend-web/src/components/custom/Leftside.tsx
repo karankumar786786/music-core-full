@@ -95,17 +95,14 @@ export default function Leftside() {
 
   return (
     <div className="h-full w-[260px] flex flex-col glass-effect border-r border-white/5 flex-none overflow-hidden relative z-50">
-      {/* Subtle top glow */}
-      <div className="absolute top-0 left-0 w-full h-px bg-linear-to-r from-transparent via-primary/20 to-transparent" />
-
       {/* Logo */}
       <Link to="/">
         <div className="flex items-center gap-3 px-6 py-8">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden shadow-lg shadow-primary/20">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden">
             <img
               src={logo}
               alt="One Melody Logo"
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
             />
           </div>
           <div className="text-xl font-bold tracking-tighter text-white">

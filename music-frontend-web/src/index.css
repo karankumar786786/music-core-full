@@ -145,11 +145,11 @@
 }
 
 @utility glass-effect {
-  @apply bg-black/40 backdrop-blur-xl border border-white/5;
+  @apply bg-black/20 backdrop-blur-md border border-white/5;
 }
 
 @utility glass-effect-strong {
-  @apply bg-black/60 backdrop-blur-2xl border border-white/10;
+  @apply bg-black/60 backdrop-blur-xl border border-white/10;
 }
 
 @utility hover-scale {

@@ -91,7 +91,7 @@ function HomeFeed() {
     <div className="space-y-12 pb-20">
       {/* Hero Section */}
       {featuredLoading ? (
-        <Skeleton className="h-[400px] w-full rounded-[40px] bg-white/5 border border-white/5" />
+        <Skeleton className="h-[400px] w-full rounded-[40px] bg-white/10 border border-white/5" />
       ) : (
         featuredSong && (
           <section className="relative h-[400px] overflow-hidden rounded-[40px] glass-effect border border-white/10 p-12 flex flex-col justify-end group transition-all duration-700">
@@ -106,7 +106,7 @@ function HomeFeed() {
                   className="h-full w-full object-cover opacity-20 group-hover:opacity-30 transition-opacity duration-700 blur-sm"
                 />
               )}
-              <div className="absolute inset-0 bg-linear-to-t from-black via-black/20 to-transparent" />
+              <div className="absolute inset-0 bg-linear-to-t from-black via-black/40 to-transparent" />
             </div>
 
             <div className="relative z-10">
@@ -116,10 +116,10 @@ function HomeFeed() {
               <Badge className="mb-6 w-fit glass-effect  border-primary/30 px-4 py-1.5 backdrop-blur-md font-bold tracking-wider text-[10px] uppercase">
                 Featured Release
               </Badge>
-              <h1 className="text-4xl md:text-6xl font-black tracking-tighter text-white mb-2 drop-shadow-2xl capitalize line-clamp-2 max-w-2xl">
+              <h1 className="text-4xl md:text-4xl font-black tracking-tighter text-white mb-2 drop-shadow-2xl capitalize line-clamp-2 max-w-2xl">
                 {featuredSong.title}
               </h1>
-              <p className="max-w-md text-zinc-300 text-lg mb-8 font-medium">
+              <p className="max-w-md text-zinc-300 text-md mb-8 font-medium">
                 by{" "}
                 <span className="text-white font-bold">
                   {featuredSong.artistName}
@@ -147,7 +147,7 @@ function HomeFeed() {
       {/* Top Artists Section */}
       <section>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white tracking-tight">
+          <h2 className="text-xl font-bold text-white tracking-tight">
             Top Artists
           </h2>
           <Button
@@ -160,7 +160,7 @@ function HomeFeed() {
             Explore
           </Button>
         </div>
-        <div className="flex flex-row overflow-x-auto gap-8 pb-4 no-scrollbar">
+        <div className="flex flex-row overflow-x-auto pl-2 pt-2 gap-8 pb-4 no-scrollbar">
           {artistsLoading
             ? Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="flex-none w-[128px] space-y-4">
@@ -211,7 +211,7 @@ function HomeFeed() {
       {/* Playlists Section */}
       <section>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white tracking-tight">
+          <h2 className="text-xl font-bold text-white tracking-tight">
             Featured Playlists
           </h2>
           <Button
@@ -278,7 +278,7 @@ function HomeFeed() {
       {/* Trending Now Section */}
       <section>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white tracking-tight">
+          <h2 className="text-xl font-bold text-white tracking-tight">
             Trending Now
           </h2>
         </div>
@@ -349,14 +349,8 @@ function HomeFeed() {
       <section>
         <div className="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
           <h2 className="text-2xl font-bold text-white tracking-tight">
-            One Melody
+            Songs
           </h2>
-          <Button
-            variant="link"
-            className="text-primary hover:text-primary/80 font-semibold p-0"
-          >
-            See all
-          </Button>
         </div>
 
         <InfiniteScrollContainer
