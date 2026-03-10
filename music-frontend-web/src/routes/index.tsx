@@ -63,6 +63,23 @@ function HomeFeed() {
     queryFn: () => musicApi.getFeed(),
   });
 
+  // Fallback 1: Sync Trending Songs to queue if empty
+  React.useEffect(() => {
+    const horizontalQueue = playerStore.state.queue;
+    if (horizontalQueue.length === 0 && trendingData?.data && trendingData.data.length > 0) {
+      playerActions.syncFeedToQueue(mapListToPlayerSongs(trendingData.data));
+    }
+  }, [trendingData]);
+
+  // Fallback 2: Sync All Songs to queue if still empty
+  React.useEffect(() => {
+    const horizontalQueue = playerStore.state.queue;
+    if (horizontalQueue.length === 0 && allSongs.length > 0) {
+      playerActions.syncFeedToQueue(mapListToPlayerSongs(allSongs));
+    }
+  }, [allSongs]);
+
+  // Primary: Sync Personalized Feed to queue (replaces fallback)
   React.useEffect(() => {
     if (feedData?.data && feedData.data.length > 0) {
       playerActions.syncFeedToQueue(mapListToPlayerSongs(feedData.data));
