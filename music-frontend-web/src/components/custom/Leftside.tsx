@@ -8,10 +8,10 @@ import {
   Music,
   ListMusic,
   Plus,
-  Layers,
   UserCircle,
 } from "lucide-react";
 import React, { useState } from "react";
+import logo from "@/assets/image.png";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -98,8 +98,12 @@ export default function Leftside() {
       {/* Logo */}
       <Link to="/">
         <div className="flex items-center gap-3 px-6 py-8">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20">
-            <Layers className="h-6 w-6 text-primary-foreground" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden shadow-lg shadow-primary/20">
+            <img
+              src={logo}
+              alt="One Melody Logo"
+              className="h-full w-full object-cover"
+            />
           </div>
           <div className="text-xl font-bold tracking-tighter text-white">
             ONE MELODY
