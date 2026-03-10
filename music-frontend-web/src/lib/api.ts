@@ -141,5 +141,9 @@ export const musicApi = {
     getPresignedUrl: async (fileName: string, contentType: string) => {
         const response = await api.get('/storage/presigned-url', { params: { fileName, contentType } })
         return response.data
+    },
+    getProfilePictureUploadUrl: async (fileName: string, contentType: string) => {
+        const response = await api.get('/users/me/profile-picture-upload-url', { params: { fileName, contentType } })
+        return response.data
     }
 }

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../global/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { getProfilePictureUploadUrl } from '../lib/helpers/storage/profile-picture-upload.s3';
 
 @Injectable()
 export class UsersService {
@@ -42,5 +43,9 @@ export class UsersService {
 
         const { password, ...result } = user;
         return result;
+    }
+
+    async getProfilePictureUploadUrl(userId: number, fileName: string, contentType: string) {
+        return getProfilePictureUploadUrl(userId, fileName, contentType);
     }
 }

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import axios from "axios";
 import { z } from "zod";
 import {
   useQuery,
@@ -1160,11 +1161,11 @@ function ProfileView() {
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      const { uploadUrl, key } = await musicApi.getPresignedUrl(
+      const { uploadUrl, key } = await musicApi.getProfilePictureUploadUrl(
         file.name,
         file.type,
       );
-      await api.put(uploadUrl, file, {
+      await axios.put(uploadUrl, file, {
         headers: { "Content-Type": file.type },
       });
       return key;
@@ -1172,8 +1173,9 @@ function ProfileView() {
     onSuccess: (key) => {
       updateProfileMutation.mutate({ profilePictureKey: key });
     },
-    onError: () => {
-      toast.error("Failed to upload image");
+    onError: (error: any) => {
+      console.error("Upload failed:", error);
+      toast.error(`Upload failed: ${error.message || "Unknown error"}`);
     },
   });
 
@@ -1344,17 +1346,6 @@ function ProfileView() {
                 </p>
                 <p className="text-xs text-zinc-500 font-medium">
                   Update your password and security settings
-                </p>
-              </div>
-              <ChevronRight className="h-5 w-5 text-zinc-700 group-hover:text-primary transition-colors" />
-            </div>
-            <div className="p-6 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between group">
-              <div className="space-y-0.5">
-                <p className="font-bold text-white group-hover:text-primary transition-colors">
-                  Preferences
-                </p>
-                <p className="text-xs text-zinc-500 font-medium">
-                  Control notifications and display settings
                 </p>
               </div>
               <ChevronRight className="h-5 w-5 text-zinc-700 group-hover:text-primary transition-colors" />
