@@ -43,12 +43,12 @@ export class FeedService {
 
         const excludeIdsArray = Array.from(excludeSongIds);
 
-        // If completely new user without any history, return latest songs as fallback
         if (signals.length === 0) {
-            return await this.prisma.song.findMany({
+            const fallbackSongs = await this.prisma.song.findMany({
                 orderBy: { releaseDate: 'desc' },
                 take: 15,
             });
+            return { data: fallbackSongs };
         }
 
         try {
@@ -71,10 +71,11 @@ export class FeedService {
             const songIds: string[] = data?.songIds || [];
 
             if (!songIds || songIds.length === 0) {
-                return await this.prisma.song.findMany({
+                const fallbackSongs = await this.prisma.song.findMany({
                     orderBy: { releaseDate: 'desc' },
                     take: 15,
                 });
+                return { data: fallbackSongs };
             }
 
             // 3. Hydrate Songs from Postgres
@@ -86,7 +87,7 @@ export class FeedService {
             const orderedSongs = songIds
                 .map((id) => songs.find((s) => s.id === id))
                 .filter(Boolean);
-            return orderedSongs;
+            return { data: orderedSongs };
 
         } catch (error) {
             console.error(
@@ -95,10 +96,11 @@ export class FeedService {
             );
 
             // Fallback on timeout or network error
-            return await this.prisma.song.findMany({
+            const fallbackSongs = await this.prisma.song.findMany({
                 orderBy: { releaseDate: 'desc' },
                 take: 15,
             });
+            return { data: fallbackSongs };
         }
     }
 }

@@ -115,6 +115,14 @@ def _ensure_collection():
         )
         log.info("Collection created")
 
+    # Ensure payload index for filtering
+    log.info(f"Ensuring payload index for 'songId' in '{QDRANT_COLLECTION}'")
+    qdrant.create_payload_index(
+        collection_name=QDRANT_COLLECTION,
+        field_name="songId",
+        field_schema="keyword",
+    )
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  INNGEST FUNCTION
@@ -269,13 +277,13 @@ async def generate_user_feed_fn(ctx: inngest.Context) -> dict:
             f"Generating feed based on {len(positive_vector_ids)} positive examples"
         )
 
-        recommendation_result = qdrant.recommend(
+        recommendation_result = qdrant.query_points(
             collection_name=QDRANT_COLLECTION,
-            positive=positive_vector_ids,
+            query=positive_vector_ids,
             limit=limit,
             query_filter=must_not_filter,
             with_payload=["songId"],
-        )
+        ).points
 
         song_ids = [
             str(point.payload.get("songId"))
@@ -569,13 +577,13 @@ async def recommend_endpoint(body: RecommendRequest):
             f"REST /recommend: Calculating weighted centroid from {len(body.positiveSignals)} signals"
         )
 
-        results = qdrant.search(
+        results = qdrant.query_points(
             collection_name=QDRANT_COLLECTION,
-            query_vector=centroid.tolist(),
+            query=centroid.tolist(),
             limit=body.limit,
             query_filter=must_not_filter,
             with_payload=["songId"],
-        )
+        ).points
 
         song_ids = [
             str(p.payload.get("songId"))

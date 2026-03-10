@@ -125,8 +125,8 @@ export const playerActions = {
     },
     playNext: async () => {
         const { currentSong, queue, isShuffle, repeatMode } = playerStore.state
-        if (!currentSong || queue.length === 0) {
-            // If no song or empty queue, try fetching feed if we want auto-playing
+
+        if (queue.length === 0) {
             const newSongs = await playerActions.fetchAndAddFeedToQueue()
             if (newSongs.length > 0) {
                 playerActions.setCurrentSong(newSongs[0])
@@ -134,8 +134,7 @@ export const playerActions = {
             return
         }
 
-        if (repeatMode === 'one') {
-            // Restart same song — trigger re-render by re-setting
+        if (repeatMode === 'one' && currentSong) {
             playerStore.setState((state) => ({
                 ...state,
                 currentTime: 0,
@@ -144,10 +143,14 @@ export const playerActions = {
             return
         }
 
-        const currentIndex = queue.findIndex((s) => s.id === currentSong.id)
+        const currentIndex = currentSong ? queue.findIndex((s) => s.id === currentSong.id) : -1
 
-        if (isShuffle) {
-            const randomIndex = Math.floor(Math.random() * queue.length)
+        if (isShuffle && queue.length > 1) {
+            let randomIndex = Math.floor(Math.random() * queue.length)
+            // Try not to pick the same song
+            while (currentIndex !== -1 && randomIndex === currentIndex && queue.length > 1) {
+                randomIndex = Math.floor(Math.random() * queue.length)
+            }
             playerActions.setCurrentSong(queue[randomIndex])
             return
         }
@@ -157,27 +160,32 @@ export const playerActions = {
         } else if (repeatMode === 'all' && queue.length > 0) {
             playerActions.setCurrentSong(queue[0])
         } else {
-            // End of queue, fetch more from feed
+            // End of queue, try fetching more from feed
             const newSongs = await playerActions.fetchAndAddFeedToQueue()
             if (newSongs.length > 0) {
                 playerActions.setCurrentSong(newSongs[0])
+            } else if (repeatMode === 'all') {
+                playerActions.setCurrentSong(queue[0])
             }
         }
     },
     playPrevious: () => {
-        const { currentSong, queue, currentTime } = playerStore.state
-        if (!currentSong) return
+        const { currentSong, queue, currentTime, repeatMode } = playerStore.state
+        if (!currentSong || queue.length === 0) return
 
-        // If more than 3 seconds in, restart current song
         if (currentTime > 3) {
             playerStore.setState((state) => ({ ...state, currentTime: 0, isPlaying: true }))
             return
         }
 
-        if (queue.length === 0) return
         const currentIndex = queue.findIndex((s) => s.id === currentSong.id)
         if (currentIndex > 0) {
             playerActions.setCurrentSong(queue[currentIndex - 1])
+        } else if (repeatMode === 'all') {
+            playerActions.setCurrentSong(queue[queue.length - 1])
+        } else {
+            // Restart current song if at the very beginning and no repeat all
+            playerStore.setState((state) => ({ ...state, currentTime: 0, isPlaying: true }))
         }
     },
     toggleFavourite: () => {

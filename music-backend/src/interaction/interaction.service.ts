@@ -174,14 +174,15 @@ export class InteractionService {
       where: { id: { in: songIds } },
     });
 
-    const orderedSongs = songIds
+    const dataWithUrls = songIds
       .map(id => songs.find(s => s.id === id))
-      .filter(Boolean);
-
-    const dataWithUrls = orderedSongs.map((song) => ({
-      ...song,
-      coverUrl: S3UrlUtility.getCoverImageUrl(song.storageKey, 'medium', true),
-    }));
+      .map((song) => {
+        if (!song) return null;
+        return {
+          ...song,
+          coverUrl: S3UrlUtility.getCoverImageUrl(song.storageKey, 'medium', true),
+        };
+      }).filter(Boolean);
 
     return {
       data: dataWithUrls,

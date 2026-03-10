@@ -170,20 +170,27 @@ export default function PlayerBar() {
           <Button
             variant="ghost"
             size="icon"
-            className="text-zinc-500 hover:text-white h-8 w-8"
+            className={`transition-colors h-8 w-8 ${
+              state.isShuffle
+                ? "text-primary"
+                : "text-zinc-500 hover:text-white"
+            }`}
+            onClick={() => playerActions.toggleShuffle()}
           >
-            <Shuffle className="h-4 w-4" />
+            <Shuffle
+              className={`h-4 w-4 ${state.isShuffle ? "fill-primary/20" : ""}`}
+            />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="text-white h-10 w-10"
+            className="text-white h-10 w-10 hover:text-primary transition-colors"
             onClick={() => playerActions.playPrevious()}
           >
             <SkipBack className="h-6 w-6 fill-current" />
           </Button>
           <Button
-            className="h-14 w-14 rounded-full bg-white text-black hover:scale-110 active:scale-95 transition-all shadow-2xl shadow-white/10"
+            className="h-14 w-14 rounded-full bg-white text-black hover:scale-110 active:scale-95 transition-all shadow-2xl shadow-white/10 flex items-center justify-center p-0"
             onClick={() => playerActions.setIsPlaying(!isPlaying)}
           >
             {isPlaying ? (
@@ -203,9 +210,23 @@ export default function PlayerBar() {
           <Button
             variant="ghost"
             size="icon"
-            className="text-zinc-500 hover:text-white h-8 w-8"
+            className={`transition-colors h-8 w-8 ${
+              state.repeatMode !== "none"
+                ? "text-primary"
+                : "text-zinc-500 hover:text-white"
+            }`}
+            onClick={() => playerActions.toggleRepeat()}
           >
-            <Repeat className="h-4 w-4" />
+            <div className="relative">
+              <Repeat
+                className={`h-4 w-4 ${state.repeatMode !== "none" ? "fill-primary/20" : ""}`}
+              />
+              {state.repeatMode === "one" && (
+                <span className="absolute -top-1 -right-1 text-[8px] font-black bg-primary text-black rounded-full w-3 h-3 flex items-center justify-center border border-black">
+                  1
+                </span>
+              )}
+            </div>
           </Button>
         </div>
 
