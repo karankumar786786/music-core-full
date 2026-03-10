@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   House,
@@ -17,15 +16,6 @@ import { toast } from "sonner";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getCoverImageUrl } from "@/lib/s3";
 import logo from "@/assets/image.png";
-
-type TabType =
-  | "home"
-  | "artist"
-  | "playlist"
-  | "favourites"
-  | "history"
-  | "search"
-  | "profile";
 
 // Dialog Imports
 import {
@@ -49,6 +39,7 @@ const menuItems: {
 }[] = [
   { label: "Home", icon: House, to: "/" },
   { label: "Artists", icon: Music, to: "/artists" },
+  { label: "Playlists", icon: ListMusic, to: "/playlists" },
   { label: "Favourites", icon: Heart, to: "/favourites" },
   { label: "History", icon: History, to: "/history" },
 ];
@@ -150,9 +141,14 @@ export default function Leftside() {
         {/* Playlists Section */}
         <div className="flex flex-col flex-1 min-h-0">
           <div className="flex items-center justify-between px-3 mb-4">
-            <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">
-              Your Playlists
-            </h3>
+            <Link
+              to="/user-playlists"
+              className="hover:opacity-80 transition-opacity cursor-pointer group flex items-center gap-1"
+            >
+              <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] group-hover:text-primary transition-colors">
+                Your Playlists
+              </h3>
+            </Link>
 
             <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
               <DialogTrigger

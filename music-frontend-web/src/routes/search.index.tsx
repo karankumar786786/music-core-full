@@ -5,7 +5,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SongRow } from "@/components/custom/SongRow";
 import { getCoverImageUrl } from "@/lib/s3";
 import { Play, ListMusic, User, ChevronRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { z } from "zod";
 
 const searchSchema = z.object({

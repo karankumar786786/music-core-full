@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
-import { Skeleton } from "@/components/ui/skeleton";
 import { SongRow } from "@/components/custom/SongRow";
 import { InfiniteScrollContainer } from "@/components/custom/InfiniteScrollContainer";
 

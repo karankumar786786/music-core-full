@@ -3,7 +3,6 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ListMusic, Play } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { InfiniteScrollContainer } from "@/components/custom/InfiniteScrollContainer";
 import { getCoverImageUrl } from "@/lib/s3";
 

@@ -7,7 +7,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getCoverImageUrl, S3_BASE_URL } from "@/lib/s3";
+import { getCoverImageUrl } from "@/lib/s3";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import {
