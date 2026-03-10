@@ -4,9 +4,10 @@ import axios from "axios";
 import { getCoverImageUrl } from "@/lib/s3";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, UserSquare2, MoreVertical, Trash2, Edit2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -157,12 +158,41 @@ function ArtistsPage() {
               key={artist.id}
               className="shadow-sm border-muted/60 hover:border-primary/20 transition-colors group relative"
             >
+              <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    className={cn(
+                      buttonVariants({ variant: "ghost", size: "icon" }),
+                      "h-8 w-8 hover:bg-white/10 cursor-pointer flex items-center justify-center p-0",
+                    )}
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      className="text-red-600 gap-2 focus:text-red-600 focus:bg-red-50 cursor-pointer"
+                      onClick={() => {
+                        if (
+                          confirm(
+                            `Are you sure you want to delete ${artist.artistName}?`,
+                          )
+                        ) {
+                          deleteArtistMutation.mutate(artist.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Delete Artist
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
               <Link
                 to="/artists/$artistId"
                 params={{ artistId: artist.id }}
-                className="flex flex-col items-center gap-4 text-center w-full"
+                className="flex flex-col items-center gap-4 text-center w-full p-6"
               >
-                <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold overflow-hidden border mt-2 shadow-sm">
+                <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold overflow-hidden border shadow-sm">
                   {getCoverImageUrl(artist.storageKey, "small") ? (
                     <img
                       src={getCoverImageUrl(artist.storageKey, "small")!}
@@ -174,7 +204,7 @@ function ArtistsPage() {
                   )}
                 </div>
                 <div>
-                  <p className="font-semibold capitalize">
+                  <p className="font-semibold capitalize truncate max-w-[120px]">
                     {artist.artistName}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">

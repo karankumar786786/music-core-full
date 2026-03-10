@@ -89,6 +89,13 @@ function CreateSongPage() {
     const file = e.target.files?.[0];
     if (file) {
       setAudioFile(file);
+
+      // Auto-populate title if it's empty
+      if (!form.getValues("title")) {
+        const fileNameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+        form.setValue("title", fileNameWithoutExt);
+      }
+
       // Extract duration
       const audio = new Audio();
       audio.src = URL.createObjectURL(file);

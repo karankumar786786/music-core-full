@@ -1,6 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  useInfiniteQuery,
+} from "@tanstack/react-query";
+import { useState, useMemo } from "react";
 import { adminApi } from "@/lib/api";
 import {
   Table,
@@ -21,6 +26,7 @@ import {
   Loader2,
   AlertCircle,
   ListPlus,
+  Search,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -41,6 +47,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { getCoverImageUrl } from "@/lib/s3";
+import { Input } from "@/components/ui/input";
+import { InfiniteScrollContainer } from "@/components/custom/InfiniteScrollContainer";
 
 export const Route = createFileRoute("/songs/")({
   component: SongsPage,
@@ -50,13 +58,31 @@ function SongsPage() {
   const queryClient = useQueryClient();
   const [isAddPlaylistDialogOpen, setIsAddPlaylistDialogOpen] = useState(false);
   const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // 1. Processed Songs
-  const { data: songs, isLoading: isSongsLoading } = useQuery({
+  // 1. Paginated Songs with Infinite Scroll
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: isSongsLoading,
+  } = useInfiniteQuery({
     queryKey: ["songs"],
-    queryFn: adminApi.getSongs,
-    refetchInterval: 30000, // Poll every 30s
+    queryFn: ({ pageParam = 1 }) =>
+      adminApi.getSongs({ page: pageParam, limit: 20 }),
+    getNextPageParam: (lastPage, allPages) => {
+      // If the current page has fewer than 20 items, there are no more pages
+      if (lastPage.data.length < 20) return undefined;
+      return allPages.length + 1;
+    },
+    initialPageParam: 1,
   });
+
+  // Flatten the pages into a single array of songs
+  const allSongs = useMemo(() => {
+    return data?.pages.flatMap((page) => page.data) || [];
+  }, [data]);
 
   // 2. Active Processing Jobs
   const { data: jobs, isLoading: isJobsLoading } = useQuery({
@@ -108,12 +134,56 @@ function SongsPage() {
   const failedJobs =
     jobs?.data?.filter((j: any) => j.currentStatus === "failed") || [];
 
-  const completedSongs =
-    songs?.data?.filter(
-      (song: any) =>
-        !activeJobs.some((job: any) => job.id === song.id) &&
-        !failedJobs.some((job: any) => job.id === song.id),
-    ) || [];
+  // Filter songs based on search query
+  const filteredSongs = allSongs.filter((song: any) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      song.title.toLowerCase().includes(query) ||
+      song.artistName.toLowerCase().includes(query) ||
+      (song.genre && song.genre.toLowerCase().includes(query))
+    );
+  });
+
+  const completedSongs = filteredSongs.filter(
+    (song: any) =>
+      !activeJobs.some((job: any) => job.id === song.id) &&
+      !failedJobs.some((job: any) => job.id === song.id),
+  );
+
+  const SongActions = ({ song }: { song: any }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className={cn(
+          buttonVariants({ variant: "ghost", size: "icon" }),
+          "h-8 w-8 cursor-pointer flex items-center justify-center p-0",
+        )}
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuItem
+          className="gap-2 cursor-pointer"
+          onClick={() => {
+            setSelectedSongId(song.id);
+            setIsAddPlaylistDialogOpen(true);
+          }}
+        >
+          <ListPlus className="h-3.5 w-3.5" /> Add to Playlist
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="text-red-600 gap-2 focus:text-red-600 focus:bg-red-50 cursor-pointer"
+          onClick={() => {
+            if (confirm("Are you sure you want to delete this song?")) {
+              deleteMutation.mutate(song.id);
+            }
+          }}
+        >
+          <Trash2 className="h-3.5 w-3.5" /> Delete Song
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   return (
     <div className="space-y-10">
@@ -131,6 +201,18 @@ function SongsPage() {
             <Plus className="h-4 w-4" /> Add New Song
           </Button>
         </Link>
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search songs, artists, genres..."
+            className="pl-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* Processing Jobs Section (Only shown if there are active or failed jobs) */}
@@ -186,102 +268,81 @@ function SongsPage() {
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Available Tracks</h2>
         <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead className="w-[80px]">Cover</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Artist</TableHead>
-                <TableHead>Genre</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {completedSongs.length === 0 ? (
+          <InfiniteScrollContainer
+            fetchNextPage={fetchNextPage}
+            hasNextPage={!!hasNextPage}
+            isFetchingNextPage={isFetchingNextPage}
+          >
+            <Table>
+              <TableHeader className="bg-muted/50">
                 <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="h-32 text-center text-muted-foreground italic"
-                  >
-                    No processed songs found.
-                  </TableCell>
+                  <TableHead className="w-[80px]">Cover</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Artist</TableHead>
+                  <TableHead>Genre</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ) : (
-                completedSongs.map((song: any) => (
-                  <TableRow
-                    key={song.id}
-                    className="hover:bg-muted/30 transition-colors"
-                  >
-                    <TableCell>
-                      <div className="h-10 w-10 rounded-md bg-muted overflow-hidden border">
-                        {getCoverImageUrl(song.storageKey, "small", true) ? (
-                          <img
-                            src={
-                              getCoverImageUrl(song.storageKey, "small", true)!
-                            }
-                            alt={song.title}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="h-full w-full flex items-center justify-center text-muted-foreground">
-                            <Music2 className="h-4 w-4" />
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">{song.title}</TableCell>
-                    <TableCell>{song.artistName}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className="font-normal capitalize"
-                      >
-                        {song.genre || "Unknown"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          className={cn(
-                            buttonVariants({ variant: "ghost", size: "icon" }),
-                            "h-8 w-8 cursor-pointer flex items-center justify-center p-0",
-                          )}
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuItem
-                            className="gap-2 cursor-pointer"
-                            onClick={() => {
-                              setSelectedSongId(song.id);
-                              setIsAddPlaylistDialogOpen(true);
-                            }}
-                          >
-                            <ListPlus className="h-3.5 w-3.5" /> Add to Playlist
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-red-600 gap-2 focus:text-red-600 focus:bg-red-50"
-                            onClick={() => {
-                              if (
-                                confirm(
-                                  "Are you sure you want to delete this song?",
-                                )
-                              ) {
-                                deleteMutation.mutate(song.id);
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" /> Delete Song
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+              </TableHeader>
+              <TableBody>
+                {completedSongs.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="h-32 text-center text-muted-foreground italic"
+                    >
+                      {searchQuery
+                        ? "No matching songs found."
+                        : "No processed songs found."}
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  completedSongs.map((song: any) => (
+                    <TableRow
+                      key={song.id}
+                      className="hover:bg-muted/30 transition-colors"
+                    >
+                      <TableCell>
+                        <div className="h-10 w-10 rounded-md bg-muted overflow-hidden border">
+                          {getCoverImageUrl(song.storageKey, "small", true) ? (
+                            <img
+                              src={
+                                getCoverImageUrl(
+                                  song.storageKey,
+                                  "small",
+                                  true,
+                                )!
+                              }
+                              alt={song.title}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center text-muted-foreground">
+                              <Music2 className="h-4 w-4" />
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {song.title}
+                      </TableCell>
+                      <TableCell>{song.artistName}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className="font-normal capitalize"
+                        >
+                          {song.genre || "Unknown"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <SongActions song={song} />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </InfiniteScrollContainer>
         </div>
       </div>
 

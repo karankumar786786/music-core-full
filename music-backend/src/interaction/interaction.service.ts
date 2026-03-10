@@ -5,6 +5,7 @@ import { AddFavouriteDto } from './dto/add-favourite.dto';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { getPrismaClient } from '../lib/helpers/prisma/getPrismaClient';
 import { SignatureUtility } from '../lib/helpers/signature/signature.utility';
+import { S3UrlUtility } from '../lib/helpers/s3-url.utility';
 
 @Injectable()
 export class InteractionService {
@@ -55,7 +56,15 @@ export class InteractionService {
       this.prisma.userHistory.count({ where: { userId } }),
     ]);
 
-    return { data, meta: { page: Number(page), limit: Number(limit), total } };
+    const dataWithUrls = data.map((item) => ({
+      ...item,
+      song: item.song ? {
+        ...item.song,
+        coverUrl: S3UrlUtility.getCoverImageUrl(item.song.storageKey, 'medium', true),
+      } : null,
+    }));
+
+    return { data: dataWithUrls, meta: { page: Number(page), limit: Number(limit), total } };
   }
 
   async addSearchHistory(userId: number, addSearchHistoryDto: AddSearchHistoryDto) {
@@ -129,7 +138,15 @@ export class InteractionService {
       this.prisma.userFavourites.count({ where: { userId } }),
     ]);
 
-    return { data, meta: { page: Number(page), limit: Number(limit), total } };
+    const dataWithUrls = data.map((item) => ({
+      ...item,
+      song: item.song ? {
+        ...item.song,
+        coverUrl: S3UrlUtility.getCoverImageUrl(item.song.storageKey, 'medium', true),
+      } : null,
+    }));
+
+    return { data: dataWithUrls, meta: { page: Number(page), limit: Number(limit), total } };
   }
 
   async getTrending(paginationQuery: PaginationQueryDto) {
@@ -161,8 +178,13 @@ export class InteractionService {
       .map(id => songs.find(s => s.id === id))
       .filter(Boolean);
 
+    const dataWithUrls = orderedSongs.map((song) => ({
+      ...song,
+      coverUrl: S3UrlUtility.getCoverImageUrl(song.storageKey, 'medium', true),
+    }));
+
     return {
-      data: orderedSongs,
+      data: dataWithUrls,
       meta: {
         page: Number(page),
         limit: Number(limit),
@@ -178,8 +200,13 @@ export class InteractionService {
       take: 5,
     });
 
+    const dataWithUrls = featuredSongs.map((song) => ({
+      ...song,
+      coverUrl: S3UrlUtility.getCoverImageUrl(song.storageKey, 'large', true),
+    }));
+
     return {
-      data: featuredSongs,
+      data: dataWithUrls,
       meta: {
         page: 1,
         limit: 5,

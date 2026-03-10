@@ -30,13 +30,13 @@ type TabType =
 const menuItems: {
   label: string;
   icon: any;
-  tab: TabType;
+  to: string;
 }[] = [
-  { label: "Home", icon: House, tab: "home" },
-  { label: "Artists", icon: Music, tab: "artist" },
-  { label: "Playlists", icon: ListMusic, tab: "playlist" },
-  { label: "Favourites", icon: Heart, tab: "favourites" },
-  { label: "History", icon: History, tab: "history" },
+  { label: "Home", icon: House, to: "/" },
+  { label: "Artists", icon: Music, to: "/artists" },
+  { label: "Playlists", icon: ListMusic, to: "/playlists" },
+  { label: "Favourites", icon: Heart, to: "/favourites" },
+  { label: "History", icon: History, to: "/history" },
 ];
 
 interface UserPlaylist {
@@ -107,11 +107,10 @@ export default function Leftside() {
           {menuItems.map((item) => (
             <Link
               key={item.label}
-              to="/"
-              search={{ tab: item.tab }}
+              to={item.to}
               className="flex items-center gap-4 px-4 py-3 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl transition-all duration-300 [&.active]:bg-primary/10 [&.active]:text-primary group"
               activeProps={{ className: "active" }}
-              activeOptions={{ exact: false, includeSearch: true }}
+              activeOptions={{ exact: true }}
             >
               <item.icon className="w-5 h-5 shrink-0 transition-all group-hover:scale-110" />
               <span className="font-bold text-sm">{item.label}</span>
@@ -168,8 +167,7 @@ export default function Leftside() {
         {user ? (
           <div className="flex flex-col gap-2">
             <Link
-              to="/"
-              search={(prev: any) => ({ ...prev, tab: "profile" })}
+              to="/profile"
               className="flex items-center gap-3 rounded-2xl bg-white/5 p-3 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group"
             >
               <Avatar className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-bold shrink-0 border border-primary/20 group-hover:scale-105 transition-transform">

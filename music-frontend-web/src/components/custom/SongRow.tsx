@@ -24,9 +24,13 @@ export function SongRow({ song, index, showFavorite = true }: SongRowProps) {
       </div>
 
       <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-white/5 shadow-lg group-hover:border-primary/20 transition-colors">
-        {song.storageKey ? (
+        {song.storageKey || song.coverUrl ? (
           <img
-            src={getCoverImageUrl(song.storageKey, "small", true) || ""}
+            src={
+              song.coverUrl ||
+              getCoverImageUrl(song.storageKey, "small", true) ||
+              ""
+            }
             alt={song.title}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
           />

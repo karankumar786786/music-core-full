@@ -7,6 +7,7 @@ import { getPrismaClient } from '../lib/helpers/prisma/getPrismaClient';
 import { SignatureUtility } from '../lib/helpers/signature/signature.utility';
 
 import { client } from '../lib/helpers/inngest';
+import { S3UrlUtility } from '../lib/helpers/s3-url.utility';
 
 @Injectable()
 export class PlaylistsService {
@@ -48,7 +49,11 @@ export class PlaylistsService {
       this.prisma.playlist.count(),
     ]);
 
-    return { data, meta: { page: Number(page), limit: Number(limit), total } };
+    const dataWithUrls = data.map((playlist) => ({
+      ...playlist,
+      coverUrl: S3UrlUtility.getCoverImageUrl(playlist.storageKey, 'medium'),
+    }));
+    return { data: dataWithUrls, meta: { page: Number(page), limit: Number(limit), total } };
   }
 
   async findOne(id: string, paginationQuery: PaginationQueryDto) {
@@ -75,8 +80,15 @@ export class PlaylistsService {
 
     return {
       ...playlist,
+      coverUrl: S3UrlUtility.getCoverImageUrl(playlist.storageKey, 'large'),
       songs: {
-        data: playlist.songs,
+        data: playlist.songs.map((item) => ({
+          ...item,
+          song: {
+            ...item.song,
+            coverUrl: S3UrlUtility.getCoverImageUrl(item.song.storageKey, 'medium', true),
+          },
+        })),
         meta: { page: Number(page), limit: Number(limit), total: totalNestedSongs },
       },
     };

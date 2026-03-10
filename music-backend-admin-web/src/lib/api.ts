@@ -8,7 +8,7 @@ export const api = axios.create({
 
 export const adminApi = {
     // Songs
-    getSongs: async () => (await api.get('/songs')).data,
+    getSongs: async (params?: { page?: number; limit?: number }) => (await api.get('/songs', { params })).data,
     getSongsJobs: async () => (await api.get('/songs/jobs')).data,
     createSong: async (data: any) => (await api.post('/songs', data)).data,
     deleteSong: async (id: string) => (await api.delete(`/songs/${id}`)).data,

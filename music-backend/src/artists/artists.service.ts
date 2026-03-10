@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { CreateArtistDto } from './dto/create-artist.dto';
 
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
@@ -6,6 +6,7 @@ import { getPrismaClient } from '../lib/helpers/prisma/getPrismaClient';
 import { SignatureUtility } from '../lib/helpers/signature/signature.utility';
 
 import { client } from '../lib/helpers/inngest';
+import { S3UrlUtility } from '../lib/helpers/s3-url.utility';
 
 @Injectable()
 export class ArtistsService {
@@ -48,7 +49,12 @@ export class ArtistsService {
       this.prisma.artist.count(),
     ]);
 
-    return { data, meta: { page: Number(page), limit: Number(limit), total } };
+    const dataWithUrls = data.map((artist) => ({
+      ...artist,
+      coverUrl: S3UrlUtility.getCoverImageUrl(artist.storageKey, 'medium'),
+    }));
+
+    return { data: dataWithUrls, meta: { page: Number(page), limit: Number(limit), total } };
   }
 
   async findOne(id: string) {
@@ -56,7 +62,10 @@ export class ArtistsService {
       where: { id },
     });
     if (!artist) throw new NotFoundException(`Artist with ID ${id} not found`);
-    return artist;
+    return {
+      ...artist,
+      coverUrl: S3UrlUtility.getCoverImageUrl(artist.storageKey, 'large'),
+    };
   }
 
   async getSongsByArtist(id: string, paginationQuery: PaginationQueryDto) {
@@ -75,7 +84,12 @@ export class ArtistsService {
       this.prisma.song.count({ where: { artistName: artist.artistName } }),
     ]);
 
-    return { data, meta: { page: Number(page), limit: Number(limit), total } };
+    const dataWithUrls = data.map((song) => ({
+      ...song,
+      coverUrl: S3UrlUtility.getCoverImageUrl(song.storageKey, 'medium', true),
+    }));
+
+    return { data: dataWithUrls, meta: { page: Number(page), limit: Number(limit), total } };
   }
 
   async remove(id: string) {

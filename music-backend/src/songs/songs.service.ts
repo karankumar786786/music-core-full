@@ -5,6 +5,7 @@ import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { getPrismaClient } from '../lib/helpers/prisma/getPrismaClient';
 import { client } from '../lib/helpers/inngest';
 import { SignatureUtility } from '../lib/helpers/signature/signature.utility';
+import { S3UrlUtility } from '../lib/helpers/s3-url.utility';
 
 @Injectable()
 export class SongsService {
@@ -67,7 +68,11 @@ export class SongsService {
     ]);
 
     this.logger.log(`Found ${data.length} songs out of ${total} total`);
-    return { data, meta: { page: Number(page), limit: Number(limit), total } };
+    const dataWithUrls = data.map((song) => ({
+      ...song,
+      coverUrl: S3UrlUtility.getCoverImageUrl(song.storageKey, 'medium', true),
+    }));
+    return { data: dataWithUrls, meta: { page: Number(page), limit: Number(limit), total } };
   }
 
   async findAllJobs(paginationQuery: PaginationQueryDto) {
@@ -87,9 +92,14 @@ export class SongsService {
   }
 
   async findOne(id: string) {
-    return await this.prisma.song.findUnique({
+    const song = await this.prisma.song.findUnique({
       where: { id },
     });
+    if (!song) return null;
+    return {
+      ...song,
+      coverUrl: S3UrlUtility.getCoverImageUrl(song.storageKey, 'large', true),
+    };
   }
 
   async remove(id: string) {

@@ -4,6 +4,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { getProfilePictureUploadUrl } from '../lib/helpers/storage/profile-picture-upload.s3';
 import * as bcrypt from 'bcrypt';
+import { S3UrlUtility } from '../lib/helpers/s3-url.utility';
 
 @Injectable()
 export class UsersService {
@@ -31,7 +32,10 @@ export class UsersService {
         if (!user) throw new NotFoundException('User not found');
 
         const { password, ...result } = user;
-        return result;
+        return {
+            ...result,
+            profilePictureUrl: S3UrlUtility.getCoverImageUrl(user.profilePictureKey, 'large'),
+        };
     }
 
     async updateProfile(userId: number, updateProfileDto: UpdateProfileDto) {
@@ -44,7 +48,10 @@ export class UsersService {
         });
 
         const { password, ...result } = user;
-        return result;
+        return {
+            ...result,
+            profilePictureUrl: S3UrlUtility.getCoverImageUrl(user.profilePictureKey, 'large'),
+        };
     }
 
     async changePassword(userId: number, changePasswordDto: ChangePasswordDto) {
