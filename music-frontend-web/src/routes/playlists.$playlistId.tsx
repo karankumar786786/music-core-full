@@ -107,10 +107,10 @@ function PlaylistDetailsPage() {
         {/* Info */}
         <div className="flex flex-col justify-end gap-6 flex-1">
           <div className="space-y-2">
-            <Badge className="glass-effect text-primary border-primary/30 px-4 py-1.5 mb-2 font-bold uppercase text-[10px] tracking-widest w-fit">
+            <Badge className="glass-effect  border-primary/30 px-4 py-1.5 mb-2 font-bold uppercase text-[10px] tracking-widest w-fit">
               Public Playlist
             </Badge>
-            <h2 className="text-5xl md:text-7xl font-black text-white tracking-tighter drop-shadow-2xl text-glow-green capitalize">
+            <h2 className="text-5xl md:text-7xl font-black text-white tracking-tighter drop-shadow-2xl capitalize">
               {playlist.title}
             </h2>
             <p className="text-zinc-500 text-lg font-bold max-w-2xl leading-relaxed">
@@ -122,7 +122,7 @@ function PlaylistDetailsPage() {
           <div className="flex flex-wrap items-center gap-6 pt-4">
             <Button
               size="lg"
-              className="rounded-full px-10 h-14 font-black gap-3 bg-white text-black hover:bg-white/90 shadow-2xl shadow-black/50 hover:scale-105 active:scale-95 transition-all duration-300"
+              className="rounded-full px-10 h-14 font-black gap-3 bg-primary text-black hover:bg-white/90 shadow-2xl shadow-black/50 hover:scale-105 active:scale-95 transition-all duration-300"
               disabled={songs.length === 0}
               onClick={() => {
                 if (songs.length > 0) {

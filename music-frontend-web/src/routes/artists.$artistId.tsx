@@ -108,10 +108,10 @@ function ArtistDetailsPage() {
             )}
           </div>
           <div className="pb-2 space-y-2">
-            <Badge className="glass-effect text-primary border-primary/30 px-4 py-1.5 mb-2 font-bold uppercase text-[10px] tracking-widest">
+            <Badge className="glass-effect  border-primary/30 px-4 py-1.5 mb-2 font-bold uppercase text-[10px] tracking-widest">
               Verified Artist
             </Badge>
-            <h2 className="text-6xl font-black text-white tracking-tighter drop-shadow-2xl capitalize text-glow-green">
+            <h2 className="text-6xl font-black text-white tracking-tighter drop-shadow-2xl capitalize ">
               {artist.artistName}
             </h2>
             <p className="text-zinc-400 font-bold flex items-center gap-3 text-sm">
@@ -122,7 +122,7 @@ function ArtistDetailsPage() {
             <div className="pt-6 flex items-center gap-4">
               <Button
                 size="lg"
-                className="rounded-full px-10 h-14 font-black gap-3 bg-white text-black hover:bg-white/90 shadow-2xl shadow-black/50 hover:scale-105 active:scale-95 transition-all duration-300"
+                className="rounded-full px-10 h-14 font-black gap-3 bg-primary text-black hover:bg-white/90 shadow-2xl shadow-black/50 hover:scale-105 active:scale-95 transition-all duration-300"
                 disabled={songs.length === 0}
                 onClick={() => {
                   if (songs.length > 0) {
