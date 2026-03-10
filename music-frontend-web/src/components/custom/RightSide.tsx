@@ -147,9 +147,10 @@ export default function RightSide() {
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: false,
-        maxBufferLength: 40,
-        maxMaxBufferLength: 60,
-        backBufferLength: 30,
+        maxBufferLength: 20, // 20s is plenty for audio
+        maxMaxBufferLength: 30, // cap at 30s
+        backBufferLength: 10, // 10s back is enough
+        maxBufferSize: 20 * 1000 * 1000, // 20MB max memory
       });
       hlsRef.current = hls;
       hls.loadSource(streamUrl);

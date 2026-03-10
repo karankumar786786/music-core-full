@@ -62,12 +62,12 @@ function HomeFeed() {
     queryFn: ({ pageParam = 1 }) => musicApi.getSongs(pageParam, 20),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
-      if (!lastPage?.data || lastPage.data.length < 20) return undefined;
+      if (!lastPage?.data || lastPage.data?.length < 20) return undefined;
       return lastPage.meta.page + 1;
     },
   });
 
-  const allSongs = songsData?.pages.flatMap((page) => page.data) || [];
+  const allSongs = songsData?.pages.flatMap((page) => page.data || []) || [];
 
   const { data: artistsData, isLoading: artistsLoading } = useQuery({
     queryKey: ["artists"],
@@ -451,12 +451,12 @@ function ArtistsView() {
       queryFn: ({ pageParam = 1 }) => musicApi.getArtists(pageParam, 20),
       initialPageParam: 1,
       getNextPageParam: (lastPage) => {
-        if (!lastPage?.data || lastPage.data.length < 20) return undefined;
+        if (!lastPage?.data || lastPage.data?.length < 20) return undefined;
         return lastPage.meta.page + 1;
       },
     });
 
-  const artists = data?.pages.flatMap((page) => page.data) || [];
+  const artists = data?.pages.flatMap((page) => page.data || []) || [];
 
   return (
     <div className="space-y-8">
@@ -547,12 +547,12 @@ function FavouritesView() {
       queryFn: ({ pageParam = 1 }) => musicApi.getFavourites(pageParam, 50),
       initialPageParam: 1,
       getNextPageParam: (lastPage) => {
-        if (!lastPage?.data || lastPage.data.length < 50) return undefined;
+        if (!lastPage?.data || lastPage.data?.length < 50) return undefined;
         return lastPage.meta.page + 1;
       },
     });
 
-  const favorites = data?.pages.flatMap((page) => page.data) || [];
+  const favorites = data?.pages.flatMap((page) => page.data || []) || [];
 
   return (
     <div className="space-y-8">
@@ -666,12 +666,12 @@ function HistoryView() {
       queryFn: ({ pageParam = 1 }) => musicApi.getHistory(pageParam, 50),
       initialPageParam: 1,
       getNextPageParam: (lastPage) => {
-        if (!lastPage?.data || lastPage.data.length < 50) return undefined;
+        if (!lastPage?.data || lastPage.data?.length < 50) return undefined;
         return lastPage.meta.page + 1;
       },
     });
 
-  const historyItems = data?.pages.flatMap((page) => page.data) || [];
+  const historyItems = data?.pages.flatMap((page) => page.data || []) || [];
 
   return (
     <div className="space-y-8">
@@ -785,12 +785,12 @@ function PlaylistsView() {
       queryFn: ({ pageParam = 1 }) => musicApi.getPlaylists(pageParam, 20),
       initialPageParam: 1,
       getNextPageParam: (lastPage) => {
-        if (!lastPage?.data || lastPage.data.length < 20) return undefined;
+        if (!lastPage?.data || lastPage.data?.length < 20) return undefined;
         return lastPage.meta.page + 1;
       },
     });
 
-  const playlists = data?.pages.flatMap((page) => page.data) || [];
+  const playlists = data?.pages.flatMap((page) => page.data || []) || [];
 
   return (
     <div className="space-y-8">
@@ -927,7 +927,7 @@ function SearchResultsView() {
       ) : (
         <div className="space-y-10">
           {/* Songs Results */}
-          {data.data.songs && data.data.songs.length > 0 && (
+          {data?.data?.songs && data.data.songs.length > 0 && (
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-white tracking-tight">
                 Songs
@@ -992,7 +992,7 @@ function SearchResultsView() {
           )}
 
           {/* Artist Results */}
-          {data.data.artists && data.data.artists.length > 0 && (
+          {data?.data?.artists && data.data.artists.length > 0 && (
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-white tracking-tight">
                 Artists
@@ -1030,7 +1030,7 @@ function SearchResultsView() {
           )}
 
           {/* Playlist Results */}
-          {data.data.playlists && data.data.playlists.length > 0 && (
+          {data?.data?.playlists && data.data.playlists.length > 0 && (
             <section className="space-y-4">
               <h2 className="text-2xl font-bold text-white tracking-tight">
                 Playlists

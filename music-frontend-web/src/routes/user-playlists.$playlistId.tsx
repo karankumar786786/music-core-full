@@ -29,7 +29,7 @@ function UserPlaylistDetailsPage() {
         musicApi.getUserPlaylist(playlistId, pageParam, 50),
       initialPageParam: 1,
       getNextPageParam: (lastPage) => {
-        if (!lastPage?.songs?.data || lastPage.songs.data.length < 50)
+        if (!lastPage?.songs?.data || lastPage.songs.data?.length < 50)
           return undefined;
         return lastPage.songs.meta.page + 1;
       },
@@ -48,7 +48,8 @@ function UserPlaylistDetailsPage() {
   });
 
   const playlist = data?.pages[0];
-  const allSongsData = data?.pages.flatMap((page) => page.songs.data) || [];
+  const allSongsData =
+    data?.pages.flatMap((page) => page.songs?.data || []) || [];
   const songs = allSongsData
     .map(
       (item: {

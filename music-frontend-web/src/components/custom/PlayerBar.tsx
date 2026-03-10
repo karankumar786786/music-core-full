@@ -46,8 +46,11 @@ export default function PlayerBar() {
     if (Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
-        maxBufferLength: 40,
-        maxMaxBufferLength: 60,
+        lowLatencyMode: false,
+        maxBufferLength: 20, // 20s is plenty for audio
+        maxMaxBufferLength: 30, // cap at 30s
+        backBufferLength: 10, // 10s back is enough
+        maxBufferSize: 20 * 1000 * 1000, // 20MB max memory
       });
       hlsRef.current = hls;
       hls.loadSource(streamUrl);
