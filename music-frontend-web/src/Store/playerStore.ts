@@ -114,7 +114,9 @@ export const playerActions = {
 
     fetchAndAddFeedToQueue: async () => {
         try {
-            const feedData = await musicApi.getFeed()
+            // Send current queue IDs so the backend excludes them
+            const currentIds = playerStore.state.queue.map(s => s.id)
+            const feedData = await musicApi.getFeed(currentIds)
             if (feedData && feedData.data) {
                 const newSongs = mapListToPlayerSongs(feedData.data)
                 playerStore.setState(state => {
@@ -195,6 +197,12 @@ export const playerActions = {
             playerActions.setCurrentSong(queue[nextIndex])
         } else if (repeatMode === 'all' && queue.length > 0) {
             playerActions.setCurrentSong(queue[0])
+        }
+
+        // Auto-fetch more songs when nearing end of queue (2 songs from end)
+        const remaining = queue.length - nextIndex - 1
+        if (remaining <= 2) {
+            playerActions.fetchAndAddFeedToQueue()
         }
     },
 

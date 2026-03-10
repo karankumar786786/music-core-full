@@ -54,8 +54,9 @@ export const musicApi = {
     },
 
     // Feed & Content
-    getFeed: async () => {
-        const response = await api.get('/feed')
+    getFeed: async (excludeIds: string[] = []) => {
+        const params = excludeIds.length > 0 ? `?exclude=${excludeIds.join(',')}` : ''
+        const response = await api.get(`/feed${params}`)
         return response.data
     },
     getTrending: async () => {

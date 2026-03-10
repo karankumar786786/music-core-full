@@ -1,4 +1,4 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FeedService } from './feed.service';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
@@ -11,9 +11,13 @@ export class FeedController {
     constructor(private readonly feedService: FeedService) { }
 
     @Get()
-    async getFeed(@Req() req) {
+    async getFeed(
+        @Req() req,
+        @Query('exclude') exclude?: string,
+    ) {
         const userId = req.user.id;
-        return this.feedService.getUserFeed(userId);
+        const excludeIds = exclude ? exclude.split(',').filter(Boolean) : [];
+        return this.feedService.getUserFeed(userId, excludeIds);
     }
 }
 

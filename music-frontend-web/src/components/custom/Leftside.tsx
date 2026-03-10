@@ -27,6 +27,21 @@ type TabType =
   | "search"
   | "profile";
 
+// Dialog Imports
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+
+// Navigation
 const menuItems: {
   label: string;
   icon: any;
@@ -34,7 +49,6 @@ const menuItems: {
 }[] = [
   { label: "Home", icon: House, to: "/" },
   { label: "Artists", icon: Music, to: "/artists" },
-  { label: "Playlists", icon: ListMusic, to: "/playlists" },
   { label: "Favourites", icon: Heart, to: "/favourites" },
   { label: "History", icon: History, to: "/history" },
 ];
@@ -46,6 +60,10 @@ interface UserPlaylist {
 }
 
 export default function Leftside() {
+  const queryClient = useQueryClient();
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+
   const { data: user } = useQuery({
     queryKey: ["me"],
     queryFn: () => musicApi.getProfile(),
@@ -54,19 +72,30 @@ export default function Leftside() {
     enabled: !!localStorage.getItem("access_token"),
   });
 
-  useEffect(() => {
-    if (user) {
-      const url = getCoverImageUrl(user.profilePictureKey, "small");
-      console.log("[Leftside] User data:", user);
-      console.log("[Leftside] Profile URL:", url);
-    }
-  }, [user]);
-
   const { data: playlistsData } = useQuery({
     queryKey: ["userPlaylists"],
     queryFn: () => musicApi.getUserPlaylists(),
     enabled: !!user,
   });
+
+  const createPlaylistMutation = useMutation({
+    mutationFn: (title: string) => musicApi.createUserPlaylist({ title }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["userPlaylists"] });
+      toast.success("Playlist created");
+      setIsCreateOpen(false);
+      setNewTitle("");
+    },
+    onError: () => {
+      toast.error("Failed to create playlist");
+    },
+  });
+
+  const handleCreatePlaylist = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+    createPlaylistMutation.mutate(newTitle.trim());
+  };
 
   const userPlaylists: UserPlaylist[] = playlistsData?.data || [];
   const userInitial = user?.name?.[0]?.toUpperCase() || "?";
@@ -124,15 +153,65 @@ export default function Leftside() {
             <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">
               Your Playlists
             </h3>
-            <button
-              className="outline-none p-1 hover:bg-zinc-800 rounded-md transition-colors group"
-              onClick={() => {
-                // For now, just a placeholder if state is missing, but better not to go to profile
-                toast?.info("Playlist creation coming soon");
-              }}
-            >
-              <Plus className="w-4 h-4 text-zinc-500 group-hover:text-white cursor-pointer transition-colors" />
-            </button>
+
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger
+                render={
+                  <button
+                    className="outline-none p-1 hover:bg-zinc-800 rounded-md transition-colors group"
+                    onClick={(e) => {
+                      if (!user) {
+                        e.preventDefault();
+                        toast.info("Please login to create playlists");
+                        return;
+                      }
+                    }}
+                  />
+                }
+              >
+                <Plus className="w-4 h-4 text-zinc-500 group-hover:text-white cursor-pointer transition-colors" />
+              </DialogTrigger>
+              <DialogContent className="bg-zinc-900 border-white/10 text-white sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="text-xl font-bold tracking-tight">
+                    Create a Playlist
+                  </DialogTitle>
+                </DialogHeader>
+                <form
+                  onSubmit={handleCreatePlaylist}
+                  className="space-y-6 pt-4"
+                >
+                  <Input
+                    placeholder="E.g., Workout Mix, Late Night Drives"
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    className="bg-zinc-800/50 border-white/10 text-white focus:ring-primary focus-visible:ring-primary h-12 rounded-xl"
+                    autoFocus
+                  />
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setIsCreateOpen(false)}
+                      className="rounded-xl hover:bg-white/5 text-zinc-400 hover:text-white"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={
+                        !newTitle.trim() || createPlaylistMutation.isPending
+                      }
+                      className="rounded-xl bg-primary text-black hover:bg-white/90 font-bold px-6 shadow-xl"
+                    >
+                      {createPlaylistMutation.isPending
+                        ? "Creating..."
+                        : "Create"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
 
           <div className="space-y-1 overflow-y-auto flex-1 no-scrollbar">

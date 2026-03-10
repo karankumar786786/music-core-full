@@ -8,47 +8,68 @@ const RECOMMENDATION_ENGINE_URL =
 export class FeedService {
     private prisma = getPrismaClient();
 
-    async getUserFeed(userId: number) {
-        // 1. Fetch user's recent history and favourites
+    async getUserFeed(userId: number, extraExcludeIds: string[] = []) {
+        // 1. Fetch user's recent history (expanded window) and favourites
         const history = await this.prisma.userHistory.findMany({
             where: { userId },
             orderBy: { createdAt: 'desc' },
-            take: 20,
+            take: 50,
             select: { songVectorId: true, songId: true },
         });
 
         const favourites = await this.prisma.userFavourites.findMany({
             where: { userId },
             orderBy: { createdAt: 'desc' },
-            take: 20,
+            take: 30,
             include: { song: { select: { vectorId: true, id: true } } },
         });
 
-        const signals: { vectorId: string, weight: number }[] = [];
+        // 2. Build weighted signals with recency decay
+        const rawSignals: { vectorId: string, weight: number }[] = [];
         const excludeSongIds = new Set<string>();
 
-        history.forEach((h) => {
+        // Gentle recency decay: newest = 1.2, oldest = 0.8
+        // Keeps overall listening pattern dominant — not just the last song
+        const historyCount = history.length;
+        history.forEach((h, index) => {
             if (h.songVectorId) {
-                signals.push({ vectorId: h.songVectorId, weight: 1.0 });
+                const decay = 1.2 - 0.4 * (index / Math.max(historyCount - 1, 1));
+                rawSignals.push({ vectorId: h.songVectorId, weight: decay });
             }
             if (h.songId) excludeSongIds.add(h.songId);
         });
 
+        // Favourites get a strong explicit boost
         favourites.forEach((f) => {
             if (f.song?.vectorId) {
-                signals.push({ vectorId: f.song.vectorId, weight: 2.0 });
+                rawSignals.push({ vectorId: f.song.vectorId, weight: 3.0 });
             }
             if (f.songId) excludeSongIds.add(f.songId);
         });
 
+        // 3. Deduplicate: keep highest weight per unique vectorId
+        const bestByVector = new Map<string, number>();
+        for (const s of rawSignals) {
+            const existing = bestByVector.get(s.vectorId) ?? 0;
+            if (s.weight > existing) bestByVector.set(s.vectorId, s.weight);
+        }
+        const signals = Array.from(bestByVector.entries()).map(
+            ([vectorId, weight]) => ({ vectorId, weight })
+        );
+
+        // Also exclude songs the frontend already has in its queue
+        for (const id of extraExcludeIds) {
+            excludeSongIds.add(id);
+        }
+
         const excludeIdsArray = Array.from(excludeSongIds);
 
-        console.log(`[FeedService] User ${userId}: ${signals.length} signals, excluding ${excludeIdsArray.length} songs`);
+        console.log(`[FeedService] User ${userId}: ${signals.length} unique signals (from ${rawSignals.length} raw), excluding ${excludeIdsArray.length} songs (${extraExcludeIds.length} from queue)`);
 
         if (signals.length === 0) {
             const fallbackSongs = await this.prisma.song.findMany({
                 orderBy: { releaseDate: 'desc' },
-                take: 15,
+                take: 8,
             });
             return { data: fallbackSongs };
         }
@@ -61,7 +82,7 @@ export class FeedService {
                 body: JSON.stringify({
                     positiveSignals: signals,
                     excludeSongIds: excludeIdsArray,
-                    limit: 15,
+                    limit: 8,
                 }),
             });
 
@@ -77,7 +98,7 @@ export class FeedService {
             if (!songIds || songIds.length === 0) {
                 const fallbackSongs = await this.prisma.song.findMany({
                     orderBy: { releaseDate: 'desc' },
-                    take: 15,
+                    take: 8,
                 });
                 return { data: fallbackSongs };
             }
