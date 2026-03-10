@@ -1,3 +1,4 @@
+import React, { useEffect } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
@@ -8,8 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { InfiniteScrollContainer } from "@/components/custom/InfiniteScrollContainer";
 import { getCoverImageUrl } from "@/lib/s3";
 import { SongRow } from "@/components/custom/SongRow";
-import { playerActions } from "@/Store/playerStore";
-import { mapToPlayerSong } from "@/lib/player-utils";
+import { playerStore, playerActions } from "@/Store/playerStore";
+import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
 
 export const Route = createFileRoute("/")({
   component: HomeFeed,
@@ -62,6 +63,12 @@ function HomeFeed() {
     queryFn: () => musicApi.getFeed(),
   });
 
+  React.useEffect(() => {
+    if (feedData?.data && feedData.data.length > 0) {
+      playerActions.syncFeedToQueue(mapListToPlayerSongs(feedData.data));
+    }
+  }, [feedData]);
+
   const featuredSong = featuredData?.data?.[0];
 
   return (
@@ -88,7 +95,7 @@ function HomeFeed() {
 
             <div className="relative z-10">
               <Badge className="mb-6 w-fit glass-effect  border-primary/30 px-4 py-1.5 backdrop-blur-md font-bold tracking-wider text-[10px] uppercase">
-                Featured Release
+                Featured Release!
               </Badge>
               <h1 className="text-4xl md:text-4xl font-black tracking-tighter text-white mb-2 drop-shadow-2xl capitalize line-clamp-2 max-w-2xl">
                 {featuredSong.title}

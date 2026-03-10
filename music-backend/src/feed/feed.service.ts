@@ -9,7 +9,6 @@ export class FeedService {
     private prisma = getPrismaClient();
 
     async getUserFeed(userId: number) {
-        console.log(`[FeedService] Generating feed for user: ${userId}`);
         // 1. Fetch user's recent history and favourites
         const history = await this.prisma.userHistory.findMany({
             where: { userId },
@@ -69,7 +68,7 @@ export class FeedService {
             }
 
             const data = await response.json();
-            const songIds: string[] = data?.songIds || [];
+            const songIds: string[] = Array.isArray(data) ? data : [];
 
             if (!songIds || songIds.length === 0) {
                 const fallbackSongs = await this.prisma.song.findMany({

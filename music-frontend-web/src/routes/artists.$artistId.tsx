@@ -126,8 +126,7 @@ function ArtistDetailsPage() {
                 disabled={songs.length === 0}
                 onClick={() => {
                   if (songs.length > 0) {
-                    playerActions.setCurrentSong(mapToPlayerSong(songs[0]));
-                    playerActions.setQueue(mapListToPlayerSongs(songs));
+                    playerActions.playAll(mapListToPlayerSongs(songs));
                   }
                 }}
               >
@@ -151,8 +150,7 @@ function ArtistDetailsPage() {
               disabled={songs.length === 0}
               onClick={() => {
                 if (songs.length > 0) {
-                  playerActions.setCurrentSong(mapToPlayerSong(songs[0]));
-                  playerActions.setQueue(mapListToPlayerSongs(songs));
+                  playerActions.playAll(mapListToPlayerSongs(songs));
                 }
               }}
             >
