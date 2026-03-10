@@ -1,131 +1,87 @@
 import { Injectable } from '@nestjs/common';
 import { getPrismaClient } from '../lib/helpers/prisma/getPrismaClient';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class SearchService {
     private prisma = getPrismaClient();
 
-    // Utility: Native Levenshtein Distance for strict typo tolerance without NPM dependencies
-    private calculateLevenshteinDistance(a: string, b: string): number {
-        if (a.length === 0) return b.length;
-        if (b.length === 0) return a.length;
-
-        const matrix: number[][] = [];
-
-        for (let i = 0; i <= b.length; i++) {
-            matrix[i] = [i];
-        }
-
-        for (let j = 0; j <= a.length; j++) {
-            matrix[0][j] = j;
-        }
-
-        for (let i = 1; i <= b.length; i++) {
-            for (let j = 1; j <= a.length; j++) {
-                if (b.charAt(i - 1) === a.charAt(j - 1)) {
-                    matrix[i][j] = matrix[i - 1][j - 1];
-                } else {
-                    matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1));
-                }
-            }
-        }
-        return matrix[b.length][a.length];
-    }
-
-    // Utility: Check if any of the target fields loosely matches the query
-    private looselyMatches(query: string, fields: string[], maxDistance = 3): boolean {
-        const qWords = query.toLowerCase().split(' ').filter(Boolean);
-
-        for (const field of fields) {
-            if (!field) continue;
-            const fWords = field.toLowerCase().split(' ').filter(Boolean);
-
-            // If the query exactly substring matches anywhere, accept it (e.g., 'just' in 'justin')
-            if (field.toLowerCase().includes(query.toLowerCase())) return true;
-
-            // Otherwise, check for typos using Levenshtein distance per word
-            for (const qWord of qWords) {
-                for (const fWord of fWords) {
-                    if (this.calculateLevenshteinDistance(qWord, fWord) <= maxDistance) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
     async globalSearch(query: string, paginationQuery: PaginationQueryDto) {
-        const searchString = query.toLowerCase();
+        const searchString = query.toLowerCase().trim();
         const { page = 1, limit = 10 } = paginationQuery;
         const skip = (page - 1) * limit;
 
-        // 1. Fetch a broader "Candidate Pool" from the DB (using GIN indexes)
-        // We use a safe 'contains' on the first 3 letters if the query is long enough
-        // This leverages our GIN `pg_trgm` indexes rapidly.
-        const dbLookupString = searchString.length >= 3 ? searchString.substring(0, 3) : searchString;
+        const similarityThreshold = 0.2;
 
-        const [candidateSongs, candidateArtists, candidatePlaylists] = await Promise.all([
-            // Songs
-            this.prisma.song.findMany({
-                where: {
-                    OR: [
-                        { title: { contains: dbLookupString, mode: 'insensitive' } },
-                        { artistName: { contains: dbLookupString, mode: 'insensitive' } },
-                        { genre: { contains: dbLookupString, mode: 'insensitive' } },
-                    ],
-                },
-                take: 150, // Grab a larger candidate pool for fuzzy matching
-            }),
+        const [songs, artists, playlists] = await Promise.all([
+            this.prisma.$queryRaw<any[]>(Prisma.sql`
+                SELECT *,
+                    GREATEST(
+                        public.similarity(title,        ${searchString}::text),
+                        public.similarity("artistName", ${searchString}::text),
+                        public.similarity(genre,        ${searchString}::text),
+                        public.word_similarity(${searchString}::text, title),
+                        public.word_similarity(${searchString}::text, "artistName")
+                    ) AS score
+                FROM "Song"
+                WHERE
+                    public.similarity(title,        ${searchString}::text) > ${similarityThreshold}::float
+                    OR public.similarity("artistName", ${searchString}::text) > ${similarityThreshold}::float
+                    OR public.similarity(genre,      ${searchString}::text) > ${similarityThreshold}::float
+                    OR public.word_similarity(${searchString}::text, title)        > ${similarityThreshold}::float
+                    OR public.word_similarity(${searchString}::text, "artistName") > ${similarityThreshold}::float
+                ORDER BY score DESC
+                LIMIT  ${limit}
+                OFFSET ${skip}
+            `),
 
-            // Artists
-            this.prisma.artist.findMany({
-                where: {
-                    artistName: { contains: dbLookupString, mode: 'insensitive' },
-                },
-                take: 50,
-            }),
+            this.prisma.$queryRaw<any[]>(Prisma.sql`
+                SELECT *,
+                    GREATEST(
+                        public.similarity("artistName", ${searchString}::text),
+                        public.word_similarity(${searchString}::text, "artistName")
+                    ) AS score
+                FROM "Artist"
+                WHERE
+                    public.similarity("artistName", ${searchString}::text) > ${similarityThreshold}::float
+                    OR public.word_similarity(${searchString}::text, "artistName") > ${similarityThreshold}::float
+                ORDER BY score DESC
+                LIMIT  ${limit}
+                OFFSET ${skip}
+            `),
 
-            // Playlists
-            this.prisma.playlist.findMany({
-                where: {
-                    OR: [
-                        { title: { contains: dbLookupString, mode: 'insensitive' } },
-                        { description: { contains: dbLookupString, mode: 'insensitive' } },
-                    ],
-                },
-                take: 50,
-            }),
+            this.prisma.$queryRaw<any[]>(Prisma.sql`
+                SELECT *,
+                    GREATEST(
+                        public.similarity(title,       ${searchString}::text),
+                        public.similarity(description, ${searchString}::text),
+                        public.word_similarity(${searchString}::text, title)
+                    ) AS score
+                FROM "Playlist"
+                WHERE
+                    public.similarity(title,       ${searchString}::text) > ${similarityThreshold}::float
+                    OR public.similarity(description, ${searchString}::text) > ${similarityThreshold}::float
+                    OR public.word_similarity(${searchString}::text, title) > ${similarityThreshold}::float
+                ORDER BY score DESC
+                LIMIT  ${limit}
+                OFFSET ${skip}
+            `),
         ]);
 
-        // 2. Apply NATIVE Fuzzy Matching on the Candidate Pools to handle Typos!
-        const maxTypoTolerance = Math.max(1, Math.floor(searchString.length / 3));
-
-        const matchedSongs = candidateSongs
-            .filter(song => this.looselyMatches(searchString, [song.title, song.artistName, song.genre], maxTypoTolerance));
-
-        const matchedArtists = candidateArtists
-            .filter(artist => this.looselyMatches(searchString, [artist.artistName], maxTypoTolerance));
-
-        const matchedPlaylists = candidatePlaylists
-            .filter(playlist => this.looselyMatches(searchString, [playlist.title, playlist.description], maxTypoTolerance));
-
-        // 3. Paginate the locally matched arrays
-        const songs = matchedSongs.slice(skip, skip + limit);
-        const artists = matchedArtists.slice(skip, skip + limit);
-        const playlists = matchedPlaylists.slice(skip, skip + limit);
+        const strip = <T extends { score?: unknown }>(rows: T[]): Omit<T, 'score'>[] =>
+            rows.map(({ score: _score, ...rest }) => rest);
 
         return {
             data: {
-                songs,
-                artists,
-                playlists,
+                songs: strip(songs),
+                artists: strip(artists),
+                playlists: strip(playlists),
             },
             meta: {
                 page: Number(page),
-                limit: Number(limit)
-            }
+                limit: Number(limit),
+            },
         };
     }
 }
