@@ -40,6 +40,14 @@ export const musicApi = {
         const response = await api.get('/auth/me')
         return response.data
     },
+    getProfile: async () => {
+        const response = await api.get('/users/me')
+        return response.data
+    },
+    updateProfile: async (data: { name?: string, profilePictureKey?: string }) => {
+        const response = await api.patch('/users/me', data)
+        return response.data
+    },
 
     // Feed & Content
     getFeed: async () => {
@@ -128,6 +136,10 @@ export const musicApi = {
     },
     addView: async (songId: string) => {
         const response = await api.post('/interaction/views', { songId })
+        return response.data
+    },
+    getPresignedUrl: async (fileName: string, contentType: string) => {
+        const response = await api.get('/storage/presigned-url', { params: { fileName, contentType } })
         return response.data
     }
 }

@@ -94,7 +94,7 @@ export default function Leftside() {
   const userInitial = user?.name?.[0]?.toUpperCase() || "?";
 
   return (
-    <div className="h-full w-[260px] flex flex-col glass-effect  flex-none overflow-hidden relative z-50">
+    <div className="h-full w-[260px] flex flex-col glass-effect border-none flex-none overflow-hidden relative z-50">
       {/* Logo */}
       <Link to="/">
         <div className="flex items-center gap-3 px-6 py-8">
@@ -217,7 +217,11 @@ export default function Leftside() {
 
       {/* Profile Footer */}
       <div className="mt-auto border-t border-white/5 p-4">
-        <div className="flex items-center gap-3 rounded-2xl bg-white/5 p-3 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group">
+        <Link
+          to="/"
+          search={{ tab: "profile" }}
+          className="flex items-center gap-3 rounded-2xl bg-white/5 p-3 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group"
+        >
           <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-bold shrink-0 border border-primary/20 group-hover:scale-105 transition-transform">
             {user ? userInitial : <UserCircle className="h-5 w-5" />}
           </div>
@@ -229,7 +233,7 @@ export default function Leftside() {
               {user?.email || "Not logged in"}
             </span>
           </div>
-        </div>
+        </Link>
       </div>
     </div>
   );

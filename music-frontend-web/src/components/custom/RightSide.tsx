@@ -281,7 +281,7 @@ export default function RightSide() {
   const volProgress = isMuted ? 0 : volume * 100;
 
   return (
-    <div className="w-[400px] glass-effect-strong border-l border-white/10 flex flex-col h-full overflow-hidden flex-none relative z-50">
+    <div className="w-[360px] glass-effect-strong border-none flex flex-col h-full overflow-hidden flex-none relative z-50">
       <div className="absolute top-0 right-0 w-full h-px bg-linear-to-r from-transparent via-primary/20 to-transparent" />
       <audio
         ref={audioRef}

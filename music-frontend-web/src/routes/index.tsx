@@ -1,9 +1,26 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import { musicApi } from "@/lib/api";
+import {
+  useQuery,
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { musicApi, api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
-import { Play, ListMusic, ChevronRight, Music } from "lucide-react";
+import {
+  Play,
+  ListMusic,
+  ChevronRight,
+  Music,
+  Camera,
+  User,
+  Mail,
+  Check,
+  X,
+  Loader2,
+  LogOut,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FavoriteButton } from "@/components/custom/SongActions";
@@ -11,10 +28,21 @@ import { InfiniteScrollContainer } from "@/components/custom/InfiniteScrollConta
 import { getCoverImageUrl } from "@/lib/s3";
 import { playerActions } from "@/Store/playerStore";
 import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
+import { useState, useRef } from "react";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 const homeSearchSchema = z.object({
   tab: z
-    .enum(["home", "artist", "playlist", "favourites", "history", "search"])
+    .enum([
+      "home",
+      "artist",
+      "playlist",
+      "favourites",
+      "history",
+      "search",
+      "profile",
+    ])
     .catch("home")
     .optional(),
   q: z.string().optional(),
@@ -39,6 +67,8 @@ function HomeComponent() {
       return <HistoryView />;
     case "search":
       return <SearchResultsView />;
+    case "profile":
+      return <ProfileView />;
     case "home":
     default:
       return <HomeFeed />;
@@ -46,6 +76,8 @@ function HomeComponent() {
 }
 
 function HomeFeed() {
+  const navigate = useNavigate();
+
   const { data: trendingData, isLoading: trendingLoading } = useQuery({
     queryKey: ["trending"],
     queryFn: () => musicApi.getTrending(),
@@ -103,16 +135,13 @@ function HomeFeed() {
                     getCoverImageUrl(featuredSong.storageKey, "large", true)!
                   }
                   alt=""
-                  className="h-full w-full object-cover opacity-20 group-hover:opacity-30 transition-opacity duration-700 blur-sm"
+                  className="h-full w-full object-cover opacity-30 group-hover:opacity-30 transition-opacity duration-700 blur-[1.92px]"
                 />
               )}
-              <div className="absolute inset-0 bg-linear-to-t from-black via-black/40 to-transparent" />
+              <div className="absolute inset-0 " />
             </div>
 
             <div className="relative z-10">
-              <div className="absolute top-[-100px] right-[-100px] p-10 opacity-20 group-hover:opacity-40 transition-opacity duration-1000 pointer-events-none">
-                <div className="h-64 w-64 rounded-full bg-primary blur-[120px] animate-pulse" />
-              </div>
               <Badge className="mb-6 w-fit glass-effect  border-primary/30 px-4 py-1.5 backdrop-blur-md font-bold tracking-wider text-[10px] uppercase">
                 Featured Release
               </Badge>
@@ -154,7 +183,10 @@ function HomeFeed() {
             variant="link"
             className="text-primary hover:text-primary/80 font-semibold p-0"
             onClick={() => {
-              // Navigate to artist tab
+              navigate({
+                to: "/",
+                search: (prev: any) => ({ ...prev, tab: "artist" }),
+              });
             }}
           >
             Explore
@@ -217,6 +249,12 @@ function HomeFeed() {
           <Button
             variant="link"
             className="text-primary hover:text-primary/80 font-semibold p-0"
+            onClick={() => {
+              navigate({
+                to: "/",
+                search: (prev: any) => ({ ...prev, tab: "playlist" }),
+              });
+            }}
           >
             See all
           </Button>
@@ -1077,6 +1115,274 @@ function SearchResultsView() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function ProfileView() {
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const { data: user, isLoading } = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => musicApi.getProfile(),
+  });
+
+  const [editName, setEditName] = useState(user?.name || "");
+
+  const updateProfileMutation = useMutation({
+    mutationFn: (data: { name?: string; profilePictureKey?: string }) =>
+      musicApi.updateProfile(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+      setIsEditing(false);
+      toast.success("Profile updated successfully");
+    },
+    onError: () => {
+      toast.error("Failed to update profile");
+    },
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const { uploadUrl, key } = await musicApi.getPresignedUrl(
+        file.name,
+        file.type,
+      );
+      await api.put(uploadUrl, file, {
+        headers: { "Content-Type": file.type },
+      });
+      return key;
+    },
+    onSuccess: (key) => {
+      updateProfileMutation.mutate({ profilePictureKey: key });
+    },
+    onError: () => {
+      toast.error("Failed to upload image");
+    },
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("File size must be less than 5MB");
+        return;
+      }
+      uploadMutation.mutate(file);
+    }
+  };
+
+  const handleSave = () => {
+    if (!editName.trim()) {
+      toast.error("Name cannot be empty");
+      return;
+    }
+    updateProfileMutation.mutate({ name: editName });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh] gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-zinc-500 font-medium">Loading profile...</p>
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-12 pb-20">
+      <div className="relative group">
+        <div className="h-48 w-full rounded-[40px] glass-effect border border-white/5 overflow-hidden">
+          <div className="absolute inset-0 bg-linear-to-b from-primary/10 to-black/40 blur-xl" />
+        </div>
+
+        <div className="absolute -bottom-16 left-12 flex items-end gap-8">
+          <div className="relative group cursor-pointer">
+            <div className="h-40 w-40 rounded-[32px] overflow-hidden border-4 border-black bg-zinc-900 shadow-2xl relative transition-transform duration-500 group-hover:scale-[1.02]">
+              {user.profilePictureKey ? (
+                <img
+                  src={getCoverImageUrl(user.profilePictureKey, "large") || ""}
+                  alt={user.name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center bg-primary/20 text-primary">
+                  <User className="h-20 w-20" />
+                </div>
+              )}
+              {uploadMutation.isPending && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                </div>
+              )}
+              <div
+                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[2px]"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Camera className="h-10 w-10 text-white" />
+              </div>
+            </div>
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept="image/*"
+              onChange={handleFileChange}
+            />
+          </div>
+
+          <div className="mb-4">
+            <div className="flex items-center gap-4 mb-2">
+              {isEditing ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="text-4xl font-black bg-white/5 border-white/10 h-14 w-80 rounded-2xl focus:ring-primary/20"
+                    autoFocus
+                  />
+                  <Button
+                    size="icon"
+                    className="h-14 w-14 rounded-2xl bg-primary text-black hover:bg-white"
+                    onClick={handleSave}
+                    disabled={updateProfileMutation.isPending}
+                  >
+                    {updateProfileMutation.isPending ? (
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    ) : (
+                      <Check className="h-6 w-6" />
+                    )}
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-14 w-14 rounded-2xl bg-white/5 text-white hover:bg-white/10"
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditName(user.name);
+                    }}
+                  >
+                    <X className="h-6 w-6" />
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <h1 className="text-5xl font-black tracking-tighter text-white">
+                    {user.name}
+                  </h1>
+                  <Button
+                    variant="ghost"
+                    className="h-10 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white"
+                    onClick={() => setIsEditing(true)}
+                  >
+                    Edit Profile
+                  </Button>
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-6 text-zinc-400 font-medium">
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                <span>{user.email}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                <span className="capitalize">{user.role || "Member"}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-12">
+        <div className="col-span-1 space-y-6">
+          <div className="glass-effect rounded-[32px] border border-white/5 p-8 space-y-6">
+            <h3 className="text-lg font-bold text-white tracking-tight">
+              Statistics
+            </h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5">
+                <span className="text-zinc-400 font-medium">Playlists</span>
+                <span className="text-xl font-bold text-white">
+                  {user.playlistCount || 0}
+                </span>
+              </div>
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5">
+                <span className="text-zinc-400 font-medium">Followers</span>
+                <span className="text-xl font-bold text-white">0</span>
+              </div>
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5">
+                <span className="text-zinc-400 font-medium">Following</span>
+                <span className="text-xl font-bold text-white">0</span>
+              </div>
+            </div>
+          </div>
+
+          <Button
+            variant="ghost"
+            className="w-full h-14 rounded-[24px] bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border-none font-bold transition-all duration-300"
+            onClick={() => {
+              musicApi.logout();
+              window.location.reload();
+            }}
+          >
+            <LogOut className="mr-3 h-5 w-5" />
+            Sign Out
+          </Button>
+        </div>
+
+        <div className="col-span-2 space-y-8">
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white tracking-tight">
+                Account Settings
+              </h2>
+            </div>
+            <div className="glass-effect rounded-[32px] border border-white/5 overflow-hidden">
+              <div className="divide-y divide-white/5">
+                <div className="p-6 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between group">
+                  <div className="space-y-1">
+                    <p className="font-bold text-white group-hover:text-primary transition-colors">
+                      Change Email
+                    </p>
+                    <p className="text-xs text-zinc-500 font-medium">
+                      Manage your contact and login email
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-zinc-700" />
+                </div>
+                <div className="p-6 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between group">
+                  <div className="space-y-1">
+                    <p className="font-bold text-white group-hover:text-primary transition-colors">
+                      Security & Password
+                    </p>
+                    <p className="text-xs text-zinc-500 font-medium">
+                      Update your password and security settings
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-zinc-700" />
+                </div>
+                <div className="p-6 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between group">
+                  <div className="space-y-1">
+                    <p className="font-bold text-white group-hover:text-primary transition-colors">
+                      Preferences
+                    </p>
+                    <p className="text-xs text-zinc-500 font-medium">
+                      Control notifications and display settings
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-zinc-700" />
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
     </div>
   );
 }

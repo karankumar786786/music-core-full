@@ -79,7 +79,7 @@ function MainLayout() {
       <Leftside />
 
       {/* Main Content Area */}
-      <div className="flex flex-1 flex-col overflow-hidden border-r border-white/5">
+      <div className="flex flex-1 flex-col overflow-hidden">
         {/* Header/Navbar */}
         <div className="flex-none">
           <Navbar />

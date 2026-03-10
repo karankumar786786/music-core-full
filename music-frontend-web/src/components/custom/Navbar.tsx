@@ -1,4 +1,4 @@
-import { Search, UserCircle, Bell, LogOut } from "lucide-react";
+import { Search, UserCircle, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -70,7 +70,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className="flex h-20 items-center justify-between   glass-effect px-8 sticky top-0 z-50">
+    <header className="flex h-20 items-center justify-between glass-effect border-none px-8 sticky top-0 z-50">
       {/* Search Bar */}
       <div className="relative w-[400px] group">
         <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 group-focus-within:text-primary transition-colors" />
@@ -84,14 +84,6 @@ export default function Navbar() {
 
       {/* Right Actions */}
       <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="rounded-full text-zinc-400 hover:bg-zinc-900 hover:text-white"
-        >
-          <Bell className="h-5 w-5" />
-        </Button>
-
         {user ? (
           <DropdownMenu>
             <DropdownMenuTrigger>
@@ -107,6 +99,18 @@ export default function Navbar() {
             <DropdownMenuContent className="w-56 bg-zinc-900 border-white/10 text-white">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-white/5" />
+              <DropdownMenuItem
+                className="hover:bg-zinc-800 cursor-pointer focus:bg-zinc-800"
+                onClick={() =>
+                  navigate({
+                    to: "/",
+                    search: (prev: any) => ({ ...prev, tab: "profile" }),
+                  })
+                }
+              >
+                <UserCircle className="mr-2 h-4 w-4 text-primary" />
+                <span>Profile</span>
+              </DropdownMenuItem>
               <DropdownMenuItem
                 className="hover:bg-zinc-800 cursor-pointer text-red-400 focus:text-red-400 focus:bg-zinc-800"
                 onClick={handleLogout}
