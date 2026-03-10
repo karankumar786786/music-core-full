@@ -627,6 +627,14 @@ function FavouritesView() {
                   <div
                     key={item.id}
                     className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                    onClick={() => {
+                      playerActions.setCurrentSong(mapToPlayerSong(song));
+                      playerActions.setQueue(
+                        mapListToPlayerSongs(
+                          favorites.map((i: any) => i.song).filter(Boolean),
+                        ),
+                      );
+                    }}
                   >
                     <div className="w-8 text-center text-zinc-600 font-mono text-xs group-hover:text-primary transition-colors">
                       {String(index + 1).padStart(2, "0")}
@@ -746,6 +754,14 @@ function HistoryView() {
                   <div
                     key={item.id}
                     className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer"
+                    onClick={() => {
+                      playerActions.setCurrentSong(mapToPlayerSong(song));
+                      playerActions.setQueue(
+                        mapListToPlayerSongs(
+                          historyItems.map((i: any) => i.song).filter(Boolean),
+                        ),
+                      );
+                    }}
                   >
                     <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg shadow-lg">
                       {song.storageKey ? (
