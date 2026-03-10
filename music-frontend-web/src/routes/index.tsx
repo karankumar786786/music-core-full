@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-query";
 import { musicApi, api } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
   Play,
   ListMusic,
@@ -1212,9 +1213,8 @@ function ProfileView() {
   return (
     <div className="max-w-4xl mx-auto h-full overflow-hidden">
       {/* Banner */}
-      <div className="relative h-48 w-full rounded-[40px] overflow-hidden glass-effect border border-white/5">
+      <div className="relative h-48 w-full rounded-[40px] overflow-hidden glass-effect">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/5 to-black/60" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
       </div>
 
       {/* Avatar + Name row — overlaps banner */}
@@ -1224,27 +1224,25 @@ function ProfileView() {
           className="relative group cursor-pointer shrink-0"
           onClick={() => fileInputRef.current?.click()}
         >
-          <div className="h-36 w-36 rounded-[28px] overflow-hidden border-4 border-black bg-zinc-900 shadow-2xl transition-transform duration-300 group-hover:scale-[1.03]">
-            {user.profilePictureKey ? (
-              <img
-                src={getCoverImageUrl(user.profilePictureKey, "large") || ""}
-                alt={user.name}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="h-full w-full flex items-center justify-center bg-primary/20 text-primary">
-                <User className="h-16 w-16" />
-              </div>
-            )}
+          <Avatar className="h-36 w-36 rounded-[28px] border-4 border-black bg-zinc-900 shadow-2xl transition-transform duration-300 group-hover:scale-[1.03]">
+            <AvatarImage
+              src={getCoverImageUrl(user.profilePictureKey, "large") || ""}
+              alt={user.name}
+              className="object-cover"
+            />
+            <AvatarFallback className="bg-primary/20 text-primary">
+              <User className="h-16 w-16" />
+            </AvatarFallback>
+
             {uploadMutation.isPending && (
-              <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-sm">
+              <div className="absolute inset-0 bg-black/60 z-10 flex items-center justify-center backdrop-blur-sm">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             )}
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px] z-20">
               <Camera className="h-8 w-8 text-white" />
             </div>
-          </div>
+          </Avatar>
           <input
             type="file"
             ref={fileInputRef}
@@ -1342,7 +1340,7 @@ function ProfileView() {
             <div className="p-6 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-between group">
               <div className="space-y-0.5">
                 <p className="font-bold text-white group-hover:text-primary transition-colors">
-                  Security & Password
+                  Change Password
                 </p>
                 <p className="text-xs text-zinc-500 font-medium">
                   Update your password and security settings

@@ -20,11 +20,12 @@ export function getCoverImageUrl(storageKey: string | null | undefined, size: Im
         imageKey = storageKey.replace('songs/', 'song-cover-images/');
     }
 
-    if (imageKey.startsWith('user-profile-pictures/')) {
-        return `${S3_BASE_URL}/${imageKey}`;
-    }
+    const url = imageKey.startsWith('user-profile-pictures/')
+        ? `${S3_BASE_URL}/${imageKey}`
+        : `${S3_BASE_URL}/${imageKey}/cover/${size}.webp`;
 
-    return `${S3_BASE_URL}/${imageKey}/cover/${size}.webp`;
+    console.log(`[getCoverImageUrl] key: ${storageKey}, generated url: ${url}`);
+    return url;
 }
 
 /**

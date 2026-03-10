@@ -1,6 +1,7 @@
 "use client";
 
-import { Link } from "@tanstack/react-router";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   House,
   History,
@@ -9,21 +10,14 @@ import {
   ListMusic,
   Plus,
   UserCircle,
+  LogOut,
 } from "lucide-react";
-import React, { useState } from "react";
-import logo from "@/assets/image.png";
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Input } from "@/components/ui/input";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { toast } from "sonner";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { getCoverImageUrl } from "@/lib/s3";
+import logo from "@/assets/image.png";
 
 type TabType =
   | "home"
@@ -31,7 +25,8 @@ type TabType =
   | "playlist"
   | "favourites"
   | "history"
-  | "search";
+  | "search"
+  | "profile";
 
 const menuItems: {
   label: string;
@@ -52,17 +47,30 @@ interface UserPlaylist {
 }
 
 export default function Leftside() {
-  const [newPlaylistName, setNewPlaylistName] = useState("");
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const { data: user } = useQuery({
     queryKey: ["me"],
-    queryFn: () => musicApi.getMe(),
+    queryFn: () => musicApi.getProfile(),
     retry: false,
     staleTime: Infinity,
     enabled: !!localStorage.getItem("access_token"),
   });
+
+  useEffect(() => {
+    if (user) {
+      const url = getCoverImageUrl(user.profilePictureKey, "small");
+      console.log("[Leftside] User data:", user);
+      console.log("[Leftside] Profile URL:", url);
+    }
+  }, [user]);
+
+  const handleLogout = () => {
+    musicApi.logout();
+    queryClient.setQueryData(["me"], null);
+    queryClient.invalidateQueries({ queryKey: ["me"] });
+  };
 
   const { data: playlistsData } = useQuery({
     queryKey: ["userPlaylists"],
@@ -71,26 +79,6 @@ export default function Leftside() {
   });
 
   const userPlaylists: UserPlaylist[] = playlistsData?.data || [];
-
-  const createPlaylistMutation = useMutation({
-    mutationFn: (name: string) => musicApi.createUserPlaylist({ title: name }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["userPlaylists"] });
-      toast.success(`Playlist "${newPlaylistName}" created`);
-      setNewPlaylistName("");
-      setIsPopoverOpen(false);
-    },
-    onError: () => {
-      toast.error("Failed to create playlist");
-    },
-  });
-
-  const handleCreatePlaylist = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPlaylistName.trim()) return;
-    createPlaylistMutation.mutate(newPlaylistName.trim());
-  };
-
   const userInitial = user?.name?.[0]?.toUpperCase() || "?";
 
   return (
@@ -147,45 +135,15 @@ export default function Leftside() {
             <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">
               Your Playlists
             </h3>
-            <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-              <PopoverTrigger className="outline-none p-1 hover:bg-zinc-800 rounded-md transition-colors group">
-                <Plus className="w-4 h-4 text-zinc-500 group-hover:text-white cursor-pointer transition-colors" />
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-72 bg-zinc-900 border-zinc-800 shadow-2xl p-5"
-                align="start"
-                side="right"
-              >
-                <PopoverHeader className="mb-4">
-                  <PopoverTitle className="text-base font-bold text-white">
-                    New Playlist
-                  </PopoverTitle>
-                </PopoverHeader>
-                <form onSubmit={handleCreatePlaylist}>
-                  <div className="space-y-3">
-                    <Input
-                      value={newPlaylistName}
-                      onChange={(e) => setNewPlaylistName(e.target.value)}
-                      placeholder="My awesome playlist..."
-                      className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-600 h-10"
-                      autoFocus
-                    />
-                    <Button
-                      type="submit"
-                      className="w-full font-bold h-10"
-                      disabled={
-                        !newPlaylistName.trim() ||
-                        createPlaylistMutation.isPending
-                      }
-                    >
-                      {createPlaylistMutation.isPending
-                        ? "Creating..."
-                        : "Create"}
-                    </Button>
-                  </div>
-                </form>
-              </PopoverContent>
-            </Popover>
+            <button
+              className="outline-none p-1 hover:bg-zinc-800 rounded-md transition-colors group"
+              onClick={() => {
+                // For now, just a placeholder if state is missing, but better not to go to profile
+                toast?.info("Playlist creation coming soon");
+              }}
+            >
+              <Plus className="w-4 h-4 text-zinc-500 group-hover:text-white cursor-pointer transition-colors" />
+            </button>
           </div>
 
           <div className="space-y-1 overflow-y-auto flex-1 no-scrollbar">
@@ -216,24 +174,47 @@ export default function Leftside() {
       </div>
 
       {/* Profile Footer */}
-      <div className="mt-auto border-t border-white/5 p-4">
-        <Link
-          to="/"
-          search={{ tab: "profile" }}
-          className="flex items-center gap-3 rounded-2xl bg-white/5 p-3 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group"
-        >
-          <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-bold shrink-0 border border-primary/20 group-hover:scale-105 transition-transform">
-            {user ? userInitial : <UserCircle className="h-5 w-5" />}
+      <div className="mt-auto border-t border-white/5 p-4 space-y-2">
+        {user ? (
+          <div className="flex flex-col gap-2">
+            <Link
+              to="/"
+              search={(prev: any) => ({ ...prev, tab: "profile" })}
+              className="flex items-center gap-3 rounded-2xl bg-white/5 p-3 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer group"
+            >
+              <Avatar className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-bold shrink-0 border border-primary/20 group-hover:scale-105 transition-transform">
+                <AvatarImage
+                  src={getCoverImageUrl(user?.profilePictureKey, "small") || ""}
+                  alt={user?.name}
+                  className="object-cover"
+                />
+                <AvatarFallback className="bg-primary/20 text-primary">
+                  {userInitial}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-1 flex-col overflow-hidden">
+                <span className="truncate text-sm font-bold text-white group-hover:text-primary transition-colors">
+                  {user.name}
+                </span>
+                <span className="truncate text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                  Profile Settings
+                </span>
+              </div>
+            </Link>
           </div>
-          <div className="flex flex-1 flex-col overflow-hidden">
-            <span className="truncate text-sm font-bold text-white group-hover:text-primary transition-colors">
-              {user?.name || "Guest"}
-            </span>
-            <span className="truncate text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
-              {user?.email || "Not logged in"}
-            </span>
+        ) : (
+          <div className="flex items-center gap-3 rounded-2xl bg-white/5 p-3 border border-white/5">
+            <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-bold shrink-0 border border-primary/20">
+              <UserCircle className="h-5 w-5" />
+            </div>
+            <div className="flex flex-1 flex-col">
+              <span className="text-sm font-bold text-white">Guest</span>
+              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider italic">
+                Login to sync
+              </span>
+            </div>
           </div>
-        </Link>
+        )}
       </div>
     </div>
   );
