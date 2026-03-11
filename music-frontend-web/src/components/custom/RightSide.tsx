@@ -161,7 +161,7 @@ export default function RightSide() {
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setQualityLevels(hls.levels as QualityLevel[]);
         if (audioRef.current) {
-          audioRef.current.volume = isMuted ? 0 : volume * 0.8 ;
+          audioRef.current.volume = isMuted ? 0 : volume * 0.9 ;
         }
         if (isPlaying) audioRef.current?.play().catch(console.error);
       });
@@ -214,7 +214,7 @@ export default function RightSide() {
   // Sync volume to audio element
   useEffect(() => {
     if (!audioRef.current) return;
-    audioRef.current.volume = isMuted ? 0 : volume * 0.8;
+    audioRef.current.volume = isMuted ? 0 : volume * 0.9;
     audioRef.current.muted = isMuted;
   }, [volume, isMuted]);
 
@@ -303,7 +303,7 @@ export default function RightSide() {
           if (audioRef.current && isFinite(audioRef.current.duration))
             playerActions.setDuration(audioRef.current.duration);
           if (audioRef.current)
-            audioRef.current.volume = isMuted ? 0 : volume * 0.8;
+            audioRef.current.volume = isMuted ? 0 : volume * 0.9;
         }}
         onEnded={() => {
           if (repeatMode === "one" && audioRef.current) {
