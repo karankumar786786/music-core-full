@@ -1,6 +1,9 @@
 import { Play, ListMusic } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FavoriteButton } from "@/components/custom/SongActions";
+import {
+  FavoriteButton,
+  PlaylistButton,
+} from "@/components/custom/SongActions";
 import { getCoverImageUrl } from "@/lib/s3";
 import { playerActions } from "@/Store/playerStore";
 import { mapToPlayerSong } from "@/lib/player-utils";
@@ -53,10 +56,11 @@ export function SongRow({ song, index, showFavorite = true }: SongRowProps) {
         </p>
       </div>
 
-      <div className="shrink-0 flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+      <div className="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
         {showFavorite && (
           <FavoriteButton songId={song.id} isLiked={song.isLiked || false} />
         )}
+        <PlaylistButton songId={song.id} />
         <Button
           variant="ghost"
           size="icon"

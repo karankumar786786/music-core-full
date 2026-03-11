@@ -18,37 +18,20 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Plus,
-  MoreHorizontal,
-  Trash2,
   Edit,
   ExternalLink,
   Music2,
   Loader2,
   AlertCircle,
-  ListPlus,
   Search,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { getCoverImageUrl } from "@/lib/s3";
 import { Input } from "@/components/ui/input";
 import { InfiniteScrollContainer } from "@/components/custom/InfiniteScrollContainer";
+import { SongActions } from "@/components/custom/SongActions";
 
 export const Route = createFileRoute("/songs/")({
   component: SongsPage,
@@ -56,8 +39,6 @@ export const Route = createFileRoute("/songs/")({
 
 function SongsPage() {
   const queryClient = useQueryClient();
-  const [isAddPlaylistDialogOpen, setIsAddPlaylistDialogOpen] = useState(false);
-  const [selectedSongId, setSelectedSongId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   // 1. Paginated Songs with Infinite Scroll
@@ -91,39 +72,6 @@ function SongsPage() {
     refetchInterval: 5000, // Poll more frequently for active jobs
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: adminApi.deleteSong,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["songs"] });
-      toast.success("Song deleted successfully");
-    },
-    onError: () => {
-      toast.error("Failed to delete song");
-    },
-  });
-
-  const { data: playlists } = useQuery({
-    queryKey: ["playlists"],
-    queryFn: adminApi.getPlaylists,
-  });
-
-  const addSongMutation = useMutation({
-    mutationFn: ({
-      playlistId,
-      songId,
-    }: {
-      playlistId: string;
-      songId: string;
-    }) => adminApi.addSongToPlaylist(playlistId, songId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["playlists"] });
-      toast.success("Song added to playlist");
-      setIsAddPlaylistDialogOpen(false);
-      setSelectedSongId(null);
-    },
-    onError: () => toast.error("Failed to add song to playlist"),
-  });
-
   if (isSongsLoading && isJobsLoading) return <SongsSkeleton />;
 
   const activeJobs =
@@ -148,41 +96,6 @@ function SongsPage() {
     (song: any) =>
       !activeJobs.some((job: any) => job.id === song.id) &&
       !failedJobs.some((job: any) => job.id === song.id),
-  );
-
-  const SongActions = ({ song }: { song: any }) => (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        className={cn(
-          buttonVariants({ variant: "ghost", size: "icon" }),
-          "h-8 w-8 cursor-pointer flex items-center justify-center p-0",
-        )}
-      >
-        <MoreHorizontal className="h-4 w-4" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-40">
-        <DropdownMenuItem
-          className="gap-2 cursor-pointer"
-          onClick={() => {
-            setSelectedSongId(song.id);
-            setIsAddPlaylistDialogOpen(true);
-          }}
-        >
-          <ListPlus className="h-3.5 w-3.5" /> Add to Playlist
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="text-red-600 gap-2 focus:text-red-600 focus:bg-red-50 cursor-pointer"
-          onClick={() => {
-            if (confirm("Are you sure you want to delete this song?")) {
-              deleteMutation.mutate(song.id);
-            }
-          }}
-        >
-          <Trash2 className="h-3.5 w-3.5" /> Delete Song
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 
   return (
@@ -345,69 +258,6 @@ function SongsPage() {
           </InfiniteScrollContainer>
         </div>
       </div>
-
-      <Dialog
-        open={isAddPlaylistDialogOpen}
-        onOpenChange={(open) => {
-          setIsAddPlaylistDialogOpen(open);
-          if (!open) setSelectedSongId(null);
-        }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add Song to Playlist</DialogTitle>
-            <DialogDescription>
-              Select a playlist to add this song to.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4 max-h-[400px] overflow-y-auto">
-            {playlists?.data?.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4 italic">
-                No playlists available. Create one first.
-              </p>
-            ) : (
-              <div className="grid gap-2">
-                {playlists?.data?.map((playlist: any) => (
-                  <Button
-                    key={playlist.id}
-                    variant="outline"
-                    className="justify-start gap-4 h-auto p-4"
-                    onClick={() => {
-                      if (selectedSongId) {
-                        addSongMutation.mutate({
-                          playlistId: playlist.id,
-                          songId: selectedSongId,
-                        });
-                      }
-                    }}
-                    disabled={addSongMutation.isPending}
-                  >
-                    <div className="h-10 w-10 shrink-0 rounded bg-orange-500/10 flex items-center justify-center text-orange-600 font-bold border overflow-hidden">
-                      {getCoverImageUrl(playlist.storageKey, "small") ? (
-                        <img
-                          src={getCoverImageUrl(playlist.storageKey, "small")!}
-                          alt={playlist.title}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        playlist.title?.charAt(0) || "P"
-                      )}
-                    </div>
-                    <div className="flex flex-col items-start gap-1 min-w-0">
-                      <span className="font-semibold truncate w-full text-left">
-                        {playlist.title}
-                      </span>
-                      <span className="text-xs text-muted-foreground font-normal">
-                        Add to this playlist
-                      </span>
-                    </div>
-                  </Button>
-                ))}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

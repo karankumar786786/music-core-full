@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Heart,  ListMusic, Loader2, ListPlus } from "lucide-react";
+import { Heart, ListMusic, Loader2, ListPlus } from "lucide-react";
 import { toast } from "sonner";
 import { musicApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -150,7 +150,10 @@ export function PlaylistButton({ songId }: PlaylistButtonProps) {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger className="rounded-full text-zinc-500 hover:text-white hover:bg-white/10 transition-colors h-10 w-10 flex items-center justify-center">
+        <DropdownMenuTrigger
+          onClick={(e) => e.stopPropagation()}
+          className="rounded-full text-zinc-500 hover:text-white hover:bg-white/10 transition-colors h-10 w-10 flex items-center justify-center"
+        >
           <ListPlus className="h-5 w-5" />
         </DropdownMenuTrigger>
         <DropdownMenuContent

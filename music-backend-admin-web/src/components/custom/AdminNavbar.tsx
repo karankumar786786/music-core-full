@@ -26,6 +26,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { adminApi } from "@/lib/api";
 import { Link } from "@tanstack/react-router";
+import { SongActions } from "./SongActions";
 
 // Custom hook for debouncing search term
 function useDebounce<T>(value: T, delay: number): T {
@@ -116,22 +117,30 @@ export default function AdminNavbar() {
                       Songs
                     </div>
                     {searchResults.data.songs.slice(0, 5).map((song: any) => (
-                      <Link
-                        to="/songs"
+                      <div
                         key={`song-${song.id}`}
-                        onClick={() => setIsSearchOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2 hover:bg-muted transition-colors"
+                        className="group flex items-center justify-between px-4 py-2 hover:bg-muted transition-colors"
                       >
-                        <MockThumbnail icon={Music} />
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-sm font-medium truncate">
-                            {song.title}
-                          </span>
-                          <span className="text-xs text-muted-foreground truncate">
-                            {song.artistName}
-                          </span>
-                        </div>
-                      </Link>
+                        <Link
+                          to="/songs"
+                          onClick={() => setIsSearchOpen(false)}
+                          className="flex items-center gap-3 flex-1 min-w-0"
+                        >
+                          <MockThumbnail icon={Music} />
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-medium truncate">
+                              {song.title}
+                            </span>
+                            <span className="text-xs text-muted-foreground truncate">
+                              {song.artistName}
+                            </span>
+                          </div>
+                        </Link>
+                        <SongActions
+                          song={song}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        />
+                      </div>
                     ))}
                   </div>
                 )}
