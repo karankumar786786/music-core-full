@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useDebouncedValue } from "@tanstack/react-pacer";
 import { musicApi } from "@/lib/api";
 import AuthModal from "./AuthModal";
 import { useNavigate, useSearch, Link } from "@tanstack/react-router";
@@ -26,13 +27,21 @@ export default function Navbar() {
     enabled: !!localStorage.getItem("access_token"),
   });
 
+  const [debouncedQuery, debouncer] = useDebouncedValue(
+    query,
+    { wait: 300 },
+    (state) => ({ isPending: state.isPending }),
+  );
+
   // Fetch search results for the dropdown
-  const { data: searchResults, isFetching } = useQuery({
-    queryKey: ["global-search-dropdown", query],
-    queryFn: () => musicApi.search(query),
-    enabled: query.trim().length > 0,
+  const { data: searchResults, isFetching: isQueryFetching } = useQuery({
+    queryKey: ["global-search-dropdown", debouncedQuery],
+    queryFn: () => musicApi.search(debouncedQuery),
+    enabled: debouncedQuery.trim().length > 0,
     staleTime: 30000,
   });
+
+  const isFetching = isQueryFetching || debouncer.state.isPending;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
