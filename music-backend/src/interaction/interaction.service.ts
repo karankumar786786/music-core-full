@@ -102,23 +102,46 @@ export class InteractionService {
       throw new NotFoundException(`Song with ID ${songId} not found`);
     }
 
-    return await this.prisma.userFavourites.create({
-      data: {
-        userId,
-        songId,
-      },
-    });
-  }
-
-  async removeFavourite(userId: number, songId: string) {
-    return await this.prisma.userFavourites.delete({
-      where: {
-        userId_songId: {
+    try {
+      return await this.prisma.userFavourites.create({
+        data: {
           userId,
           songId,
         },
-      },
-    });
+      });
+    } catch (error) {
+      if (error.code === 'P2002') {
+        // If it already exists, just return the existing record or a generic success
+        return await this.prisma.userFavourites.findUnique({
+          where: {
+            userId_songId: {
+              userId,
+              songId,
+            },
+          },
+        });
+      }
+      throw error;
+    }
+  }
+
+  async removeFavourite(userId: number, songId: string) {
+    try {
+      return await this.prisma.userFavourites.delete({
+        where: {
+          userId_songId: {
+            userId,
+            songId,
+          },
+        },
+      });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        // Record to delete does not exist
+        return { message: 'Favourite not found or already removed' };
+      }
+      throw error;
+    }
   }
 
   async getFavourites(userId: number, paginationQuery: PaginationQueryDto) {

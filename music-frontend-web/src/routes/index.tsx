@@ -11,6 +11,7 @@ import { FeaturedPlaylistsSection } from "@/components/home/FeaturedPlaylistsSec
 import { TrendingNowSection } from "@/components/home/TrendingNowSection";
 import { DiscoverForYouSection } from "@/components/home/DiscoverForYouSection";
 import { SongRow } from "@/components/custom/SongRow";
+import { RecentSearchesSection } from "@/components/home/RecentSearchesSection";
 export const Route = createFileRoute("/")({
   component: HomeFeed,
 });
@@ -114,6 +115,9 @@ function HomeFeed() {
         featuredIndex={featuredIndex}
         setFeaturedIndex={setFeaturedIndex}
       />
+
+      {/* Recent Searches Section */}
+      <RecentSearchesSection />
 
       {/* Top Artists Section */}
       <TopArtistsSection

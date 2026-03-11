@@ -11,6 +11,7 @@ import { getCoverImageUrl } from "@/lib/s3";
 import { Skeleton } from "@/components/ui/skeleton";
 import { playerActions } from "@/Store/playerStore";
 import { mapToPlayerSong } from "@/lib/player-utils";
+import { FavoriteButton } from "./SongActions";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -235,6 +236,15 @@ export default function Navbar() {
                             <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest truncate">
                               {song.artistName}
                             </span>
+                          </div>
+                          <div
+                            className="flex items-center gap-2 opacity-0 group-hover/item:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <FavoriteButton
+                              songId={song.id}
+                              isLiked={song.isLiked || false}
+                            />
                           </div>
                         </button>
                       ))}

@@ -56,7 +56,13 @@ function FavouritesView() {
                 const song = item.song;
                 if (!song) return null;
 
-                return <SongRow key={item.id} song={song} index={index} />;
+                return (
+                  <SongRow
+                    key={item.id}
+                    song={{ ...song, isLiked: true }}
+                    index={index}
+                  />
+                );
               })}
         </div>
       </InfiniteScrollContainer>
