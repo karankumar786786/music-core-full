@@ -67,7 +67,7 @@ export default function Navbar() {
     const q = submitQuery ?? query;
     if (q.trim()) {
       setIsDropdownOpen(false);
-      setQuery(q);
+      setQuery("");
       navigate({
         to: "/search",
         search: { q },
@@ -116,9 +116,10 @@ export default function Navbar() {
                       <button
                         key={history.id}
                         className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/5 rounded-xl transition-all duration-200 text-left group border border-transparent hover:border-white/5"
-                        onClick={() =>
-                          handleSearchSubmit(undefined, history.searchString)
-                        }
+                        onClick={() => {
+                          handleSearchSubmit(undefined, history.searchString);
+                          setQuery("");
+                        }}
                       >
                         <History className="h-4 w-4 text-zinc-500 group-hover:text-primary transition-colors" />
                         <span className="text-sm font-medium text-white group-hover:text-primary transition-colors flex-1 line-clamp-1">
@@ -166,6 +167,7 @@ export default function Navbar() {
                           className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/5 rounded-xl transition-all duration-200 text-left group/item border border-transparent hover:border-white/5"
                           onClick={() => {
                             setIsDropdownOpen(false);
+                            setQuery("");
                             musicApi
                               .addSearchHistory({ searchString: song.title })
                               .then(() => refetchHistory())
@@ -223,6 +225,7 @@ export default function Navbar() {
                             key={artist.id}
                             onClick={() => {
                               setIsDropdownOpen(false);
+                              setQuery("");
                               musicApi
                                 .addSearchHistory({
                                   searchString: artist.artistName,
@@ -278,6 +281,7 @@ export default function Navbar() {
                             key={playlist.id}
                             onClick={() => {
                               setIsDropdownOpen(false);
+                              setQuery("");
                               musicApi
                                 .addSearchHistory({
                                   searchString: playlist.title,
