@@ -57,8 +57,8 @@ inngest.fast_api.serve(
 async def recommend_endpoint(body: RecommendRequest):
     """
     Direct REST endpoint for NestJS to call.
-    Calculates weighted centroid from positive signals and searches Qdrant.
-    Over-fetches 2× for diversity, filters by score threshold, then returns
+    Uses native Qdrant Point ID queries from sampled valid signals.
+    Over-fetches slightly for diversity, filters by score threshold, then returns
     top half deterministically + shuffled bottom half.
     """
     if not body.positiveSignals:
@@ -68,37 +68,16 @@ async def recommend_endpoint(body: RecommendRequest):
         qdrant = get_qdrant_client()
         from lib.helpers.config import QDRANT_COLLECTION
 
-        # 1. Fetch raw vectors AND sub-vectors for all positive signals
-        vector_ids = [s.vectorId for s in body.positiveSignals]
-        points = qdrant.retrieve(
-            collection_name=QDRANT_COLLECTION,
-            ids=vector_ids,
-            with_vectors=True,
-            with_payload=True,
-        )
+        valid_signals = body.positiveSignals
 
-        if not points:
-            log.warning("No vectors found for provided signal IDs")
-            return {"songIds": []}
-
-        # 2. Pick up to 3 "seed" tracks randomly, proportionally by weight
-        id_to_point = {str(p.id): p for p in points}
-
-        # Filter and prepare valid points
-        valid_signals = []
-        for sig in body.positiveSignals:
-            pt = id_to_point.get(sig.vectorId)
-            if pt is not None:
-                valid_signals.append((sig, pt))
-
-        if not valid_signals:
-            return {"songIds": []}
-
-        # Select seeds based on weights to preserve genre/language ratios
+        # 1. Pick up to 3 "seed" tracks randomly, proportionally by weight
         num_seeds = min(3, len(valid_signals))
-        weights = [s[0].weight for s in valid_signals]
+        weights = [s.weight for s in valid_signals]
         total_w = sum(weights)
-        probs = [w / total_w for w in weights]
+        if total_w > 0:
+            probs = [w / total_w for w in weights]
+        else:
+            probs = [1.0 / len(valid_signals)] * len(valid_signals)
 
         selected_indices = np.random.choice(
             len(valid_signals), size=num_seeds, replace=False, p=probs
@@ -106,9 +85,7 @@ async def recommend_endpoint(body: RecommendRequest):
 
         seeds = [valid_signals[i] for i in selected_indices]
 
-        LYRICS_W, AUDIO_W, META_W = 0.45, 0.40, 0.15
-
-        # 3. Build exclusion filter
+        # 2. Build exclusion filter
         must_not_filter = None
         if body.excludeSongIds:
             must_not_filter = Filter(
@@ -120,52 +97,34 @@ async def recommend_endpoint(body: RecommendRequest):
                 ]
             )
 
-        # 4. Run separate queries for each seed to ensure diversity
+        # 3. Run separate queries for each seed to ensure diversity
         queries_results = []
-        # Calculate limit per seed, rounding up slightly
         limit_per_seed = (body.limit // num_seeds) + 2
         log.info(
             f"REST /recommend: Using {num_seeds} sampled seeds for multi-query interleaving"
         )
 
-        for sig, pt in seeds:
-            # Construct the weighted search vector from this specific seed
-            payload = pt.payload or {}
-            lyrics_v = payload.get("lyrics_vector")
-            audio_v = payload.get("audio_vector")
-            meta_v = payload.get("meta_vector")
-
-            if lyrics_v and audio_v and meta_v:
-                vec = (
-                    np.array(lyrics_v, dtype=np.float32) * LYRICS_W
-                    + np.array(audio_v, dtype=np.float32) * AUDIO_W
-                    + np.array(meta_v, dtype=np.float32) * META_W
-                )
-                n = np.linalg.norm(vec)
-                if n > 0:
-                    vec /= n
-            elif pt.vector is not None:
-                vec = np.array(pt.vector, dtype=np.float32)
-            else:
+        for sig in seeds:
+            try:
+                # Query Qdrant for this specific seed using its ID
+                res = qdrant.query_points(
+                    collection_name=QDRANT_COLLECTION,
+                    query=sig.vectorId,
+                    limit=limit_per_seed,
+                    query_filter=must_not_filter,
+                    with_payload=["songId"],
+                    score_threshold=SCORE_THRESHOLD,
+                ).points
+                if res:
+                    queries_results.append(res)
+            except Exception as e:
+                log.warning(f"Qdrant query_points failed for seed {sig.vectorId}: {e}")
                 continue
-
-            # Query Qdrant for this specific seed
-            res = qdrant.query_points(
-                collection_name=QDRANT_COLLECTION,
-                query=vec.tolist(),
-                limit=limit_per_seed,
-                query_filter=must_not_filter,
-                with_payload=["songId"],
-                score_threshold=SCORE_THRESHOLD,
-            ).points
-
-            if res:
-                queries_results.append(res)
 
         if not queries_results:
             return {"songIds": []}
 
-        # 5. Interleave results round-robin (A1, B1, C1, A2, B2, C2...)
+        # 4. Interleave results round-robin (A1, B1, C1, A2, B2, C2...)
         interleaved = []
         max_len = max(len(qr) for qr in queries_results)
 
@@ -182,7 +141,7 @@ async def recommend_endpoint(body: RecommendRequest):
                 seen.add(p.id)
                 final_results.append(p)
 
-        # 6. Light diversity: top 70% deterministic, only bottom 30% shuffled
+        # 5. Light diversity: top 70% deterministic, only bottom 30% shuffled
         mid = int(body.limit * 0.7)
         top_half = final_results[:mid]
         bottom_pool = final_results[mid:]
