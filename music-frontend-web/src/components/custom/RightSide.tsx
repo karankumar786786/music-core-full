@@ -393,7 +393,7 @@ export default function RightSide() {
       </div>
 
       {/* Player — 45vh */}
-      <div className="h-[45vh] px-6 pb-4 pt-2 flex flex-col justify-between flex-none bg-gradient-to-t from-black via-black to-transparent">
+      <div className="h-[45vh] px-6 pb-4 pt-2 flex flex-col justify-between flex-none bg-linear-to-t from-black via-black to-transparent">
         {/* Title and Artist */}
         <div className="space-y-1">
           <h1 className="font-bold text-zinc-300 text-[1.4rem] leading-none truncate uppercase tracking-tight">
@@ -473,7 +473,7 @@ export default function RightSide() {
               </div>
 
               {showQualityMenu && (
-                <div className="absolute bottom-full left-0 right-0 mb-2 bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-[999]">
+                <div className="absolute bottom-full left-0 right-0 mb-2 bg-zinc-900 border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-999">
                   <button
                     onClick={() => {
                       if (hlsRef.current) hlsRef.current.currentLevel = -1;

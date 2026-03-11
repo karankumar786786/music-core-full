@@ -80,7 +80,7 @@ function UserPlaylistsView() {
                   </div>
                 </div>
 
-                <div className="text-right flex-shrink-0 ml-4 hidden sm:block">
+                <div className="text-right shrink-0 ml-4 hidden sm:block">
                   <p className="text-zinc-500 text-xs font-semibold group-hover:text-primary transition-colors uppercase tracking-widest">
                     Your List
                   </p>
