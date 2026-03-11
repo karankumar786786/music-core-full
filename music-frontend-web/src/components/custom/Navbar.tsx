@@ -71,16 +71,36 @@ export default function Navbar() {
     const q = submitQuery ?? query;
     if (q.trim()) {
       setIsDropdownOpen(false);
-      setQuery("");
-      navigate({
-        to: "/search",
-        search: { q },
-      });
+
       if (!isFromHistory) {
+        setQuery("");
+        navigate({
+          to: "/search",
+          search: { q },
+        });
         musicApi
           .addSearchHistory({ searchString: q })
           .then(() => refetchHistory())
           .catch(console.error);
+      } else {
+        // Keep the dropdown open to show results
+        setIsDropdownOpen(true);
+      }
+    }
+  };
+
+  const logHistoryIfNotDuplicate = async (title: string) => {
+    // If it perfectly matches a recent searched item, don't duplicate it in the DB again
+    const isDuplicate = historyData?.some(
+      (h: any) => h.searchString.toLowerCase() === title.toLowerCase(),
+    );
+
+    if (!isDuplicate) {
+      try {
+        await musicApi.addSearchHistory({ searchString: title });
+        await refetchHistory();
+      } catch (err) {
+        console.error(err);
       }
     }
   };
@@ -182,10 +202,7 @@ export default function Navbar() {
                           onClick={() => {
                             setIsDropdownOpen(false);
                             setQuery("");
-                            musicApi
-                              .addSearchHistory({ searchString: song.title })
-                              .then(() => refetchHistory())
-                              .catch(console.error);
+                            logHistoryIfNotDuplicate(song.title);
                             playerActions.playSong(mapToPlayerSong(song));
                           }}
                         >
@@ -240,12 +257,7 @@ export default function Navbar() {
                             onClick={() => {
                               setIsDropdownOpen(false);
                               setQuery("");
-                              musicApi
-                                .addSearchHistory({
-                                  searchString: artist.artistName,
-                                })
-                                .then(() => refetchHistory())
-                                .catch(console.error);
+                              logHistoryIfNotDuplicate(artist.artistName);
                             }}
                             className="flex items-center gap-3 px-3 py-2 hover:bg-white/5 rounded-xl transition-all duration-200 group/item border border-transparent hover:border-white/5"
                           >
@@ -296,12 +308,7 @@ export default function Navbar() {
                             onClick={() => {
                               setIsDropdownOpen(false);
                               setQuery("");
-                              musicApi
-                                .addSearchHistory({
-                                  searchString: playlist.title,
-                                })
-                                .then(() => refetchHistory())
-                                .catch(console.error);
+                              logHistoryIfNotDuplicate(playlist.title);
                             }}
                             className="flex items-center gap-3 px-3 py-2 hover:bg-white/5 rounded-xl transition-all duration-200 group/item border border-transparent hover:border-white/5"
                           >
