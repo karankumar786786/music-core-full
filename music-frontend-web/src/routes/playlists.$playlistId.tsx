@@ -130,7 +130,7 @@ function PlaylistDetailsPage() {
             <div className="pt-6 flex items-center gap-4">
               <Button
                 size="lg"
-                className="rounded-full px-10 h-14 font-black gap-3 bg-primary text-black hover:bg-white/90 shadow-2xl shadow-black/50 hover:scale-105 active:scale-95 transition-all duration-300"
+                className="rounded-full px-10 h-14 font-black gap-3 bg-primary text-black hover:bg-white/90 shadow-2xl shadow-black/50 hover:scale-105 active:scale-95 transition-all duration-300 disabled:opacity-100 disabled:cursor-not-allowed"
                 disabled={!songs || songs.length === 0}
                 onClick={() => {
                   if (songs && songs.length > 0) {
