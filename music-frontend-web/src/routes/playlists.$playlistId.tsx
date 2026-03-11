@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
-import { getCoverImageUrl } from "@/lib/s3";
+import { getCoverImageUrl, getBannerImageUrl } from "@/lib/s3";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -82,76 +82,77 @@ function PlaylistDetailsPage() {
         </div>
       </div>
 
-      {/* Hero Section */}
-      <div className="relative flex flex-col md:flex-row gap-10 p-12 rounded-[40px] glass-effect border border-white/10 overflow-hidden group shadow-2xl">
-        <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:opacity-20 transition-opacity duration-1000 pointer-events-none">
-          <div className="h-64 w-64 rounded-full bg-primary blur-[120px] animate-pulse" />
-        </div>
+      {/* Hero Banner */}
+      <div className="relative h-[350px] w-full overflow-hidden rounded-[40px] border border-white/5 glass-effect shadow-2xl group">
+        {getBannerImageUrl(playlist.storageKey, "large") ? (
+          <img
+            src={getBannerImageUrl(playlist.storageKey, "large")!}
+            alt={playlist.title}
+            className="h-full w-full object-cover opacity-60 transition-transform duration-1000 group-hover:scale-110"
+          />
+        ) : (
+          <div className="h-full w-full bg-linear-to-br from-primary/20 via-black to-black" />
+        )}
+        <div className="absolute inset-0 bg-linear-to-t from-black via-black/20 to-transparent" />
 
-        {/* Cover Image */}
-        <div className="relative h-64 w-64 shrink-0 overflow-hidden rounded-3xl shadow-2xl border-8 border-black group-hover:scale-[1.02] transition-transform duration-700 mx-auto md:mx-0">
-          {getCoverImageUrl(playlist.storageKey, "medium") ? (
-            <img
-              src={getCoverImageUrl(playlist.storageKey, "medium")!}
-              alt={playlist.title}
-              className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-110"
-            />
-          ) : (
-            <div className="h-full w-full flex items-center justify-center bg-zinc-900 text-zinc-700">
-              <ListMusic className="h-20 w-20" />
-            </div>
-          )}
-          <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
-
-        {/* Info */}
-        <div className="flex flex-col justify-end gap-6 flex-1">
-          <div className="space-y-2">
-            <Badge className="glass-effect  border-primary/30 px-4 py-1.5 mb-2 font-bold uppercase text-[10px] tracking-widest w-fit">
-              Public Playlist
-            </Badge>
-            <h2 className="text-5xl md:text-7xl font-black text-white tracking-tighter drop-shadow-2xl capitalize">
-              {playlist.title}
-            </h2>
-            <p className="text-zinc-500 text-lg font-bold max-w-2xl leading-relaxed">
-              {playlist.description ||
-                "A curated collection of tracks for your listening pleasure."}
-            </p>
+        <div className="absolute bottom-10 left-10 flex items-end gap-8">
+          {/* Cover Image */}
+          <div className="h-44 w-44 shrink-0 overflow-hidden rounded-3xl border-8 border-black shadow-2xl group-hover:scale-105 transition-transform duration-500">
+            {getCoverImageUrl(playlist.storageKey, "medium") ? (
+              <img
+                src={getCoverImageUrl(playlist.storageKey, "medium")!}
+                alt={playlist.title}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="h-full w-full flex items-center justify-center bg-zinc-900 text-zinc-700">
+                <ListMusic className="h-20 w-20" />
+              </div>
+            )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-6 pt-4">
-            <Button
-              size="lg"
-              className="rounded-full px-10 h-14 font-black gap-3 bg-primary text-black hover:bg-white/90 shadow-2xl shadow-black/50 hover:scale-105 active:scale-95 transition-all duration-300"
-              disabled={songs.length === 0}
-              onClick={() => {
-                if (songs.length > 0) {
-                  playerActions.playAll(mapListToPlayerSongs(songs));
-                }
-              }}
-            >
-              <Play className="h-6 w-6 fill-current" /> Play Now
-            </Button>
+          {/* Info */}
+          <div className="pb-2 space-y-2">
+            <Badge className="glass-effect  border-primary/30 px-4 py-1.5 mb-2 font-bold uppercase text-[10px] tracking-widest">
+              Public Playlist
+            </Badge>
+            <h2 className="text-6xl font-black text-white tracking-tighter drop-shadow-2xl capitalize ">
+              {playlist.title}
+            </h2>
+            <p className="text-zinc-400 font-bold flex items-center gap-3 text-sm">
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              {playlist?.songs?.meta?.totalItems ||
+                (songs && songs.length) ||
+                0}{" "}
+              Tracks in Playlist
+            </p>
 
-            <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 glass-effect px-6 py-3 rounded-2xl">
-              <span className="flex items-center gap-2">
-                <Music className="h-4 w-4 text-primary" />
-                {playlist?.songs?.meta?.totalItems ||
-                  (songs && songs.length) ||
-                  0}{" "}
-                Songs
-              </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-zinc-800" />
-              <span>{formatDate(playlist.createdAt)}</span>
+            <div className="pt-6 flex items-center gap-4">
+              <Button
+                size="lg"
+                className="rounded-full px-10 h-14 font-black gap-3 bg-primary text-black hover:bg-white/90 shadow-2xl shadow-black/50 hover:scale-105 active:scale-95 transition-all duration-300"
+                disabled={!songs || songs.length === 0}
+                onClick={() => {
+                  if (songs && songs.length > 0) {
+                    playerActions.playAll(mapListToPlayerSongs(songs));
+                  }
+                }}
+              >
+                <Play className="h-6 w-6 fill-current" /> Play Now
+              </Button>
+
+              <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 glass-effect px-6 py-3 rounded-2xl h-14">
+                <span>Created {formatDate(playlist.createdAt)}</span>
+              </div>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full border border-white/5 hover:bg-zinc-900 h-14 w-14"
+              >
+                <MoreHorizontal className="h-5 w-5 text-zinc-400" />
+              </Button>
             </div>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full border border-white/5 hover:bg-zinc-900"
-            >
-              <MoreHorizontal className="h-5 w-5 text-zinc-400" />
-            </Button>
           </div>
         </div>
       </div>
