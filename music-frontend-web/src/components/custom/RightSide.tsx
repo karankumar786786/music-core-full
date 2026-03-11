@@ -374,7 +374,7 @@ export default function RightSide() {
                     key={si}
                     className={`block font-bold tracking-tight leading-tight transition-all duration-300 ${
                       isActive
-                        ? "text-white text-[1.6rem]"
+                        ? "text-white text-[1.3rem]"
                         : "text-zinc-600 text-[1.3rem]"
                     }`}
                   >
