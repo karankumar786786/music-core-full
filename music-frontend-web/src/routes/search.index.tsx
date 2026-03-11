@@ -6,6 +6,7 @@ import { SongRow } from "@/components/custom/SongRow";
 import { getCoverImageUrl } from "@/lib/s3";
 import { Play, ListMusic, User, ChevronRight } from "lucide-react";
 import { z } from "zod";
+import { capitalize } from "@/lib/utils";
 
 const searchSchema = z.object({
   q: z.string().optional(),
@@ -126,7 +127,7 @@ function SearchResultsView() {
                     </div>
                     <div className="space-y-1">
                       <h3 className="font-bold text-white group-hover:text-primary transition-colors line-clamp-1">
-                        {artist.artistName}
+                        {capitalize(artist.artistName)}
                       </h3>
                       <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">
                         Artist
@@ -177,7 +178,7 @@ function SearchResultsView() {
                     </div>
                     <div className="flex flex-col min-w-0">
                       <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors">
-                        {playlist.title}
+                        {capitalize(playlist.title)}
                       </h3>
                       <p className="text-xs text-zinc-500 truncate">
                         {playlist.description || "Public Playlist"}

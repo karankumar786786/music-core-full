@@ -7,6 +7,7 @@ import {
 import { getCoverImageUrl } from "@/lib/s3";
 import { playerActions } from "@/Store/playerStore";
 import { mapToPlayerSong } from "@/lib/player-utils";
+import { capitalize } from "@/lib/utils";
 
 interface SongRowProps {
   song: any;
@@ -49,10 +50,10 @@ export function SongRow({ song, index, showFavorite = true }: SongRowProps) {
 
       <div className="flex flex-col min-w-0 flex-1">
         <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors text-sm tracking-tight">
-          {song.title}
+          {capitalize(song.title)}
         </h3>
         <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest truncate">
-          {song.artistName}
+          {capitalize(song.artistName)}
         </p>
       </div>
 

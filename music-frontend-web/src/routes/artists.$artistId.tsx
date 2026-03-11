@@ -8,6 +8,7 @@ import { Play, Music, ArrowLeft, Clock, Calendar } from "lucide-react";
 import { playerActions } from "@/Store/playerStore";
 import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
 import { InfiniteScrollContainer } from "@/components/custom/InfiniteScrollContainer";
+import { capitalize } from "@/lib/utils";
 
 export const Route = createFileRoute("/artists/$artistId")({
   component: ArtistDetailsPage,
@@ -75,7 +76,7 @@ function ArtistDetailsPage() {
         </Link>
         <div>
           <h1 className="text-3xl font-black tracking-tighter text-white capitalize text-glow-green">
-            {artist.artistName}
+            {capitalize(artist.artistName)}
           </h1>
         </div>
       </div>
@@ -112,7 +113,7 @@ function ArtistDetailsPage() {
               Verified Artist
             </Badge>
             <h2 className="text-6xl font-black text-white tracking-tighter drop-shadow-2xl capitalize ">
-              {artist.artistName}
+              {capitalize(artist.artistName)}
             </h2>
             <p className="text-zinc-400 font-bold flex items-center gap-3 text-sm">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -191,7 +192,7 @@ function ArtistDetailsPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-bold text-white truncate group-hover:text-primary transition-colors capitalize">
-                        {song.title}
+                        {capitalize(song.title)}
                       </h4>
                       <p className="text-xs text-zinc-500 font-medium">
                         {song.genre} • {formatDate(song.releaseDate)}

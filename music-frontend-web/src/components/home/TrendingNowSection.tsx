@@ -4,6 +4,7 @@ import { Play } from "lucide-react";
 import { getCoverImageUrl } from "@/lib/s3";
 import { playerActions } from "@/Store/playerStore";
 import { mapToPlayerSong } from "@/lib/player-utils";
+import { capitalize } from "@/lib/utils";
 
 interface TrendingNowSectionProps {
   trendingData: any;
@@ -68,10 +69,10 @@ export function TrendingNowSection({
                 </div>
                 <div className="flex flex-col min-w-0">
                   <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors text-base tracking-tight">
-                    {song.title}
+                    {capitalize(song.title)}
                   </h3>
                   <p className="text-xs text-zinc-500 truncate font-semibold">
-                    {song.artistName}
+                    {capitalize(song.artistName)}
                   </p>
                 </div>
               </div>

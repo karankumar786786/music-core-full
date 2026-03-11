@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ListMusic, Play } from "lucide-react";
 import { InfiniteScrollContainer } from "@/components/custom/InfiniteScrollContainer";
 import { getCoverImageUrl } from "@/lib/s3";
+import { capitalize } from "@/lib/utils";
 
 export const Route = createFileRoute("/playlists/")({
   component: PlaylistsView,
@@ -88,7 +89,7 @@ function PlaylistsView() {
 
                     <div className="flex flex-col min-w-0 space-y-1">
                       <h3 className="text-white font-bold text-lg truncate group-hover:text-primary transition-colors">
-                        {playlist.title}
+                        {capitalize(playlist.title)}
                       </h3>
                       <p className="text-zinc-500 text-sm font-medium line-clamp-1">
                         {playlist.description || "Public Playlist • One Melody"}

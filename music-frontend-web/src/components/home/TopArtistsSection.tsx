@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Play } from "lucide-react";
 import { getCoverImageUrl } from "@/lib/s3";
+import { capitalize } from "@/lib/utils";
 
 interface TopArtistsSectionProps {
   artistsData: any;
@@ -68,7 +69,7 @@ export function TopArtistsSection({
                 </div>
                 <div className="space-y-1">
                   <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors text-sm">
-                    {artist.artistName}
+                    {capitalize(artist.artistName)}
                   </h3>
                   <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">
                     Artist

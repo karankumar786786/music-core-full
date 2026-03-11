@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { InfiniteScrollContainer } from "@/components/custom/InfiniteScrollContainer";
 import { getCoverImageUrl } from "@/lib/s3";
 import { ChevronRight } from "lucide-react";
+import { capitalize } from "@/lib/utils";
 
 export const Route = createFileRoute("/artists/")({
   component: ArtistsView,
@@ -79,7 +80,7 @@ function ArtistsView() {
                   <div className="flex flex-col min-w-0 flex-1">
                     <div className="flex items-center gap-3 mb-1">
                       <h2 className="text-xl font-bold text-white tracking-tight group-hover:text-primary transition-colors">
-                        {artist.artistName}
+                        {capitalize(artist.artistName)}
                       </h2>
                       <Badge
                         variant="outline"

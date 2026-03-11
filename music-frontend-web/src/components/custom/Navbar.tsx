@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { playerActions } from "@/Store/playerStore";
 import { mapToPlayerSong } from "@/lib/player-utils";
 import { FavoriteButton } from "./SongActions";
+import { capitalize } from "@/lib/utils";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -231,10 +232,10 @@ export default function Navbar() {
                           </div>
                           <div className="flex flex-col min-w-0 flex-1">
                             <span className="text-sm font-bold text-white truncate group-hover/item:text-primary transition-colors tracking-tight">
-                              {song.title}
+                              {capitalize(song.title)}
                             </span>
                             <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest truncate">
-                              {song.artistName}
+                              {capitalize(song.artistName)}
                             </span>
                           </div>
                           <div
@@ -291,7 +292,7 @@ export default function Navbar() {
                             </div>
                             <div className="flex flex-col min-w-0 flex-1">
                               <span className="text-sm font-bold text-white group-hover/item:text-primary transition-colors truncate tracking-tight">
-                                {artist.artistName}
+                                {capitalize(artist.artistName)}
                               </span>
                               <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
                                 Artist

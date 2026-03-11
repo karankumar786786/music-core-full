@@ -13,6 +13,7 @@ import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
 import { getCoverImageUrl } from "@/lib/s3";
 import { toast } from "sonner";
 import { InfiniteScrollContainer } from "@/components/custom/InfiniteScrollContainer";
+import { capitalize } from "@/lib/utils";
 
 export const Route = createFileRoute("/user-playlists/$playlistId")({
   component: UserPlaylistDetailsPage,
@@ -95,7 +96,7 @@ function UserPlaylistDetailsPage() {
           size="icon"
           className="rounded-full text-zinc-500 hover:bg-red-500/10 hover:text-red-500 border border-white/5 hover:border-red-500/20 transition-all h-10 w-10 active:scale-95"
           onClick={() => {
-              deletePlaylistMutation.mutate();
+            deletePlaylistMutation.mutate();
           }}
           disabled={deletePlaylistMutation.isPending}
           title="Delete Playlist"
@@ -123,7 +124,7 @@ function UserPlaylistDetailsPage() {
               My Playlist
             </Badge>
             <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter drop-shadow-2xl  capitalize">
-              {playlist.title}
+              {capitalize(playlist.title)}
             </h2>
             <p className="text-zinc-500 text-lg font-bold">
               Your personal curated collection
@@ -266,10 +267,10 @@ function PlaylistSongRow({
 
       <div className="flex flex-col min-w-0 flex-1">
         <h3 className="font-bold text-white truncate group-hover:text-primary transition-colors text-base tracking-tight ">
-          {song.title}
+          {capitalize(song.title)}
         </h3>
         <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest truncate">
-          {song.artistName}
+          {capitalize(song.artistName)}
         </p>
       </div>
 

@@ -10,11 +10,11 @@ import {
   ArrowLeft,
   Clock,
   ListMusic,
-  MoreHorizontal,
 } from "lucide-react";
 import { playerActions } from "@/Store/playerStore";
 import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
 import { InfiniteScrollContainer } from "@/components/custom/InfiniteScrollContainer";
+import { capitalize } from "@/lib/utils";
 
 export const Route = createFileRoute("/playlists/$playlistId")({
   component: PlaylistDetailsPage,
@@ -117,7 +117,7 @@ function PlaylistDetailsPage() {
               Public Playlist
             </Badge>
             <h2 className="text-6xl font-black text-white tracking-tighter drop-shadow-2xl capitalize ">
-              {playlist.title}
+              {capitalize(playlist.title)}
             </h2>
             <p className="text-zinc-400 font-bold flex items-center gap-3 text-sm">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
@@ -211,11 +211,11 @@ function PlaylistDetailsPage() {
 
                     <div className="flex flex-col min-w-0 flex-1 gap-1">
                       <h4 className="font-bold text-white truncate group-hover:text-primary transition-colors text-base tracking-tight text-glow-green capitalize">
-                        {song.title}
+                        {capitalize(song.title)}
                       </h4>
                       <div className="flex items-center gap-2">
                         <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest truncate">
-                          {song.artistName}
+                          {capitalize(song.artistName)}
                         </p>
                         <span className="w-1 h-1 rounded-full bg-zinc-800" />
                         <p className="text-xs text-zinc-600 font-medium truncate italic">
