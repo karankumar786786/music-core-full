@@ -144,14 +144,6 @@ function PlaylistDetailsPage() {
               <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 glass-effect px-6 py-3 rounded-2xl h-14">
                 <span>Created {formatDate(playlist.createdAt)}</span>
               </div>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full border border-white/5 hover:bg-zinc-900 h-14 w-14"
-              >
-                <MoreHorizontal className="h-5 w-5 text-zinc-400" />
-              </Button>
             </div>
           </div>
         </div>

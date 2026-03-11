@@ -93,13 +93,12 @@ function UserPlaylistDetailsPage() {
         <Button
           variant="ghost"
           size="icon"
-          className="rounded-full hover:bg-red-500/10 hover:text-red-500 border border-transparent transition-all h-10 w-10"
+          className="rounded-full text-zinc-500 hover:bg-red-500/10 hover:text-red-500 border border-white/5 hover:border-red-500/20 transition-all h-10 w-10 active:scale-95"
           onClick={() => {
-            if (confirm("Are you sure you want to delete this playlist?")) {
               deletePlaylistMutation.mutate();
-            }
           }}
           disabled={deletePlaylistMutation.isPending}
+          title="Delete Playlist"
         >
           <Trash2 className="h-5 w-5" />
         </Button>
@@ -282,7 +281,7 @@ function PlaylistSongRow({
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 rounded-full text-zinc-500 hover:text-red-500 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
+            className="h-10 w-10 rounded-full text-zinc-400 group-hover:text-red-500 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
             onClick={() => {
               if (confirm("Remove this song from playlist?")) {
                 removeSongMutation.mutate();

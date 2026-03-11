@@ -144,18 +144,6 @@ function ArtistDetailsPage() {
             <h3 className="text-2xl font-bold text-white tracking-tight">
               Popular Tracks
             </h3>
-            <Button
-              variant="link"
-              className="text-primary p-0"
-              disabled={songs.length === 0}
-              onClick={() => {
-                if (songs.length > 0) {
-                  playerActions.playAll(mapListToPlayerSongs(songs));
-                }
-              }}
-            >
-              Play All
-            </Button>
           </div>
 
           <InfiniteScrollContainer

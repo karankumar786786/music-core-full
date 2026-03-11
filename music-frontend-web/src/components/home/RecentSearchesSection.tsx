@@ -32,13 +32,6 @@ export function RecentSearchesSection() {
             Recent Searches
           </h2>
         </div>
-        <Link
-          to="/search"
-          className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 hover:text-primary transition-colors flex items-center gap-2 group"
-        >
-          View All{" "}
-          <ChevronRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
-        </Link>
       </div>
 
       <div className="flex flex-row overflow-x-auto gap-4 pb-4 no-scrollbar">
