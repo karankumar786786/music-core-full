@@ -115,6 +115,10 @@ export const musicApi = {
         const response = await api.post('/interaction/search-history', data)
         return response.data
     },
+    getSearchHistory: async () => {
+        const response = await api.get('/interaction/search-history')
+        return response.data
+    },
     getUserPlaylists: async (page = 1, limit = 20) => {
         const response = await api.get(`/userplaylists?page=${page}&limit=${limit}`)
         return response.data

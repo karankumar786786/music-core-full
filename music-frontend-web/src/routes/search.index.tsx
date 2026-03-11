@@ -70,7 +70,16 @@ function SearchResultsView() {
               </h2>
               <div className="flex flex-col gap-1">
                 {data.data.songs.map((song: any, index: number) => (
-                  <SongRow key={song.id} song={song} index={index} />
+                  <div
+                    key={song.id}
+                    onClickCapture={() =>
+                      musicApi
+                        .addSearchHistory({ searchString: song.title })
+                        .catch(console.error)
+                    }
+                  >
+                    <SongRow song={song} index={index} />
+                  </div>
                 ))}
               </div>
             </section>
@@ -88,6 +97,11 @@ function SearchResultsView() {
                     key={artist.id}
                     to="/artists/$artistId"
                     params={{ artistId: artist.id }}
+                    onClick={() =>
+                      musicApi
+                        .addSearchHistory({ searchString: artist.artistName })
+                        .catch(console.error)
+                    }
                     className="group flex flex-col items-center gap-4 p-4 rounded-2xl hover:bg-white/5 transition-all text-center cursor-pointer"
                   >
                     <div className="relative h-32 w-32 overflow-hidden rounded-full ring-2 ring-zinc-900 group-hover:ring-primary/50 transition-all shadow-xl">
@@ -136,6 +150,11 @@ function SearchResultsView() {
                     key={playlist.id}
                     to="/playlists/$playlistId"
                     params={{ playlistId: playlist.id }}
+                    onClick={() =>
+                      musicApi
+                        .addSearchHistory({ searchString: playlist.title })
+                        .catch(console.error)
+                    }
                     className="group flex items-center gap-4 p-4 rounded-2xl bg-zinc-900/50 hover:bg-white/5 border border-white/5 transition-all cursor-pointer"
                   >
                     <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl shadow-lg">

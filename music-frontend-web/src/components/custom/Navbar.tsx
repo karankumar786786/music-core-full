@@ -1,4 +1,4 @@
-import { Search, Music, ListMusic, Loader2, Play } from "lucide-react";
+import { Search, Music, ListMusic, Loader2, Play, History } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
@@ -41,6 +41,12 @@ export default function Navbar() {
     staleTime: 30000,
   });
 
+  const { data: historyData, refetch: refetchHistory } = useQuery({
+    queryKey: ["search-history"],
+    queryFn: () => musicApi.getSearchHistory(),
+    enabled: !!user && isDropdownOpen && query.trim().length === 0,
+  });
+
   const isFetching = isQueryFetching || debouncer.state.isPending;
 
   useEffect(() => {
@@ -56,15 +62,16 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSearchSubmit = (e?: React.FormEvent) => {
+  const handleSearchSubmit = (e?: React.FormEvent, submitQuery?: string) => {
     e?.preventDefault();
-    if (query.trim()) {
+    const q = submitQuery ?? query;
+    if (q.trim()) {
       setIsDropdownOpen(false);
+      setQuery(q);
       navigate({
         to: "/search",
-        search: { q: query },
+        search: { q },
       });
-      musicApi.addSearchHistory({ searchString: query }).catch(console.error);
     }
   };
 
@@ -96,10 +103,38 @@ export default function Navbar() {
         </form>
 
         {/* Search Results Dropdown */}
-        {isDropdownOpen && query.trim().length > 0 && (
+        {isDropdownOpen && (
           <div className="absolute top-full left-0 right-0 mt-2 bg-black border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[450px] animate-in fade-in zoom-in-95 duration-200 z-50">
             <div className="overflow-y-auto p-2 no-scrollbar">
-              {isFetching && !searchResults ? (
+              {query.trim().length === 0 ? (
+                <div className="p-3 space-y-2">
+                  <div className="px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-2">
+                    Recent Searches
+                  </div>
+                  {historyData && historyData.length > 0 ? (
+                    historyData.slice(0, 5).map((history: any) => (
+                      <button
+                        key={history.id}
+                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/5 rounded-xl transition-all duration-200 text-left group border border-transparent hover:border-white/5"
+                        onClick={() =>
+                          handleSearchSubmit(undefined, history.searchString)
+                        }
+                      >
+                        <History className="h-4 w-4 text-zinc-500 group-hover:text-primary transition-colors" />
+                        <span className="text-sm font-medium text-white group-hover:text-primary transition-colors flex-1 line-clamp-1">
+                          {history.searchString}
+                        </span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-3 py-4 text-center">
+                      <p className="text-zinc-500 text-sm font-medium">
+                        No recent searches
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : isFetching && !searchResults ? (
                 <div className="p-3 space-y-3">
                   {[1, 2, 3].map((i) => (
                     <div key={i} className="flex items-center gap-3">
@@ -131,6 +166,10 @@ export default function Navbar() {
                           className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/5 rounded-xl transition-all duration-200 text-left group/item border border-transparent hover:border-white/5"
                           onClick={() => {
                             setIsDropdownOpen(false);
+                            musicApi
+                              .addSearchHistory({ searchString: song.title })
+                              .then(() => refetchHistory())
+                              .catch(console.error);
                             playerActions.playSong(mapToPlayerSong(song));
                           }}
                         >
@@ -182,7 +221,15 @@ export default function Navbar() {
                             to="/artists/$artistId"
                             params={{ artistId: artist.id }}
                             key={artist.id}
-                            onClick={() => setIsDropdownOpen(false)}
+                            onClick={() => {
+                              setIsDropdownOpen(false);
+                              musicApi
+                                .addSearchHistory({
+                                  searchString: artist.artistName,
+                                })
+                                .then(() => refetchHistory())
+                                .catch(console.error);
+                            }}
                             className="flex items-center gap-3 px-3 py-2 hover:bg-white/5 rounded-xl transition-all duration-200 group/item border border-transparent hover:border-white/5"
                           >
                             <div className="h-10 w-10 rounded-full bg-zinc-900 border border-white/5 overflow-hidden relative shadow-lg group-hover/item:border-primary/20 transition-colors">
@@ -229,7 +276,15 @@ export default function Navbar() {
                             to="/playlists/$playlistId"
                             params={{ playlistId: playlist.id }}
                             key={playlist.id}
-                            onClick={() => setIsDropdownOpen(false)}
+                            onClick={() => {
+                              setIsDropdownOpen(false);
+                              musicApi
+                                .addSearchHistory({
+                                  searchString: playlist.title,
+                                })
+                                .then(() => refetchHistory())
+                                .catch(console.error);
+                            }}
                             className="flex items-center gap-3 px-3 py-2 hover:bg-white/5 rounded-xl transition-all duration-200 group/item border border-transparent hover:border-white/5"
                           >
                             <div className="h-10 w-10 rounded-lg bg-zinc-900 border border-white/5 overflow-hidden relative shadow-lg group-hover/item:border-primary/20 transition-colors">
@@ -266,10 +321,10 @@ export default function Navbar() {
               )}
             </div>
 
-            {hasResults && (
+            {hasResults && query.trim().length > 0 && (
               <button
-                onClick={handleSearchSubmit}
-                className="p-3 bg-white/5 hover:bg-primary hover:text-black border-t border-white/5 transition-all text-[10px] font-black uppercase tracking-[0.2em] text-center text-white"
+                onClick={(e) => handleSearchSubmit(e)}
+                className="p-3 bg-white/5 hover:bg-primary hover:text-black border-t border-white/5 transition-all text-[10px] font-black uppercase tracking-[0.2em] text-center text-white w-full"
               >
                 View all results
               </button>
