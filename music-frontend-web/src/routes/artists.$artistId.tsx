@@ -87,7 +87,7 @@ function ArtistDetailsPage() {
           <img
             src={getBannerImageUrl(artist.storageKey, "large")!}
             alt={artist.artistName}
-            className="h-full w-full object-cover opacity-60 transition-transform duration-1000 group-hover:scale-110"
+            className="h-full w-full blur-sm object-cover opacity-60 transition-transform duration-1000 group-hover:scale-110"
           />
         ) : (
           <div className="h-full w-full bg-linear-to-br from-primary/20 via-black to-black" />
