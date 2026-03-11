@@ -62,7 +62,11 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSearchSubmit = (e?: React.FormEvent, submitQuery?: string) => {
+  const handleSearchSubmit = (
+    e?: React.FormEvent,
+    submitQuery?: string,
+    isFromHistory: boolean = false,
+  ) => {
     e?.preventDefault();
     const q = submitQuery ?? query;
     if (q.trim()) {
@@ -72,6 +76,12 @@ export default function Navbar() {
         to: "/search",
         search: { q },
       });
+      if (!isFromHistory) {
+        musicApi
+          .addSearchHistory({ searchString: q })
+          .then(() => refetchHistory())
+          .catch(console.error);
+      }
     }
   };
 
@@ -115,14 +125,18 @@ export default function Navbar() {
                     historyData.slice(0, 5).map((history: any) => (
                       <button
                         key={history.id}
-                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/5 rounded-xl transition-all duration-200 text-left group border border-transparent hover:border-white/5"
+                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/5 rounded-xl transition-all duration-200 text-left group/item border border-transparent hover:border-white/5"
                         onClick={() => {
-                          handleSearchSubmit(undefined, history.searchString);
-                          setQuery("");
+                          setQuery(history.searchString);
+                          handleSearchSubmit(
+                            undefined,
+                            history.searchString,
+                            true,
+                          );
                         }}
                       >
-                        <History className="h-4 w-4 text-zinc-500 group-hover:text-primary transition-colors" />
-                        <span className="text-sm font-medium text-white group-hover:text-primary transition-colors flex-1 line-clamp-1">
+                        <History className="h-4 w-4 text-zinc-500 group-hover/item:text-primary transition-colors" />
+                        <span className="text-sm font-medium text-white group-hover/item:text-primary transition-colors flex-1 line-clamp-1">
                           {history.searchString}
                         </span>
                       </button>
