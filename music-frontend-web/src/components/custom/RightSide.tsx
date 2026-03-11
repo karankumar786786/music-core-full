@@ -528,13 +528,13 @@ export default function RightSide() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:bg-transparent hover:scale-110 active:scale-95 transition-all"
+              className="text-white hover:bg-primary hover:scale-110 active:scale-95 transition-all"
               onClick={() => playerActions.playPrevious()}
             >
               <SkipBack className="h-5 w-5 fill-current" />
             </Button>
             <Button
-              className="h-12 w-12 rounded-full bg-white text-black hover:bg-zinc-200 shadow-xl transition-all active:scale-90 flex items-center justify-center p-0"
+              className="h-12 w-12 rounded-full bg-white text-black hover:bg-primary shadow-xl transition-all active:scale-90 flex items-center justify-center p-0"
               onClick={() => playerActions.setIsPlaying(!isPlaying)}
             >
               {isPlaying ? (
@@ -546,7 +546,7 @@ export default function RightSide() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:bg-transparent hover:scale-110 active:scale-95 transition-all"
+              className="text-white hover:bg-primary hover:scale-110 active:scale-95 transition-all"
               onClick={() => playerActions.playNext()}
             >
               <SkipForward className="h-5 w-5 fill-current" />
@@ -556,7 +556,7 @@ export default function RightSide() {
           <Button
             variant="ghost"
             size="icon"
-            className={`h-8 w-8 p-0 hover:bg-transparent transition-all hover:scale-110 active:scale-95 ${
+            className={`h-8 w-8 p-0 hover:bg-primary transition-all hover:scale-110 active:scale-95 ${
               repeatMode === "one"
                 ? "text-primary"
                 : "text-zinc-500 hover:text-white"
