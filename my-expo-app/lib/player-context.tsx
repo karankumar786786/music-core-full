@@ -29,6 +29,7 @@ interface PlayerContextType {
   isBuffering: boolean;
   duration: number; // seconds
   position: number; // seconds
+  bufferedPosition: number; // seconds
   baseUrl: string;
   activeTrack: VideoTrack | null;
   availableTracks: VideoTrack[];
@@ -50,11 +51,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const player = useVideoPlayer('', (p) => {
     p.loop = false;
     p.timeUpdateEventInterval = 0.5; // Emit timeUpdate every 0.5s
+    p.bufferOptions = {
+      preferredForwardBufferDuration: 20,
+    };
   });
 
   // State mirrored from player for context consumers
   const [isPlaying, setIsPlayingState] = useState(false);
   const [position, setPosition] = useState(0);
+  const [bufferedPosition, setBufferedPosition] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isBuffering, setIsBuffering] = useState(false);
   const [activeTrack, setActiveTrack] = useState<VideoTrack | null>(null);
@@ -145,10 +150,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setIsPlayingState(newIsPlaying);
     });
 
-    const timeSub = player.addListener('timeUpdate', ({ currentTime }) => {
-      setPosition(currentTime);
-      setDuration(player.duration);
-    });
+    const timeSub = player.addListener(
+      'timeUpdate',
+      ({ currentTime, bufferedPosition: newBuffered }) => {
+        setPosition(currentTime);
+        setBufferedPosition(newBuffered ?? player.bufferedPosition);
+        setDuration(player.duration);
+      }
+    );
 
     const trackSub = player.addListener('videoTrackChange', ({ videoTrack }) => {
       setActiveTrack(videoTrack);
@@ -216,6 +225,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       isBuffering,
       duration,
       position,
+      bufferedPosition,
       baseUrl: masterUrl.replace('/master.m3u8', ''),
       activeTrack,
       availableTracks,
@@ -234,6 +244,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       isBuffering,
       duration,
       position,
+      bufferedPosition,
       masterUrl,
       activeTrack,
       availableTracks,

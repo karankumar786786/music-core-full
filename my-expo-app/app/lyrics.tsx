@@ -18,6 +18,7 @@ export default function LyricsScreen() {
     isBuffering,
     duration,
     position,
+    bufferedPosition,
     baseUrl,
     togglePlayPause,
     seekTo,
@@ -170,6 +171,10 @@ export default function LyricsScreen() {
               seekTo(ratio * duration);
             }}
             className="h-1.5 overflow-hidden rounded-full bg-zinc-800">
+            <View
+              className="absolute h-full bg-white/90"
+              style={{ width: `${duration > 0 ? (bufferedPosition / duration) * 100 : 0}%` }}
+            />
             <View
               className="h-full rounded-full bg-green-500"
               style={{ width: `${progress * 100}%` }}

@@ -35,6 +35,7 @@ export default function PlayerScreen() {
     isBuffering,
     duration,
     position,
+    bufferedPosition,
     togglePlayPause,
     seekTo,
     activeTrack,
@@ -132,15 +133,32 @@ export default function PlayerScreen() {
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
       <StatusBar style="light" />
       {/* ── Header ── */}
-      <View className="flex-row items-center justify-between px-6 pb-6 pt-2">
-        <Pressable
-          onPress={() => router.back()}
-          className="h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-zinc-900/80">
-          <Ionicons name="chevron-down" size={24} color="#fff" />
-        </Pressable>
-        <Text className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-          Now Playing
-        </Text>
+      <View className="flex-row justify-between px-6 pb-6 pt-2">
+        <View className="gap-3">
+          <Pressable
+            onPress={() => router.back()}
+            className="h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-zinc-900/80">
+            <Ionicons name="chevron-down" size={24} color="#fff" />
+          </Pressable>
+          <Pressable
+            onPress={() => setShowQualityModal(true)}
+            className={`h-11 w-11 items-center justify-center rounded-full border bg-zinc-900/80 ${
+              currentQualityType === 'auto' ? 'border-white/10' : 'border-green-500/30'
+            }`}>
+            <Ionicons
+              name="options-outline"
+              size={22}
+              color={currentQualityType === 'auto' ? '#71717a' : '#22c55e'}
+            />
+          </Pressable>
+        </View>
+
+        <View className="flex-1 items-center pt-3">
+          <Text className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+            Now Playing
+          </Text>
+        </View>
+
         <Pressable
           onPress={() => setShowPlaylistModal(true)}
           className="h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-zinc-900/80">
@@ -209,6 +227,10 @@ export default function PlayerScreen() {
             }}
             className="h-2 overflow-hidden rounded-full bg-zinc-800">
             <View
+              className="absolute h-full rounded-xl bg-white/90"
+              style={{ width: `${duration > 0 ? (bufferedPosition / duration) * 100 : 0}%` }}
+            />
+            <View
               className="h-full rounded-full bg-green-500"
               style={{ width: `${progress * 100}%` }}
             />
@@ -218,19 +240,8 @@ export default function PlayerScreen() {
             <Text className="text-xs font-bold text-zinc-500">{formatTime(duration)}</Text>
           </View>
         </View>
-
-      
-
         <View className="flex-row items-center justify-between">
-          <Pressable
-            onPress={() => setShowQualityModal(true)}
-            className="h-12 w-12 items-center justify-center rounded-full border border-white/5 active:bg-white/5">
-            <Ionicons
-              name="options-outline"
-              size={24}
-              color={currentQualityType === 'auto' ? '#71717a' : '#22c55e'}
-            />
-          </Pressable>
+          <View className="h-12 w-12" />
           <View className="flex-row items-center gap-8">
             <Pressable className="h-14 w-14 items-center justify-center rounded-full active:bg-white/5">
               <Ionicons name="play-skip-back" size={28} color="#fff" />
