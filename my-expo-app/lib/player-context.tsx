@@ -13,6 +13,7 @@ import { getSongBaseUrl } from './s3';
 import { parseMasterM3U8, HLSVariant } from './hls';
 import { musicApi } from './api';
 import { getCoverImageUrl } from './s3';
+import { useAuth } from './auth';
 
 export interface PlayerSong {
   id: string;
@@ -62,6 +63,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [lastQueueIndex, setLastQueueIndex] = useState(-1);
   const [isShuffle, setIsShuffle] = useState(false);
   const [repeatMode, setRepeatMode] = useState<'none' | 'one' | 'all'>('none');
+  const { isAuthenticated } = useAuth();
 
   // Create the player instance
   const player = useVideoPlayer('', (p) => {
@@ -70,6 +72,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     p.bufferOptions = {
       preferredForwardBufferDuration: 20,
     };
+  });
+
+  // Create headless players for preloading the next 2 songs
+  const preloadPlayer1 = useVideoPlayer('', (p) => {
+    p.loop = false;
+    p.muted = true;
+  });
+  const preloadPlayer2 = useVideoPlayer('', (p) => {
+    p.loop = false;
+    p.muted = true;
   });
 
   // State mirrored from player for context consumers
@@ -111,8 +123,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     currentSongRef.current = currentSong;
   }, [currentSong]);
 
-  // Load last played songs from history on mount
+  // Load last played songs from history on mount (only when authenticated)
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     const loadHistory = async () => {
       try {
         const res = await musicApi.getHistory(1, 10);
@@ -134,7 +148,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           setQueue((prev) => {
             if (prev.length === 0) {
               setLastQueueIndex(0);
-              setCurrentSong(historyQueue[0]);
+              const firstSong = historyQueue[0];
+              setCurrentSong(firstSong);
               setPosition(0);
               setDuration(0);
               return historyQueue;
@@ -147,9 +162,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    // Slight delay to allow auth to settle
-    setTimeout(loadHistory, 1000);
-  }, []);
+    loadHistory();
+  }, [isAuthenticated]);
 
   const masterUrl = useMemo(() => {
     if (!currentSong) return '';
@@ -305,6 +319,63 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       player.play();
     }
   }, [player, setCurrentSongWithIndex]);
+
+  // ── Preload upcoming songs ──
+  useEffect(() => {
+    if (!currentSong || queue.length <= 1) return;
+
+    let next1Idx = lastQueueIndex + 1;
+    let next2Idx = lastQueueIndex + 2;
+
+    if (isShuffle) {
+      // Very basic pseudo-random for display/preload purposes
+      // (Actual random is generated at playNext time)
+      next1Idx = (lastQueueIndex + 3) % queue.length;
+      next2Idx = (lastQueueIndex + 7) % queue.length;
+    }
+
+    const next1 =
+      next1Idx < queue.length
+        ? queue[next1Idx]
+        : repeatMode === 'all' && queue.length > 0
+          ? queue[0]
+          : null;
+
+    const next2 =
+      next2Idx < queue.length
+        ? queue[next2Idx]
+        : repeatMode === 'all' && queue.length > 1
+          ? queue[1]
+          : null;
+
+    // Helper to extract and load the highest quality stream URL
+    const preloadSong = async (song: PlayerSong, p: ReturnType<typeof useVideoPlayer>) => {
+      try {
+        const baseUrl = getSongBaseUrl(song.storageKey) || song.songBaseUrl;
+        if (!baseUrl) return;
+        const m3u8Url = `${baseUrl}/master.m3u8`;
+
+        const res = await fetch(m3u8Url);
+        const text = await res.text();
+        const variants = parseMasterM3U8(text);
+
+        if (variants.length > 0) {
+          // Preload highest quality
+          const sorted = [...variants].sort((a, b) => b.bandwidth - a.bandwidth);
+          const target = sorted[0];
+          const streamUrl = target.uri.startsWith('http') ? target.uri : `${baseUrl}/${target.uri}`;
+          p.replaceAsync(streamUrl);
+        } else {
+          p.replaceAsync(m3u8Url); // Fallback to master
+        }
+      } catch (e) {
+        // Silently ignore prefetch failures
+      }
+    };
+
+    if (next1) preloadSong(next1, preloadPlayer1);
+    if (next2) preloadSong(next2, preloadPlayer2);
+  }, [currentSong, queue, lastQueueIndex, isShuffle, repeatMode, preloadPlayer1, preloadPlayer2]);
 
   // ── Auto-fetch more feed songs to queue ──
   const fetchAndAddFeedToQueue = useCallback(async () => {
