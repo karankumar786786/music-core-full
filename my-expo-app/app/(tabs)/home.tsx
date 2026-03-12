@@ -112,7 +112,7 @@ export default function Home() {
           title: s.title,
           artistName: s.artistName,
           storageKey: s.storageKey,
-          coverUrl: getCoverImageUrl(s.storageKey, 'small', true) || null,
+          coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
         }))
       );
     }
@@ -128,7 +128,7 @@ export default function Home() {
           title: s.title,
           artistName: s.artistName,
           storageKey: s.storageKey,
-          coverUrl: getCoverImageUrl(s.storageKey, 'small', true) || null,
+          coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
         }))
       );
     }
@@ -208,7 +208,7 @@ export default function Home() {
         {/* Page dots */}
         {featured.length > 1 && (
           <View className="mt-3 flex-row items-center justify-center gap-1.5">
-            {featured.slice(0, 8).map((_:any, i:any) => (
+            {featured.slice(0, 8).map((_: any, i: any) => (
               <View
                 key={i}
                 className={`h-1.5 rounded-full ${
@@ -246,31 +246,29 @@ export default function Home() {
           renderItem={({ item }) => {
             const avatarUrl = getCoverImageUrl(item.storageKey, 'medium') || null;
             return (
-              <Link href={`/artist/${item.id}`} asChild>
-                <Pressable
-                  className="w-32 items-center"
-                  onPress={() => console.log('Link (Artist) pressed:', item.id)}>
-                  <View className="mb-3 h-28 w-28 overflow-hidden rounded-full border-2 border-green-500/20 bg-zinc-800">
-                    {avatarUrl ? (
-                      <Image
-                        source={{ uri: avatarUrl }}
-                        className="h-full w-full"
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View className="h-full w-full items-center justify-center bg-green-500/10">
-                        <Ionicons name="person" size={40} color="#22c55e" />
-                      </View>
-                    )}
-                  </View>
-                  <Text className="text-center text-sm font-bold text-white" numberOfLines={1}>
-                    {capitalize(item.artistName || item.name)}
-                  </Text>
-                  <Text className="mt-0.5 text-center text-xs font-semibold text-zinc-500">
-                    Artist
-                  </Text>
-                </Pressable>
-              </Link>
+              <Pressable
+                className="w-32 items-center"
+                onPress={() => router.push(`/artist/${item.id}`)}>
+                <View className="mb-3 h-28 w-28 overflow-hidden rounded-full border-2 border-green-500/20 bg-zinc-800">
+                  {avatarUrl ? (
+                    <Image
+                      source={{ uri: avatarUrl }}
+                      className="h-full w-full"
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View className="h-full w-full items-center justify-center bg-green-500/10">
+                      <Ionicons name="person" size={40} color="#22c55e" />
+                    </View>
+                  )}
+                </View>
+                <Text className="text-center text-sm font-bold text-white" numberOfLines={1}>
+                  {capitalize(item.artistName || item.name)}
+                </Text>
+                <Text className="mt-0.5 text-center text-xs font-semibold text-zinc-500">
+                  Artist
+                </Text>
+              </Pressable>
             );
           }}
         />
@@ -305,31 +303,24 @@ export default function Home() {
               getCoverImageUrl(item.storageKey, 'small') ||
               null;
             return (
-              <Link href={`/playlist/${item.id}`} asChild>
-                <Pressable
-                  className="w-40"
-                  onPress={() => console.log('Link (Playlist) pressed:', item.id)}>
-                  <View className="mb-2 h-40 overflow-hidden rounded-2xl border border-white/5 bg-zinc-900">
-                    {coverUrl ? (
-                      <Image
-                        source={{ uri: coverUrl }}
-                        className="h-full w-full"
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View className="h-full w-full items-center justify-center bg-zinc-800">
-                        <Ionicons name="musical-notes" size={36} color="#3f3f46" />
-                      </View>
-                    )}
-                  </View>
-                  <Text className="text-sm font-bold text-white" numberOfLines={1}>
-                    {capitalize(item.title)}
-                  </Text>
-                  <Text className="text-xs font-semibold text-zinc-500">
-                    {item.songs?.length || 0} songs
-                  </Text>
-                </Pressable>
-              </Link>
+              <Pressable className="w-40" onPress={() => router.push(`/playlist/${item.id}`)}>
+                <View className="mb-2 h-40 overflow-hidden rounded-2xl border border-white/5 bg-zinc-900">
+                  {coverUrl ? (
+                    <Image
+                      source={{ uri: coverUrl }}
+                      className="h-full w-full"
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View className="h-full w-full items-center justify-center bg-zinc-800">
+                      <Ionicons name="musical-notes" size={36} color="#3f3f46" />
+                    </View>
+                  )}
+                </View>
+                <Text className="text-sm font-bold text-white" numberOfLines={1}>
+                  {capitalize(item.title)}
+                </Text>
+              </Pressable>
             );
           }}
         />
@@ -363,6 +354,8 @@ export default function Home() {
           renderItem={({ item }) => {
             const coverUrl =
               item.coverUrl || getCoverImageUrl(item.storageKey, 'medium', true) || null;
+            const largeCoverUrl =
+              item.coverUrl || getCoverImageUrl(item.storageKey, 'large', true) || null;
             return (
               <Pressable
                 className="w-44"
@@ -372,7 +365,7 @@ export default function Home() {
                     title: item.title,
                     artistName: item.artistName,
                     storageKey: item.storageKey,
-                    coverUrl,
+                    coverUrl: largeCoverUrl,
                   })
                 }>
                 <View className="mb-2 h-44 overflow-hidden rounded-2xl border border-white/5 bg-zinc-900">
@@ -429,6 +422,8 @@ export default function Home() {
           renderItem={({ item }) => {
             const coverUrl =
               item.coverUrl || getCoverImageUrl(item.storageKey, 'medium', true) || null;
+            const largeCoverUrl =
+              item.coverUrl || getCoverImageUrl(item.storageKey, 'large', true) || null;
             return (
               <Pressable
                 className="w-40"
@@ -438,7 +433,7 @@ export default function Home() {
                     title: item.title,
                     artistName: item.artistName,
                     storageKey: item.storageKey,
-                    coverUrl,
+                    coverUrl: largeCoverUrl,
                   })
                 }>
                 <View className="mb-2 h-40 overflow-hidden rounded-2xl border border-white/5 bg-zinc-900">

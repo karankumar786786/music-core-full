@@ -213,11 +213,6 @@ export default function PlayerScreen() {
               <Ionicons name="musical-notes" size={100} color="#00FF85" />
             </View>
           )}
-          {isBuffering && (
-            <View className="absolute inset-0 items-center justify-center bg-black/50 backdrop-blur-sm">
-              <ActivityIndicator color="#00FF85" size="large" />
-            </View>
-          )}
         </View>
       </View>
 

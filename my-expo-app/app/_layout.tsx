@@ -50,13 +50,13 @@ function AuthGate() {
       <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="artist/[artistId]" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="playlist/[playlistId]" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="artist/[artistId]" options={{ animation: 'none' }} />
+        <Stack.Screen name="playlist/[playlistId]" options={{ animation: 'none' }} />
         <Stack.Screen
           name="userplaylist/[userPlaylistId]"
           options={{ animation: 'slide_from_right' }}
         />
-        <Stack.Screen name="search/index" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="search/index" options={{ animation: 'none' }} />
         <Stack.Screen name="history" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen
           name="lyrics"

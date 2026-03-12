@@ -12,6 +12,7 @@ import { useVideoPlayer, VideoTrack } from 'expo-video';
 import { getSongBaseUrl } from './s3';
 import { parseMasterM3U8, HLSVariant } from './hls';
 import { musicApi } from './api';
+import { getCoverImageUrl } from './s3';
 
 export interface PlayerSong {
   id: string;
@@ -89,6 +90,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const repeatModeRef = useRef(repeatMode);
   const positionRef = useRef(position);
   const currentSongRef = useRef(currentSong);
+  const shouldAutoPlayRef = useRef(false);
 
   useEffect(() => {
     queueRef.current = queue;
@@ -108,6 +110,46 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     currentSongRef.current = currentSong;
   }, [currentSong]);
+
+  // Load last played songs from history on mount
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const res = await musicApi.getHistory(1, 10);
+        const historySongs = res?.data;
+        if (historySongs && historySongs.length > 0) {
+          // Initialize queue with recent history, using large covers
+          const historyQueue: PlayerSong[] = historySongs.map((h: any) => {
+            const song = h.song || h;
+            return {
+              id: song.id,
+              title: song.title,
+              artistName: song.artistName,
+              storageKey: song.storageKey,
+              coverUrl: getCoverImageUrl(song.storageKey, 'large', true) || null,
+            };
+          });
+
+          // Only set if queue is currently empty (avoids overwriting active playback)
+          setQueue((prev) => {
+            if (prev.length === 0) {
+              setLastQueueIndex(0);
+              setCurrentSong(historyQueue[0]);
+              setPosition(0);
+              setDuration(0);
+              return historyQueue;
+            }
+            return prev;
+          });
+        }
+      } catch (e) {
+        console.warn('Failed to load history for player:', e);
+      }
+    };
+
+    // Slight delay to allow auth to settle
+    setTimeout(loadHistory, 1000);
+  }, []);
 
   const masterUrl = useMemo(() => {
     if (!currentSong) return '';
@@ -163,7 +205,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (currentPos > 0) {
           player.currentTime = currentPos;
         }
-        player.play();
+        if (shouldAutoPlayRef.current) {
+          player.play();
+        }
         prevSongIdRef.current = currentSong?.id || null;
       } catch (e) {
         console.warn('Playback resume failed:', e);
@@ -188,6 +232,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   // ── playNext ──
   const playNext = useCallback(() => {
+    shouldAutoPlayRef.current = true;
     const q = queueRef.current;
     const idx = lastQueueIndexRef.current;
     const rm = repeatModeRef.current;
@@ -230,6 +275,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   // ── playPrevious ──
   const playPrevious = useCallback(() => {
+    shouldAutoPlayRef.current = true;
     const q = queueRef.current;
     const idx = lastQueueIndexRef.current;
     const rm = repeatModeRef.current;
@@ -239,6 +285,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     // If more than 3 seconds in, restart current song
     if (pos > 3) {
+      shouldAutoPlayRef.current = true;
       player.currentTime = 0;
       player.play();
       return;
@@ -330,6 +377,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // ── Public: play a single song ──
   const play = useCallback(
     (song: PlayerSong) => {
+      shouldAutoPlayRef.current = true;
       // Add to queue if not already there
       setQueue((prev) => {
         const exists = prev.some((s) => s.id === song.id);
@@ -350,6 +398,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // ── Public: play all songs (replaces queue) ──
   const playAll = useCallback((songs: PlayerSong[]) => {
     if (songs.length === 0) return;
+    shouldAutoPlayRef.current = true;
     setQueue(songs);
     setLastQueueIndex(0);
     setCurrentSong(songs[0]);
