@@ -49,12 +49,14 @@ export default function SongRow({ song, index, onPress }: SongRowProps) {
   });
 
   const openPlayer = () => {
+    // Generate a high-quality cover for the full-screen player
+    const largeCoverUrl = song.coverUrl || getCoverImageUrl(song.storageKey, 'large', true) || null;
     play({
       id: song.id,
       title: song.title,
       artistName: song.artistName,
       storageKey: song.storageKey,
-      coverUrl,
+      coverUrl: largeCoverUrl,
     });
     if (onPress) onPress();
   };

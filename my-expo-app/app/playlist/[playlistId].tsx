@@ -144,7 +144,7 @@ export default function PlaylistDetail() {
         onPress={() => {
           if (songs.length > 0) {
             const first = songs[0];
-            const cUrl = getCoverImageUrl(first.storageKey, 'small', true) || null;
+            const cUrl = getCoverImageUrl(first.storageKey, 'large', true) || null;
             play({
               id: first.id,
               title: first.title,
