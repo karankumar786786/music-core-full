@@ -10,9 +10,10 @@ import { usePlayer } from '../lib/player-context';
 interface SongRowProps {
   song: any;
   index: number;
+  onPress?: () => void;
 }
 
-export default function SongRow({ song, index }: SongRowProps) {
+export default function SongRow({ song, index, onPress }: SongRowProps) {
   const queryClient = useQueryClient();
   const { play } = usePlayer();
   const coverUrl = song.coverUrl || getCoverImageUrl(song.storageKey, 'small', true) || null;
@@ -55,6 +56,7 @@ export default function SongRow({ song, index }: SongRowProps) {
       storageKey: song.storageKey,
       coverUrl,
     });
+    if (onPress) onPress();
   };
 
   return (

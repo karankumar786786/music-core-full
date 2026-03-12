@@ -61,11 +61,7 @@ export default function SearchTab() {
   });
 
   // Save history when debounced query changes (and is meaningful)
-  useEffect(() => {
-    if (debouncedQuery.length >= 3) {
-      saveHistoryMutation.mutate(debouncedQuery);
-    }
-  }, [debouncedQuery]);
+  // Replaced with on-tap save to match web frontend
 
   const results = data?.data;
   const hasSongs = results?.songs?.length > 0;
@@ -170,7 +166,12 @@ export default function SearchTab() {
                   Songs
                 </Text>
                 {results.songs.map((song: any, index: number) => (
-                  <SongRow key={song.id} song={song} index={index} />
+                  <SongRow
+                    key={song.id}
+                    song={song}
+                    index={index}
+                    onPress={() => saveHistoryMutation.mutate(song.title)}
+                  />
                 ))}
               </View>
             )}
@@ -186,7 +187,10 @@ export default function SearchTab() {
                   return (
                     <Pressable
                       key={artist.id}
-                      onPress={() => router.push(`/artist/${artist.id}`)}
+                      onPress={() => {
+                        saveHistoryMutation.mutate(artist.artistName);
+                        router.push(`/artist/${artist.id}`);
+                      }}
                       className="flex-row items-center gap-4 rounded-2xl px-4 py-3 active:bg-white/5">
                       <View className="h-14 w-14 overflow-hidden rounded-full border-2 border-green-500/20 bg-zinc-800">
                         {avatarUrl ? (
@@ -229,7 +233,10 @@ export default function SearchTab() {
                   return (
                     <Pressable
                       key={playlist.id}
-                      onPress={() => router.push(`/playlist/${playlist.id}`)}
+                      onPress={() => {
+                        saveHistoryMutation.mutate(playlist.title);
+                        router.push(`/playlist/${playlist.id}`);
+                      }}
                       className="flex-row items-center gap-4 rounded-2xl px-4 py-3 active:bg-white/5">
                       <View className="h-14 w-14 overflow-hidden rounded-xl border border-white/5 bg-zinc-800">
                         {coverUrl ? (

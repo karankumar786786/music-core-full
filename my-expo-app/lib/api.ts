@@ -180,12 +180,12 @@ export const musicApi = {
     },
 
     addSearchHistory: async (data: { searchString: string }) => {
-        const response = await api.post('/search/history', data);
+        const response = await api.post('/interaction/search-history', data);
         return response.data;
     },
 
     getSearchHistory: async () => {
-        const response = await api.get('/search/history');
+        const response = await api.get('/interaction/search-history');
         return response.data;
     },
 };
