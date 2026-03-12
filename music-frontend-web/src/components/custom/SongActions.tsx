@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Heart, ListMusic, Loader2, ListPlus } from "lucide-react";
 import { toast } from "sonner";

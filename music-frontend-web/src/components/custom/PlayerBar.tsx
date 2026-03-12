@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import Hls from "hls.js";
 import { getSongBaseUrl } from "@/lib/s3";
 import { FavoriteButton, PlaylistButton } from "./SongActions";
+import { musicApi } from "@/lib/api";
 
 export default function PlayerBar() {
   const audioRef = useRef<HTMLAudioElement>(null);
