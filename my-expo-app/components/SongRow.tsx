@@ -17,10 +17,8 @@ export default function SongRow({ song, index }: SongRowProps) {
   const { play } = usePlayer();
   const coverUrl = song.coverUrl || getCoverImageUrl(song.storageKey, 'small', true) || null;
 
-  // Local optimistic state for the heart icon
   const [liked, setLiked] = useState(!!song.isLiked);
 
-  // Sync state with props when data is refetched
   useEffect(() => {
     setLiked(!!song.isLiked);
   }, [song.isLiked]);
@@ -28,14 +26,12 @@ export default function SongRow({ song, index }: SongRowProps) {
   const favMutation = useMutation({
     mutationFn: () => (liked ? musicApi.removeFavourite(song.id) : musicApi.addFavourite(song.id)),
     onMutate: () => {
-      // Optimistic update
       setLiked((prev) => !prev);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favourites'] });
     },
     onError: () => {
-      // Revert on failure
       setLiked((prev) => !prev);
     },
   });
@@ -48,19 +44,16 @@ export default function SongRow({ song, index }: SongRowProps) {
       storageKey: song.storageKey,
       coverUrl,
     });
-    // Navigation is now handled inside play() context
   };
 
   return (
     <Pressable
       onPress={openPlayer}
       className="flex-row items-center gap-3 rounded-2xl px-4 py-3 active:bg-white/5">
-      {/* Index */}
       <Text className="w-7 text-center text-xs font-bold text-zinc-600">
         {String(index + 1).padStart(2, '0')}
       </Text>
 
-      {/* Cover */}
       <View className="h-14 w-14 overflow-hidden rounded-xl border border-white/5 bg-zinc-900">
         {coverUrl ? (
           <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
@@ -71,7 +64,6 @@ export default function SongRow({ song, index }: SongRowProps) {
         )}
       </View>
 
-      {/* Info */}
       <View className="min-w-0 flex-1">
         <Text className="text-sm font-bold text-white" numberOfLines={1}>
           {capitalize(song.title)}
@@ -81,7 +73,6 @@ export default function SongRow({ song, index }: SongRowProps) {
         </Text>
       </View>
 
-      {/* Favourite Button with optimistic + loading state */}
       <Pressable
         onPress={() => favMutation.mutate()}
         disabled={favMutation.isPending}

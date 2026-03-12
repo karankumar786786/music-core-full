@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useRef, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
 import { router } from 'expo-router';
-import { Audio, AVPlaybackStatus } from 'expo-av';
+import { useVideoPlayer } from 'expo-video';
 import { getSongBaseUrl } from './s3';
 import { musicApi } from './api';
 
@@ -10,159 +10,153 @@ export interface PlayerSong {
   artistName: string;
   storageKey: string;
   coverUrl: string | null;
+  songBaseUrl?: string;
 }
 
 interface PlayerContextType {
   currentSong: PlayerSong | null;
   isPlaying: boolean;
+  setIsPlaying: (playing: boolean) => void;
   isBuffering: boolean;
-  duration: number;
-  position: number;
-  play: (song: PlayerSong) => Promise<void>;
-  togglePlayPause: () => Promise<void>;
-  seekTo: (fraction: number) => Promise<void>;
-  stop: () => Promise<void>;
+  duration: number; // seconds
+  position: number; // seconds
+  baseUrl: string;
+  play: (song: PlayerSong) => void;
+  togglePlayPause: () => void;
+  seekTo: (seconds: number) => void;
+  stop: () => void;
 }
 
-const PlayerContext = createContext<PlayerContextType>({
-  currentSong: null,
-  isPlaying: false,
-  isBuffering: false,
-  duration: 0,
-  position: 0,
-  play: async () => {},
-  togglePlayPause: async () => {},
-  seekTo: async () => {},
-  stop: async () => {},
-});
+const PlayerContext = createContext<PlayerContextType | null>(null);
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
-  const soundRef = useRef<Audio.Sound | null>(null);
-  // Generation counter to prevent race conditions when rapidly switching songs
-  const generationRef = useRef(0);
   const [currentSong, setCurrentSong] = useState<PlayerSong | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(false);
-  const [duration, setDuration] = useState(0);
+
+  // Create the player instance
+  const player = useVideoPlayer('', (p) => {
+    p.loop = false;
+    p.timeUpdateEventInterval = 0.5; // Emit timeUpdate every 0.5s
+  });
+
+  // State mirrored from player for context consumers
+  const [isPlaying, setIsPlayingState] = useState(false);
   const [position, setPosition] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isBuffering, setIsBuffering] = useState(false);
 
-  const play = useCallback(async (song: PlayerSong) => {
-    // Increment generation — any in-flight load with older generation is stale
-    const thisGeneration = ++generationRef.current;
+  const streamUrl = useMemo(() => {
+    if (!currentSong) return '';
+    const baseUrl = getSongBaseUrl(currentSong.storageKey) || currentSong.songBaseUrl;
+    return baseUrl ? `${baseUrl}/master.m3u8` : '';
+  }, [currentSong]);
 
-    // Immediately unload previous sound
-    if (soundRef.current) {
-      try {
-        await soundRef.current.unloadAsync();
-      } catch (_) {}
-      soundRef.current = null;
+  // Handle source changes
+  useEffect(() => {
+    if (streamUrl) {
+      player.replace(streamUrl);
+      player.play();
     }
+  }, [streamUrl, player]);
 
-    const baseUrl = getSongBaseUrl(song.storageKey);
-    if (!baseUrl) return;
-    const streamUrl = `${baseUrl}/master.m3u8`;
+  // Sync state from player
+  useEffect(() => {
+    const statusSub = player.addListener('statusChange', ({ status }) => {
+      setIsBuffering(status === 'loading');
+    });
 
-    // Set state immediately
+    const playSub = player.addListener('playingChange', ({ isPlaying: newIsPlaying }) => {
+      setIsPlayingState(newIsPlaying);
+    });
+
+    const timeSub = player.addListener('timeUpdate', ({ currentTime }) => {
+      setPosition(currentTime);
+      setDuration(player.duration);
+    });
+
+    return () => {
+      statusSub.remove();
+      playSub.remove();
+      timeSub.remove();
+    };
+  }, [player]);
+
+  const play = useCallback((song: PlayerSong) => {
     setCurrentSong(song);
-    setIsBuffering(true);
-    setIsPlaying(false);
-    setPosition(0);
-    setDuration(0);
-
-    try {
-      await Audio.setAudioModeAsync({
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-      });
-
-      // Check if a newer song was requested before we finish loading
-      if (generationRef.current !== thisGeneration) return;
-
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: streamUrl },
-        { shouldPlay: true },
-        (status: AVPlaybackStatus) => {
-          // Only process status updates for the current generation
-          if (generationRef.current !== thisGeneration) return;
-          if (!status.isLoaded) return;
-          setDuration(status.durationMillis || 0);
-          setPosition(status.positionMillis || 0);
-          setIsPlaying(status.isPlaying);
-          setIsBuffering(status.isBuffering);
-        }
-      );
-
-      // If stale, immediately unload the sound we just created
-      if (generationRef.current !== thisGeneration) {
-        await sound.unloadAsync();
-        return;
-      }
-
-      soundRef.current = sound;
-      musicApi.addView(song.id).catch(() => {});
-
-      // Centralized navigation: whenever a song starts playing, open the full player
-      router.push({
-        pathname: '/player',
-        params: { songId: song.id },
-      });
-    } catch (err) {
-      if (generationRef.current === thisGeneration) {
-        console.error('Failed to load audio:', err);
-        setIsBuffering(false);
-      }
-    }
+    // Track view
+    musicApi.addView(song.id).catch(() => {});
+    // Navigation
+    router.push({
+      pathname: '/player',
+      params: { songId: song.id },
+    });
   }, []);
 
-  const togglePlayPause = useCallback(async () => {
-    if (!soundRef.current) return;
-    const status = await soundRef.current.getStatusAsync();
-    if (status.isLoaded && status.isPlaying) {
-      await soundRef.current.pauseAsync();
+  const togglePlayPause = useCallback(() => {
+    if (player.playing) {
+      player.pause();
     } else {
-      await soundRef.current.playAsync();
+      player.play();
     }
-  }, []);
+  }, [player]);
 
-  const seekTo = useCallback(async (fraction: number) => {
-    if (!soundRef.current) return;
-    const status = await soundRef.current.getStatusAsync();
-    if (status.isLoaded && status.durationMillis) {
-      await soundRef.current.setPositionAsync(fraction * status.durationMillis);
-    }
-  }, []);
+  const setIsPlaying = useCallback(
+    (playing: boolean) => {
+      if (playing) player.play();
+      else player.pause();
+    },
+    [player]
+  );
 
-  const stop = useCallback(async () => {
-    generationRef.current++;
-    if (soundRef.current) {
-      try {
-        await soundRef.current.unloadAsync();
-      } catch (_) {}
-      soundRef.current = null;
-    }
+  const seekTo = useCallback(
+    (seconds: number) => {
+      player.currentTime = seconds;
+    },
+    [player]
+  );
+
+  const stop = useCallback(() => {
+    player.pause();
     setCurrentSong(null);
-    setIsPlaying(false);
-    setIsBuffering(false);
     setPosition(0);
     setDuration(0);
-  }, []);
+  }, [player]);
 
-  return (
-    <PlayerContext.Provider
-      value={{
-        currentSong,
-        isPlaying,
-        isBuffering,
-        duration,
-        position,
-        play,
-        togglePlayPause,
-        seekTo,
-        stop,
-      }}>
-      {children}
-    </PlayerContext.Provider>
+  const value = useMemo(
+    () => ({
+      currentSong,
+      isPlaying,
+      setIsPlaying,
+      isBuffering,
+      duration,
+      position,
+      baseUrl: streamUrl.replace('/master.m3u8', ''),
+      play,
+      togglePlayPause,
+      seekTo,
+      stop,
+    }),
+    [
+      currentSong,
+      isPlaying,
+      setIsPlaying,
+      isBuffering,
+      duration,
+      position,
+      streamUrl,
+      play,
+      togglePlayPause,
+      seekTo,
+      stop,
+    ]
   );
+
+  return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }
 
-export const usePlayer = () => useContext(PlayerContext);
+export const usePlayer = () => {
+  const context = useContext(PlayerContext);
+  if (!context) {
+    throw new Error('usePlayer must be used within a PlayerProvider');
+  }
+  return context;
+};

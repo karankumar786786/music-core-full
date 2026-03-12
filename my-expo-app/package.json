@@ -11,12 +11,12 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@expo/vector-icons": "^15.1.1",
+    "@expo/vector-icons": "^15.0.3",
     "@react-native-community/slider": "5.0.1",
     "@tanstack/pacer": "^0.19.0",
     "@tanstack/react-query": "^5.90.21",
     "axios": "^1.13.6",
-    "expo": "^55.0.6",
+    "expo": "~54.0.0",
     "expo-av": "~16.0.8",
     "expo-constants": "~18.0.13",
     "expo-linking": "~8.0.11",
@@ -24,6 +24,7 @@
     "expo-router": "~6.0.23",
     "expo-secure-store": "~15.0.8",
     "expo-status-bar": "~3.0.9",
+    "expo-video": "~3.0.16",
     "install": "^0.13.0",
     "nativewind": "latest",
     "react": "19.1.0",
@@ -31,8 +32,8 @@
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
-    "react-native-video": "^6.19.0",
-    "react-native-worklets": "0.5.1"
+    "react-native-worklets": "0.5.1",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

@@ -78,7 +78,7 @@ export default function HistoryScreen() {
             coverUrl,
           });
         }}
-        className="flex-row items-center gap-3 rounded-2xl px-4 py-3 active:bg-white/5">
+        className="flex-row items-center gap-3 rounded-2xl">
         <View className="h-14 w-14 overflow-hidden rounded-xl border border-white/5 bg-zinc-900">
           {coverUrl ? (
             <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
