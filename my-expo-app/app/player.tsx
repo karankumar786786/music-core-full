@@ -42,6 +42,12 @@ export default function PlayerScreen() {
     activeTrack,
     currentQualityType,
     setQualityType,
+    playNext,
+    playPrevious,
+    toggleShuffle,
+    toggleRepeat,
+    isShuffle,
+    repeatMode,
   } = usePlayer();
   const { user } = useAuth();
 
@@ -273,12 +279,16 @@ export default function PlayerScreen() {
 
         {/* Playback Controls */}
         <View className="flex-row items-center justify-between">
-          <View className="h-14 w-14 items-center justify-center rounded-full active:bg-white/[0.03]">
-            <Ionicons name="shuffle" size={24} color="#3f3f46" />
-          </View>
+          <Pressable
+            onPress={toggleShuffle}
+            className="h-14 w-14 items-center justify-center rounded-full active:bg-white/[0.03]">
+            <Ionicons name="shuffle" size={24} color={isShuffle ? '#00FF85' : '#3f3f46'} />
+          </Pressable>
 
           <View className="flex-row items-center gap-10">
-            <Pressable className="h-14 w-14 items-center justify-center rounded-full transition-transform active:scale-90">
+            <Pressable
+              onPress={playPrevious}
+              className="h-14 w-14 items-center justify-center rounded-full transition-transform active:scale-90">
               <Ionicons name="play-skip-back" size={32} color="#fff" />
             </Pressable>
             <Pressable
@@ -295,12 +305,28 @@ export default function PlayerScreen() {
                 />
               )}
             </Pressable>
-            <Pressable className="h-14 w-14 items-center justify-center rounded-full transition-transform active:scale-90">
+            <Pressable
+              onPress={playNext}
+              className="h-14 w-14 items-center justify-center rounded-full transition-transform active:scale-90">
               <Ionicons name="play-skip-forward" size={32} color="#fff" />
             </Pressable>
           </View>
 
           <View className="flex-row items-center gap-2">
+            <Pressable
+              onPress={toggleRepeat}
+              className="h-14 w-14 items-center justify-center rounded-full active:bg-white/[0.03]">
+              <Ionicons
+                name={repeatMode === 'one' ? 'repeat' : 'repeat'}
+                size={24}
+                color={repeatMode !== 'none' ? '#00FF85' : '#3f3f46'}
+              />
+              {repeatMode === 'one' && (
+                <View className="absolute bottom-2 h-3 w-3 items-center justify-center rounded-full bg-primary">
+                  <Text className="text-[7px] font-black text-black">1</Text>
+                </View>
+              )}
+            </Pressable>
             <Pressable
               onPress={() => router.push('/lyrics')}
               className="h-14 w-14 items-center justify-center rounded-full bg-primary/10 transition-all active:scale-90">

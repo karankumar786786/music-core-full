@@ -6,7 +6,8 @@ import { usePlayer } from '../lib/player-context';
 import { capitalize } from '../lib/utils';
 
 export default function MiniPlayer() {
-  const { currentSong, isPlaying, isBuffering, position, duration, togglePlayPause } = usePlayer();
+  const { currentSong, isPlaying, isBuffering, position, duration, togglePlayPause, playNext } =
+    usePlayer();
 
   if (!currentSong) return null;
 
@@ -26,7 +27,7 @@ export default function MiniPlayer() {
   };
 
   return (
-    <View className="bg-surface-card border-t border-white/[0.03]">
+    <View className="border-t border-white/[0.03] bg-surface-card">
       {/* Progress bar */}
       <View className="h-[2px] bg-white/[0.05]">
         <View className="h-full bg-primary" style={{ width: `${progress * 100}%` }} />
@@ -58,7 +59,7 @@ export default function MiniPlayer() {
           </Text>
         </View>
 
-        {/* Play/Pause */}
+        {/* Play/Pause + Skip */}
         <Pressable
           onPress={(e) => {
             togglePlayPause();
@@ -75,6 +76,12 @@ export default function MiniPlayer() {
               style={!isPlaying ? { marginLeft: 2 } : undefined}
             />
           )}
+        </Pressable>
+        <Pressable
+          onPress={playNext}
+          className="h-9 w-9 items-center justify-center rounded-full active:bg-white/10"
+          hitSlop={6}>
+          <Ionicons name="play-skip-forward" size={18} color="#a1a1aa" />
         </Pressable>
       </Pressable>
     </View>

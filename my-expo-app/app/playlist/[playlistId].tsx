@@ -12,7 +12,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { musicApi } from '../../lib/api';
-import { getCoverImageUrl } from '../../lib/s3';
+import { getCoverImageUrl, getBannerImageUrl } from '../../lib/s3';
 import { capitalize } from '../../lib/utils';
 import SongRow from '../../components/SongRow';
 import { usePlayer } from '../../lib/player-context';
@@ -42,17 +42,16 @@ export default function PlaylistDetail() {
   if (isLoading) {
     return (
       <SafeAreaView className="flex-1 bg-black" edges={['top']}>
-        {/* Skeleton header */}
         <View className="flex-row items-center gap-3 px-5 pb-4 pt-2">
           <View className="h-10 w-10 rounded-full bg-zinc-900" />
           <View className="h-5 w-32 rounded bg-zinc-900" />
         </View>
-        <View className="mb-6 items-center">
-          <View className="h-48 w-48 rounded-3xl bg-zinc-900" />
+        <View className="h-56 w-full bg-zinc-900" />
+        <View className="mx-5 -mt-16 items-center">
+          <View className="h-32 w-32 rounded-2xl bg-zinc-800" />
           <View className="mt-4 h-6 w-40 rounded bg-zinc-900" />
-          <View className="mt-2 h-4 w-20 rounded bg-zinc-900" />
         </View>
-        <View className="gap-3 px-4">
+        <View className="gap-3 px-4 pt-8">
           {[1, 2, 3, 4].map((i) => (
             <View key={i} className="flex-row items-center gap-3 px-4 py-3">
               <View className="h-4 w-7 rounded bg-zinc-900" />
@@ -77,75 +76,88 @@ export default function PlaylistDetail() {
   }
 
   const coverUrl = getCoverImageUrl(playlist.storageKey, 'large') || null;
+  const bannerUrl = getBannerImageUrl(playlist.storageKey, 'large') || null;
 
   const renderHeader = () => (
     <View>
-      {/* Back + Title Row */}
-      <View className="flex-row items-center gap-3 px-5 pb-4 pt-2">
+      {/* Back button (overlays banner) */}
+      <View className="absolute left-4 top-2 z-10">
         <Pressable
           onPress={() => router.back()}
-          className="h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-zinc-900/80">
-          <Ionicons name="arrow-back" size={20} color="#a1a1aa" />
+          className="h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/60">
+          <Ionicons name="arrow-back" size={20} color="#fff" />
         </Pressable>
-        <View className="flex-1">
-          <Text className="text-lg font-black tracking-tight text-white" numberOfLines={1}>
-            {capitalize(playlist.title)}
-          </Text>
-          <Text className="text-xs font-semibold text-zinc-500">Playlist</Text>
-        </View>
       </View>
 
-      {/* Centered Album Art */}
-      <View className="mb-6 items-center">
-        <View className="mb-5 h-52 w-52 overflow-hidden rounded-3xl border border-white/10 bg-zinc-900">
-          {coverUrl ? (
-            <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
-          ) : (
-            <View className="h-full w-full items-center justify-center bg-green-500/5">
-              <Ionicons name="albums" size={64} color="#22c55e" />
+      {/* Banner */}
+      <View className="h-56 w-full overflow-hidden bg-zinc-900">
+        {bannerUrl ? (
+          <Image source={{ uri: bannerUrl }} className="h-full w-full" resizeMode="cover" />
+        ) : coverUrl ? (
+          <Image
+            source={{ uri: coverUrl }}
+            className="h-full w-full"
+            resizeMode="cover"
+            blurRadius={20}
+            style={{ opacity: 0.5 }}
+          />
+        ) : (
+          <View className="h-full w-full bg-green-500/10" />
+        )}
+        <View className="absolute inset-0 bg-black/40" />
+      </View>
+
+      {/* Cover + Info overlay */}
+      <View className="mx-5 -mt-20 mb-6">
+        <View className="rounded-3xl border border-white/10 bg-zinc-950/90 p-5">
+          <View className="flex-row items-center gap-4">
+            {/* Cover image */}
+            <View className="h-24 w-24 overflow-hidden rounded-2xl border-2 border-green-500/30 bg-zinc-800 shadow-lg">
+              {coverUrl ? (
+                <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
+              ) : (
+                <View className="h-full w-full items-center justify-center bg-green-500/10">
+                  <Ionicons name="albums" size={36} color="#22c55e" />
+                </View>
+              )}
+            </View>
+            <View className="flex-1">
+              <Text className="mb-1 text-xs font-bold uppercase tracking-widest text-green-500">
+                Playlist
+              </Text>
+              <Text className="text-2xl font-black tracking-tight text-white" numberOfLines={2}>
+                {capitalize(playlist.title)}
+              </Text>
+              <Text className="mt-1 text-sm font-semibold text-zinc-400">{totalTracks} tracks</Text>
+            </View>
+          </View>
+          {playlist.description && (
+            <View className="mt-4 border-t border-white/5 pt-4">
+              <Text className="text-sm leading-5 text-zinc-400">{playlist.description}</Text>
             </View>
           )}
         </View>
-        <Text
-          className="px-8 text-center text-2xl font-black tracking-tight text-white"
-          numberOfLines={2}>
-          {capitalize(playlist.title)}
-        </Text>
-        {playlist.description && (
-          <Text
-            className="mt-2 px-12 text-center text-sm font-medium text-zinc-500"
-            numberOfLines={2}>
-            {playlist.description}
-          </Text>
-        )}
-        <View className="mt-3 flex-row items-center gap-4">
-          <Text className="text-xs font-bold text-zinc-400">{totalTracks} tracks</Text>
-          <View className="h-1 w-1 rounded-full bg-zinc-600" />
-          <Text className="text-xs font-bold uppercase tracking-wider text-green-500/80">
-            Playlist
-          </Text>
-        </View>
-
-        {/* Play All Button */}
-        <Pressable
-          onPress={() => {
-            if (songs.length > 0) {
-              const first = songs[0];
-              const cUrl = getCoverImageUrl(first.storageKey, 'small', true) || null;
-              play({
-                id: first.id,
-                title: first.title,
-                artistName: first.artistName,
-                storageKey: first.storageKey,
-                coverUrl: cUrl,
-              });
-            }
-          }}
-          className="mt-5 h-12 w-40 flex-row items-center justify-center rounded-full bg-green-500 active:opacity-80">
-          <Ionicons name="play" size={20} color="#000" style={{ marginLeft: 2 }} />
-          <Text className="ml-2 text-base font-black text-black">Play All</Text>
-        </Pressable>
       </View>
+
+      {/* Play All */}
+      <Pressable
+        onPress={() => {
+          if (songs.length > 0) {
+            const first = songs[0];
+            const cUrl = getCoverImageUrl(first.storageKey, 'small', true) || null;
+            play({
+              id: first.id,
+              title: first.title,
+              artistName: first.artistName,
+              storageKey: first.storageKey,
+              coverUrl: cUrl,
+            });
+          }
+        }}
+        className="mx-5 mb-4 h-12 flex-row items-center justify-center rounded-full bg-green-500 active:opacity-80">
+        <Ionicons name="play" size={20} color="#000" style={{ marginLeft: 2 }} />
+        <Text className="ml-2 text-base font-black text-black">Play All</Text>
+      </Pressable>
 
       {/* Section Header */}
       <View className="mx-5 mb-2 flex-row items-center justify-between border-b border-white/5 pb-2">

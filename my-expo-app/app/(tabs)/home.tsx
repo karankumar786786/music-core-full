@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -80,7 +80,59 @@ export default function Home() {
   }, []);
 
   // ── Sections ──
-  const { play } = usePlayer();
+  const { play, addToQueue } = usePlayer();
+
+  // Auto-sliding featured carousel
+  const featuredRef = useRef<FlatList>(null);
+  const [featuredIndex, setFeaturedIndex] = React.useState(0);
+  const featuredCount = (featuredData?.data || []).slice(0, 8).length;
+
+  useEffect(() => {
+    if (featuredCount <= 1) return;
+    const timer = setInterval(() => {
+      setFeaturedIndex((prev) => {
+        const next = (prev + 1) % featuredCount;
+        featuredRef.current?.scrollToOffset({
+          offset: next * (SCREEN_WIDTH - 32),
+          animated: true,
+        });
+        return next;
+      });
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [featuredCount]);
+
+  // Seed the player queue when trending data loads
+  React.useEffect(() => {
+    const songs = trendingData?.data;
+    if (songs?.length > 0) {
+      addToQueue(
+        songs.map((s: any) => ({
+          id: s.id,
+          title: s.title,
+          artistName: s.artistName,
+          storageKey: s.storageKey,
+          coverUrl: getCoverImageUrl(s.storageKey, 'small', true) || null,
+        }))
+      );
+    }
+  }, [trendingData]);
+
+  // Also seed from feed data
+  React.useEffect(() => {
+    const songs = feedData?.data;
+    if (songs?.length > 0) {
+      addToQueue(
+        songs.map((s: any) => ({
+          id: s.id,
+          title: s.title,
+          artistName: s.artistName,
+          storageKey: s.storageKey,
+          coverUrl: getCoverImageUrl(s.storageKey, 'small', true) || null,
+        }))
+      );
+    }
+  }, [feedData]);
 
   const renderFeatured = () => {
     const featured = featuredData?.data || [];
@@ -93,44 +145,79 @@ export default function Home() {
     }
     if (featured.length === 0) return null;
 
-    const item = featured[0];
-    const coverUrl = item.coverUrl || getCoverImageUrl(item.storageKey, 'large', true) || null;
-
     return (
-      <View className="mb-8 px-4">
-        <Pressable
-          onPress={() =>
-            play({
-              id: item.id,
-              title: item.title,
-              artistName: item.artistName,
-              storageKey: item.storageKey,
-              coverUrl,
-            })
-          }>
-          <View className="h-56 overflow-hidden rounded-3xl border border-white/5 bg-zinc-900">
-            {coverUrl ? (
-              <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
-            ) : (
-              <View className="h-full w-full items-center justify-center bg-green-500/10">
-                <Ionicons name="musical-notes" size={56} color="#22c55e" />
-              </View>
-            )}
-            <View className="absolute bottom-0 left-0 right-0 flex-row items-center bg-black/70 px-5 py-4">
-              <View className="mr-4 flex-1">
-                <Text className="text-xl font-black tracking-tight text-white" numberOfLines={1}>
-                  {capitalize(item.title)}
-                </Text>
-                <Text className="mt-0.5 text-sm font-semibold text-zinc-400" numberOfLines={1}>
-                  {capitalize(item.artistName)}
-                </Text>
-              </View>
-              <View className="h-14 w-14 items-center justify-center rounded-full bg-green-500">
-                <Ionicons name="play" size={28} color="#000" style={{ marginLeft: 3 }} />
-              </View>
-            </View>
+      <View className="mb-8">
+        <FlatList
+          ref={featuredRef}
+          data={featured.slice(0, 8)}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          nestedScrollEnabled
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => {
+            const coverUrl =
+              item.coverUrl || getCoverImageUrl(item.storageKey, 'large', true) || null;
+            return (
+              <Pressable
+                style={{ width: SCREEN_WIDTH - 32 }}
+                className="mx-4"
+                onPress={() =>
+                  play({
+                    id: item.id,
+                    title: item.title,
+                    artistName: item.artistName,
+                    storageKey: item.storageKey,
+                    coverUrl,
+                  })
+                }>
+                <View className="h-56 overflow-hidden rounded-3xl border border-white/5 bg-zinc-900">
+                  {coverUrl ? (
+                    <Image
+                      source={{ uri: coverUrl }}
+                      className="h-full w-full"
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View className="h-full w-full items-center justify-center bg-green-500/10">
+                      <Ionicons name="musical-notes" size={56} color="#22c55e" />
+                    </View>
+                  )}
+                  <View className="absolute bottom-0 left-0 right-0 flex-row items-center bg-black/70 px-5 py-4">
+                    <View className="mr-4 flex-1">
+                      <Text
+                        className="text-xl font-black tracking-tight text-white"
+                        numberOfLines={1}>
+                        {capitalize(item.title)}
+                      </Text>
+                      <Text
+                        className="mt-0.5 text-sm font-semibold text-zinc-400"
+                        numberOfLines={1}>
+                        {capitalize(item.artistName)}
+                      </Text>
+                    </View>
+                    <View className="h-14 w-14 items-center justify-center rounded-full bg-green-500">
+                      <Ionicons name="play" size={28} color="#000" style={{ marginLeft: 3 }} />
+                    </View>
+                  </View>
+                </View>
+              </Pressable>
+            );
+          }}
+        />
+        {/* Page dots */}
+        {featured.length > 1 && (
+          <View className="mt-3 flex-row items-center justify-center gap-1.5">
+            {featured.slice(0, 8).map((_:any, i:any) => (
+              <View
+                key={i}
+                className={`h-1.5 rounded-full ${
+                  i === featuredIndex ? 'w-6 bg-green-500' : 'w-1.5 bg-zinc-700'
+                }`}
+              />
+            ))}
           </View>
-        </Pressable>
+        )}
       </View>
     );
   };
@@ -153,6 +240,7 @@ export default function Home() {
           data={artists.slice(0, 15)}
           horizontal
           showsHorizontalScrollIndicator={false}
+          nestedScrollEnabled
           contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => {
@@ -162,7 +250,7 @@ export default function Home() {
                 <Pressable
                   className="w-32 items-center"
                   onPress={() => console.log('Link (Artist) pressed:', item.id)}>
-                  <View className="mb-3 h-32 w-32 overflow-hidden rounded-2xl border-2 border-green-500/20 bg-zinc-800">
+                  <View className="mb-3 h-28 w-28 overflow-hidden rounded-full border-2 border-green-500/20 bg-zinc-800">
                     {avatarUrl ? (
                       <Image
                         source={{ uri: avatarUrl }}
@@ -208,6 +296,7 @@ export default function Home() {
           data={playlists}
           horizontal
           showsHorizontalScrollIndicator={false}
+          nestedScrollEnabled
           contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => {
@@ -268,6 +357,7 @@ export default function Home() {
           data={trending.slice(0, 10)}
           horizontal
           showsHorizontalScrollIndicator={false}
+          nestedScrollEnabled
           contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => {
@@ -333,6 +423,7 @@ export default function Home() {
           data={feedSongs.slice(0, 15)}
           horizontal
           showsHorizontalScrollIndicator={false}
+          nestedScrollEnabled
           contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => {
@@ -383,17 +474,6 @@ export default function Home() {
   // ── Header ──
   const renderHeader = () => (
     <View>
-      {/* Search Bar */}
-      <Pressable
-        onPress={() => {
-          console.log('Search bar pressed');
-          router.push('/search');
-        }}
-        className="mx-4 mb-6 mt-4 h-12 flex-row items-center rounded-2xl border border-white/10 bg-zinc-900 px-4 active:bg-zinc-800">
-        <Ionicons name="search" size={18} color="#71717a" />
-        <Text className="ml-3 flex-1 text-base text-zinc-500">Search songs, artists...</Text>
-      </Pressable>
-
       {renderFeatured()}
       {renderArtists()}
       {renderPlaylists()}

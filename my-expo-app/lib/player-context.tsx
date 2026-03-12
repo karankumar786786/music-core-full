@@ -27,30 +27,45 @@ interface PlayerContextType {
   isPlaying: boolean;
   setIsPlaying: (playing: boolean) => void;
   isBuffering: boolean;
-  duration: number; // seconds
-  position: number; // seconds
-  bufferedPosition: number; // seconds
+  duration: number;
+  position: number;
+  bufferedPosition: number;
   baseUrl: string;
   activeTrack: VideoTrack | null;
   availableTracks: VideoTrack[];
   manifestVariants: HLSVariant[];
   currentQualityType: 'auto' | 'high' | 'med' | 'low';
   setQualityType: (type: 'auto' | 'high' | 'med' | 'low') => void;
+  // Queue
+  queue: PlayerSong[];
+  isShuffle: boolean;
+  repeatMode: 'none' | 'one' | 'all';
+  // Actions
   play: (song: PlayerSong) => void;
+  playAll: (songs: PlayerSong[]) => void;
+  addToQueue: (songs: PlayerSong[]) => void;
   togglePlayPause: () => void;
   seekTo: (seconds: number) => void;
   stop: () => void;
+  playNext: () => void;
+  playPrevious: () => void;
+  toggleShuffle: () => void;
+  toggleRepeat: () => void;
 }
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [currentSong, setCurrentSong] = useState<PlayerSong | null>(null);
+  const [queue, setQueue] = useState<PlayerSong[]>([]);
+  const [lastQueueIndex, setLastQueueIndex] = useState(-1);
+  const [isShuffle, setIsShuffle] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<'none' | 'one' | 'all'>('none');
 
   // Create the player instance
   const player = useVideoPlayer('', (p) => {
     p.loop = false;
-    p.timeUpdateEventInterval = 0.5; // Emit timeUpdate every 0.5s
+    p.timeUpdateEventInterval = 0.5;
     p.bufferOptions = {
       preferredForwardBufferDuration: 20,
     };
@@ -67,6 +82,33 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [manifestVariants, setManifestVariants] = useState<HLSVariant[]>([]);
   const [qualityType, setQualityType] = useState<'auto' | 'high' | 'med' | 'low'>('auto');
 
+  // Refs for stable access in callbacks
+  const queueRef = useRef(queue);
+  const lastQueueIndexRef = useRef(lastQueueIndex);
+  const isShuffleRef = useRef(isShuffle);
+  const repeatModeRef = useRef(repeatMode);
+  const positionRef = useRef(position);
+  const currentSongRef = useRef(currentSong);
+
+  useEffect(() => {
+    queueRef.current = queue;
+  }, [queue]);
+  useEffect(() => {
+    lastQueueIndexRef.current = lastQueueIndex;
+  }, [lastQueueIndex]);
+  useEffect(() => {
+    isShuffleRef.current = isShuffle;
+  }, [isShuffle]);
+  useEffect(() => {
+    repeatModeRef.current = repeatMode;
+  }, [repeatMode]);
+  useEffect(() => {
+    positionRef.current = position;
+  }, [position]);
+  useEffect(() => {
+    currentSongRef.current = currentSong;
+  }, [currentSong]);
+
   const masterUrl = useMemo(() => {
     if (!currentSong) return '';
     const baseUrl = getSongBaseUrl(currentSong.storageKey) || currentSong.songBaseUrl;
@@ -77,7 +119,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (!masterUrl) return '';
     if (qualityType === 'auto' || manifestVariants.length === 0) return masterUrl;
 
-    // Sort variants by bandwidth (High to Low)
     const sorted = [...manifestVariants].sort((a, b) => b.bandwidth - a.bandwidth);
     const baseUrl = masterUrl.replace('/master.m3u8', '');
 
@@ -90,14 +131,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       targetVariant = sorted[sorted.length - 1];
     }
 
-    // Handle relative/absolute URIs
     if (targetVariant.uri.startsWith('http')) return targetVariant.uri;
     return `${baseUrl}/${targetVariant.uri}`;
   }, [masterUrl, qualityType, manifestVariants]);
 
   const prevSongIdRef = useRef<string | null>(null);
 
-  // Handle manifest parsing and actual playback source (Auto vs Force)
+  // Handle manifest parsing and actual playback source
   useEffect(() => {
     if (!masterUrl || !activeStreamUrl) {
       setManifestVariants([]);
@@ -106,11 +146,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     let isEffectCurrent = true;
     const isNewSong = currentSong?.id !== prevSongIdRef.current;
-
-    // Capture position *before* replacing the source only if it's not a new song
     const currentPos = isNewSong ? 0 : player.currentTime;
 
-    // 1. Fetch manifest
     fetch(masterUrl)
       .then((r) => r.text())
       .then((text) => {
@@ -120,7 +157,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (isEffectCurrent) setManifestVariants([]);
       });
 
-    // 2. Proactively swap player source
     player.replaceAsync(activeStreamUrl).then(() => {
       if (!isEffectCurrent) return;
       try {
@@ -128,7 +164,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           player.currentTime = currentPos;
         }
         player.play();
-        // Update the ref to the current song ID
         prevSongIdRef.current = currentSong?.id || null;
       } catch (e) {
         console.warn('Playback resume failed:', e);
@@ -140,7 +175,115 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     };
   }, [masterUrl, activeStreamUrl, player, currentSong?.id]);
 
-  // Sync state from player
+  // ── Internal: set current song with queue index tracking ──
+  const setCurrentSongWithIndex = useCallback((song: PlayerSong | null) => {
+    if (song) {
+      const idx = queueRef.current.findIndex((s) => s.id === song.id);
+      if (idx !== -1) setLastQueueIndex(idx);
+    }
+    setCurrentSong(song);
+    setPosition(0);
+    setDuration(0);
+  }, []);
+
+  // ── playNext ──
+  const playNext = useCallback(() => {
+    const q = queueRef.current;
+    const idx = lastQueueIndexRef.current;
+    const rm = repeatModeRef.current;
+    const shuffle = isShuffleRef.current;
+    const cs = currentSongRef.current;
+
+    if (q.length === 0) return;
+
+    if (rm === 'one' && cs) {
+      // Repeat one: restart current song
+      player.currentTime = 0;
+      player.play();
+      return;
+    }
+
+    let nextIndex = idx + 1;
+
+    if (shuffle && q.length > 1) {
+      nextIndex = Math.floor(Math.random() * q.length);
+      // Avoid replaying the same song
+      if (nextIndex === idx && q.length > 1) {
+        nextIndex = (nextIndex + 1) % q.length;
+      }
+    }
+
+    if (nextIndex < q.length) {
+      setCurrentSongWithIndex(q[nextIndex]);
+      setTimeout(() => musicApi.addView(q[nextIndex].id).catch(() => {}), 0);
+    } else if (rm === 'all' && q.length > 0) {
+      setCurrentSongWithIndex(q[0]);
+      setTimeout(() => musicApi.addView(q[0].id).catch(() => {}), 0);
+    }
+
+    // Auto-fetch more songs when nearing end of queue
+    const remaining = q.length - nextIndex - 1;
+    if (remaining <= 2) {
+      fetchAndAddFeedToQueue();
+    }
+  }, [player, setCurrentSongWithIndex]);
+
+  // ── playPrevious ──
+  const playPrevious = useCallback(() => {
+    const q = queueRef.current;
+    const idx = lastQueueIndexRef.current;
+    const rm = repeatModeRef.current;
+    const pos = positionRef.current;
+
+    if (q.length === 0) return;
+
+    // If more than 3 seconds in, restart current song
+    if (pos > 3) {
+      player.currentTime = 0;
+      player.play();
+      return;
+    }
+
+    const prevIndex = idx - 1;
+
+    if (prevIndex >= 0) {
+      setCurrentSongWithIndex(q[prevIndex]);
+      setTimeout(() => musicApi.addView(q[prevIndex].id).catch(() => {}), 0);
+    } else if (rm === 'all' && q.length > 0) {
+      setCurrentSongWithIndex(q[q.length - 1]);
+      setTimeout(() => musicApi.addView(q[q.length - 1].id).catch(() => {}), 0);
+    } else {
+      // Restart current song
+      player.currentTime = 0;
+      player.play();
+    }
+  }, [player, setCurrentSongWithIndex]);
+
+  // ── Auto-fetch more feed songs to queue ──
+  const fetchAndAddFeedToQueue = useCallback(async () => {
+    try {
+      const currentIds = queueRef.current.map((s) => s.id);
+      const feedData = await musicApi.getFeed(currentIds);
+      if (feedData?.data) {
+        const newSongs: PlayerSong[] = feedData.data.map((s: any) => ({
+          id: s.id,
+          title: s.title,
+          artistName: s.artistName,
+          storageKey: s.storageKey,
+          coverUrl: null,
+        }));
+        setQueue((prev) => {
+          const existingIds = new Set(prev.map((s) => s.id));
+          const filtered = newSongs.filter((s) => !existingIds.has(s.id));
+          return [...prev, ...filtered];
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch feed:', error);
+    }
+  }, []);
+
+  // ── Sync state from player events ──
   useEffect(() => {
     const statusSub = player.addListener('statusChange', ({ status }) => {
       setIsBuffering(status === 'loading');
@@ -176,14 +319,51 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     };
   }, [player]);
 
-  const play = useCallback((song: PlayerSong) => {
-    setCurrentSong(song);
-    // Track view
-    musicApi.addView(song.id).catch(() => {});
-    // Navigation
-    router.push({
-      pathname: '/player',
-      params: { songId: song.id },
+  // ── Auto-play next song when current one finishes ──
+  useEffect(() => {
+    const sub = player.addListener('playToEnd', () => {
+      playNext();
+    });
+    return () => sub.remove();
+  }, [player, playNext]);
+
+  // ── Public: play a single song ──
+  const play = useCallback(
+    (song: PlayerSong) => {
+      // Add to queue if not already there
+      setQueue((prev) => {
+        const exists = prev.some((s) => s.id === song.id);
+        if (!exists) return [...prev, song];
+        return prev;
+      });
+      setCurrentSongWithIndex(song);
+      // Fire-and-forget: never block playback for a view track
+      setTimeout(() => musicApi.addView(song.id).catch(() => {}), 0);
+      router.push({
+        pathname: '/player',
+        params: { songId: song.id },
+      });
+    },
+    [setCurrentSongWithIndex]
+  );
+
+  // ── Public: play all songs (replaces queue) ──
+  const playAll = useCallback((songs: PlayerSong[]) => {
+    if (songs.length === 0) return;
+    setQueue(songs);
+    setLastQueueIndex(0);
+    setCurrentSong(songs[0]);
+    setPosition(0);
+    setDuration(0);
+    musicApi.addView(songs[0].id).catch(() => {});
+  }, []);
+
+  // ── Public: add songs to end of queue ──
+  const addToQueue = useCallback((songs: PlayerSong[]) => {
+    setQueue((prev) => {
+      const existingIds = new Set(prev.map((s) => s.id));
+      const filtered = songs.filter((s) => !existingIds.has(s.id));
+      return [...prev, ...filtered];
     });
   }, []);
 
@@ -217,6 +397,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     setDuration(0);
   }, [player]);
 
+  const toggleShuffle = useCallback(() => {
+    setIsShuffle((prev) => !prev);
+  }, []);
+
+  const toggleRepeat = useCallback(() => {
+    setRepeatMode((prev) => {
+      const next: Record<string, 'none' | 'one' | 'all'> = {
+        none: 'all',
+        all: 'one',
+        one: 'none',
+      };
+      return next[prev];
+    });
+  }, []);
+
   const value = useMemo(
     () => ({
       currentSong,
@@ -232,10 +427,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       manifestVariants,
       currentQualityType: qualityType,
       setQualityType,
+      queue,
+      isShuffle,
+      repeatMode,
       play,
+      playAll,
+      addToQueue,
       togglePlayPause,
       seekTo,
       stop,
+      playNext,
+      playPrevious,
+      toggleShuffle,
+      toggleRepeat,
     }),
     [
       currentSong,
@@ -250,10 +454,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       availableTracks,
       manifestVariants,
       qualityType,
+      queue,
+      isShuffle,
+      repeatMode,
       play,
+      playAll,
+      addToQueue,
       togglePlayPause,
       seekTo,
       stop,
+      playNext,
+      playPrevious,
+      toggleShuffle,
+      toggleRepeat,
     ]
   );
 
