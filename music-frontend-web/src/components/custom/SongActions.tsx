@@ -25,11 +25,18 @@ interface FavoriteButtonProps {
 
 export function FavoriteButton({
   songId,
-  isLiked,
+  isLiked: initialIsLiked,
   onToggle,
 }: FavoriteButtonProps) {
   const queryClient = useQueryClient();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isLiked, setIsLiked] = useState(!!initialIsLiked);
+
+  useEffect(() => {
+    if (typeof initialIsLiked === "boolean") {
+      setIsLiked(initialIsLiked);
+    }
+  }, [initialIsLiked]);
 
   const { data: user } = useQuery({
     queryKey: ["me"],
@@ -55,10 +62,15 @@ export function FavoriteButton({
         isLiked ? "Removed from favourites" : "Added to favourites",
       );
     },
-    onError: (error: { response?: { status?: number } }) => {
+    onError: (error: any) => {
       if (error.response?.status === 401) {
         setIsAuthModalOpen(true);
+      } else if (error.response?.status === 409) {
+        toast.error("Song already in favourites");
+        // Optionally invalidate to sync state if we thought it wasn't liked
+        queryClient.invalidateQueries({ queryKey: ["favourites"] });
       } else {
+        setIsLiked(!isLiked);
         toast.error("Failed to update favourites");
       }
     },
@@ -70,6 +82,7 @@ export function FavoriteButton({
       setIsAuthModalOpen(true);
       return;
     }
+    setIsLiked((prev) => !prev);
     toggleMutation.mutate();
   };
 

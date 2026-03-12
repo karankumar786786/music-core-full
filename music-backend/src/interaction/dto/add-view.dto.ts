@@ -1,7 +1,8 @@
-import { IsString, IsNotEmpty } from 'class-validator';
+import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 
-export class AddViewDto {
-    @IsString()
-    @IsNotEmpty()
-    songId: string;
-}
+const AddViewDtoSchema = z.object({
+    songId: z.string().min(1, 'Song ID is required'),
+});
+
+export class AddViewDto extends createZodDto(AddViewDtoSchema) { }

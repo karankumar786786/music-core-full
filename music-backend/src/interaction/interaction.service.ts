@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException, ConflictException, Logger } from '@nestjs/common';
 import { AddViewDto } from './dto/add-view.dto';
 import { AddSearchHistoryDto } from './dto/add-search-history.dto';
 import { AddFavouriteDto } from './dto/add-favourite.dto';
@@ -9,10 +9,12 @@ import { S3UrlUtility } from '../lib/helpers/s3-url.utility';
 
 @Injectable()
 export class InteractionService {
+  private readonly logger = new Logger(InteractionService.name);
   private prisma = getPrismaClient();
 
   async addView(userId: number, addViewDto: AddViewDto) {
     const { songId } = addViewDto;
+    this.logger.log(`Adding view for song ${songId} by user ${userId}`);
 
     // Verify digital signature within the ID
     const isValid = SignatureUtility.verifyId(songId);
@@ -40,6 +42,7 @@ export class InteractionService {
   }
 
   async getHistory(userId: number, paginationQuery: PaginationQueryDto) {
+    this.logger.log(`Fetching history for user ${userId}`);
     const { page = 1, limit = 10 } = paginationQuery;
     const skip = (page - 1) * limit;
 
@@ -68,6 +71,7 @@ export class InteractionService {
   }
 
   async addSearchHistory(userId: number, addSearchHistoryDto: AddSearchHistoryDto) {
+    this.logger.log(`Adding search history: "${addSearchHistoryDto.searchString}" for user ${userId}`);
     return await this.prisma.userSearchHistory.create({
       data: {
         userId,
@@ -77,6 +81,7 @@ export class InteractionService {
   }
 
   async getSearchHistory(userId: number) {
+    this.logger.log(`Fetching search history for user ${userId}`);
     return await this.prisma.userSearchHistory.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
@@ -86,6 +91,7 @@ export class InteractionService {
 
   async addFavourite(userId: number, addFavouriteDto: AddFavouriteDto) {
     const { songId } = addFavouriteDto;
+    this.logger.log(`Adding favourite: song ${songId} for user ${userId}`);
 
     // Verify digital signature within the ID
     const isValid = SignatureUtility.verifyId(songId);
@@ -103,29 +109,37 @@ export class InteractionService {
     }
 
     try {
-      return await this.prisma.userFavourites.create({
+      const result = await this.prisma.userFavourites.create({
         data: {
           userId,
           songId,
         },
       });
+      this.logger.log(`Successfully saved favourite for user ${userId}, record ID: ${result.id}`);
+      return result;
     } catch (error) {
       if (error.code === 'P2002') {
-        // If it already exists, just return the existing record or a generic success
-        return await this.prisma.userFavourites.findUnique({
-          where: {
-            userId_songId: {
-              userId,
-              songId,
-            },
-          },
-        });
+        throw new ConflictException('Song already in favourites');
       }
       throw error;
     }
   }
 
+  async checkFavourite(userId: number, songId: string) {
+    this.logger.log(`Checking favourite status: song ${songId} for user ${userId}`);
+    const favourite = await this.prisma.userFavourites.findUnique({
+      where: {
+        userId_songId: {
+          userId,
+          songId,
+        },
+      },
+    });
+    return { isFavourite: !!favourite };
+  }
+
   async removeFavourite(userId: number, songId: string) {
+    this.logger.log(`Removing favourite: song ${songId} for user ${userId}`);
     try {
       return await this.prisma.userFavourites.delete({
         where: {
@@ -145,6 +159,7 @@ export class InteractionService {
   }
 
   async getFavourites(userId: number, paginationQuery: PaginationQueryDto) {
+    this.logger.log(`Fetching favourites for user ${userId}`);
     const { page = 1, limit = 10 } = paginationQuery;
     const skip = (page - 1) * limit;
 
@@ -173,6 +188,7 @@ export class InteractionService {
   }
 
   async getTrending(paginationQuery: PaginationQueryDto) {
+    this.logger.log(`Fetching trending songs`);
     const { page = 1, limit = 10 } = paginationQuery;
     const skip = (page - 1) * limit;
 
@@ -218,6 +234,7 @@ export class InteractionService {
   }
 
   async getFeatured() {
+    this.logger.log(`Fetching featured songs`);
     // Top 5 editor featured songs / absolute newest platform additions globally
     const featuredSongs = await this.prisma.song.findMany({
       orderBy: { createdAt: 'desc' },

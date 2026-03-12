@@ -7,10 +7,10 @@ import { musicApi } from '../../lib/api';
 import SongRow from '../../components/SongRow';
 
 export default function Favourites() {
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
+  const { data, isLoading, isFetching, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
     useInfiniteQuery({
       queryKey: ['favourites', 'paginated'],
-      queryFn: ({ pageParam = 1 }) => musicApi.getFavourites(pageParam, 50),
+      queryFn: ({ pageParam = 1 }) => musicApi.getFavourites(pageParam, 20),
       initialPageParam: 1,
       getNextPageParam: (lastPage) => {
         if (!lastPage?.data || lastPage.data.length < 50) return undefined;
@@ -70,11 +70,16 @@ export default function Favourites() {
             {favorites.length} liked songs
           </Text>
         </View>
-        {favorites.length > 0 && (
-          <View className="h-10 w-10 items-center justify-center rounded-full bg-green-500">
-            <Ionicons name="heart" size={20} color="#000" />
-          </View>
-        )}
+        <View className="flex-row items-center gap-3">
+          {isFetching && !isFetchingNextPage && !isLoading && (
+            <ActivityIndicator color="#22c55e" size="small" />
+          )}
+          {favorites.length > 0 && (
+            <View className="h-10 w-10 items-center justify-center rounded-full bg-green-500">
+              <Ionicons name="heart" size={20} color="#000" />
+            </View>
+          )}
+        </View>
       </View>
 
       <FlatList

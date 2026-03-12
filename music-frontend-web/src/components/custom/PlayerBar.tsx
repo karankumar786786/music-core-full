@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import { useStore } from "@tanstack/react-store";
+import { useQuery } from "@tanstack/react-query";
 import { playerStore, playerActions } from "@/Store/playerStore";
 import {
   Play,
@@ -26,6 +27,14 @@ export default function PlayerBar() {
   const [localTime, setLocalTime] = useState(0);
 
   const { currentSong, isPlaying, volume, isMuted, duration } = state;
+
+  const { data: favStatus, refetch: refetchFav } = useQuery({
+    queryKey: ["favourite-check", currentSong?.id],
+    queryFn: () => musicApi.checkFavourite(currentSong!.id),
+    enabled: !!currentSong?.id,
+  });
+
+  const isLiked = favStatus?.isFavourite ?? false;
 
   // Initialize HLS — re-runs only when song changes
   useEffect(() => {
@@ -157,8 +166,8 @@ export default function PlayerBar() {
         <div className="flex items-center ml-2 shrink-0">
           <FavoriteButton
             songId={currentSong.id}
-            isLiked={!!currentSong.isLiked}
-            onToggle={() => playerActions.toggleFavourite()}
+            isLiked={isLiked}
+            onToggle={() => refetchFav()}
           />
           <PlaylistButton songId={currentSong.id} />
         </div>

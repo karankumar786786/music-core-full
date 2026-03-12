@@ -1,17 +1,14 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 
-export class CreateUserplaylistDto {
-    @IsString()
-    @IsNotEmpty()
-    title: string;
+const CreateUserplaylistDtoSchema = z.object({
+    title: z.string().min(1, 'Title is required'),
+    description: z.string().optional(),
+});
 
-    @IsOptional()
-    @IsString()
-    description?: string;
-}
+const AddSongToPlaylistDtoSchema = z.object({
+    songId: z.string().min(1, 'Song ID is required'),
+});
 
-export class AddSongToPlaylistDto {
-    @IsString()
-    @IsNotEmpty()
-    songId: string;
-}
+export class CreateUserplaylistDto extends createZodDto(CreateUserplaylistDtoSchema) { }
+export class AddSongToPlaylistDto extends createZodDto(AddSongToPlaylistDtoSchema) { }

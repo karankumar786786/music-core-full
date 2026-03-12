@@ -107,6 +107,10 @@ export const musicApi = {
         const response = await api.delete(`/interaction/favourites/${songId}`)
         return response.data
     },
+    checkFavourite: async (songId: string) => {
+        const response = await api.get(`/interaction/favourites/check/${songId}`)
+        return response.data
+    },
     getHistory: async (page = 1, limit = 50) => {
         const response = await api.get(`/interaction/history?page=${page}&limit=${limit}`)
         return response.data

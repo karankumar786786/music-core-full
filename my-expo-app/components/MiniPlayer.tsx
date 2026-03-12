@@ -26,15 +26,15 @@ export default function MiniPlayer() {
   };
 
   return (
-    <View className="border-t border-white/5 bg-zinc-950">
+    <View className="bg-surface-card border-t border-white/[0.03]">
       {/* Progress bar */}
-      <View className="h-[2px] bg-zinc-800">
-        <View className="h-full bg-green-500" style={{ width: `${progress * 100}%` }} />
+      <View className="h-[2px] bg-white/[0.05]">
+        <View className="h-full bg-primary" style={{ width: `${progress * 100}%` }} />
       </View>
 
-      <Pressable onPress={openFullPlayer} className="flex-row items-center gap-3 px-4 py-3">
+      <Pressable onPress={openFullPlayer} className="flex-row items-center gap-3 px-5 py-3">
         {/* Cover */}
-        <View className="h-11 w-11 overflow-hidden rounded-xl border border-white/5 bg-zinc-800">
+        <View className="h-12 w-12 overflow-hidden rounded-xl bg-zinc-900 shadow-lg">
           {currentSong.coverUrl ? (
             <Image
               source={{ uri: currentSong.coverUrl }}
@@ -42,18 +42,18 @@ export default function MiniPlayer() {
               resizeMode="cover"
             />
           ) : (
-            <View className="h-full w-full items-center justify-center bg-green-500/10">
-              <Ionicons name="musical-notes" size={18} color="#22c55e" />
+            <View className="h-full w-full items-center justify-center bg-primary/10">
+              <Ionicons name="musical-notes" size={20} color="#00FF85" />
             </View>
           )}
         </View>
 
         {/* Song info */}
         <View className="min-w-0 flex-1">
-          <Text className="text-sm font-bold text-white" numberOfLines={1}>
+          <Text className="text-[15px] font-black tracking-tight text-white" numberOfLines={1}>
             {capitalize(currentSong.title)}
           </Text>
-          <Text className="text-xs font-semibold text-zinc-500" numberOfLines={1}>
+          <Text className="text-xs font-bold text-zinc-500" numberOfLines={1}>
             {capitalize(currentSong.artistName)}
           </Text>
         </View>
@@ -63,14 +63,14 @@ export default function MiniPlayer() {
           onPress={(e) => {
             togglePlayPause();
           }}
-          className="h-10 w-10 items-center justify-center rounded-full bg-white"
+          className="h-11 w-11 items-center justify-center rounded-full bg-white shadow-md transition-all active:scale-95"
           hitSlop={8}>
           {isBuffering ? (
             <ActivityIndicator color="#000" size="small" />
           ) : (
             <Ionicons
               name={isPlaying ? 'pause' : 'play'}
-              size={18}
+              size={20}
               color="#000"
               style={!isPlaying ? { marginLeft: 2 } : undefined}
             />

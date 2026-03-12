@@ -1,7 +1,8 @@
-import { IsString, IsNotEmpty } from 'class-validator';
+import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 
-export class AddSearchHistoryDto {
-    @IsString()
-    @IsNotEmpty()
-    searchString: string;
-}
+const AddSearchHistoryDtoSchema = z.object({
+    searchString: z.string().min(1, 'Search string is required'),
+});
+
+export class AddSearchHistoryDto extends createZodDto(AddSearchHistoryDtoSchema) { }

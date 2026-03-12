@@ -1,7 +1,8 @@
-import { IsString, IsNotEmpty } from 'class-validator';
+import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 
-export class AddFavouriteDto {
-    @IsString()
-    @IsNotEmpty()
-    songId: string;
-}
+const AddFavouriteDtoSchema = z.object({
+    songId: z.string().min(1, 'Song ID is required'),
+});
+
+export class AddFavouriteDto extends createZodDto(AddFavouriteDtoSchema) { }

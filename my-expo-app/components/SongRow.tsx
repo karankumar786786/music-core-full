@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, Image, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, Image, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCoverImageUrl } from '../lib/s3';
@@ -20,7 +20,10 @@ export default function SongRow({ song, index }: SongRowProps) {
   const [liked, setLiked] = useState(!!song.isLiked);
 
   useEffect(() => {
-    setLiked(!!song.isLiked);
+    // Only update if the backend provides a definite boolean value
+    if (typeof song.isLiked === 'boolean') {
+      setLiked(song.isLiked);
+    }
   }, [song.isLiked]);
 
   const favMutation = useMutation({
@@ -31,8 +34,14 @@ export default function SongRow({ song, index }: SongRowProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favourites'] });
     },
-    onError: () => {
+    onError: (error: any) => {
       setLiked((prev) => !prev);
+      if (error.response?.status === 409) {
+        Alert.alert('Already exists', 'Song already in favourites');
+        queryClient.invalidateQueries({ queryKey: ['favourites'] });
+      } else {
+        Alert.alert('Error', 'Failed to update favourites');
+      }
     },
   });
 
@@ -49,26 +58,26 @@ export default function SongRow({ song, index }: SongRowProps) {
   return (
     <Pressable
       onPress={openPlayer}
-      className="flex-row items-center gap-3 rounded-2xl px-4 py-3 active:bg-white/5">
-      <Text className="w-7 text-center text-xs font-bold text-zinc-600">
+      className="flex-row items-center gap-4 rounded-[20px] px-4 py-3.5 active:bg-white/[0.04]">
+      <Text className="w-6 text-center text-xs font-black text-zinc-700">
         {String(index + 1).padStart(2, '0')}
       </Text>
 
-      <View className="h-14 w-14 overflow-hidden rounded-xl border border-white/5 bg-zinc-900">
+      <View className="h-14 w-14 overflow-hidden rounded-xl bg-surface-muted shadow-sm">
         {coverUrl ? (
           <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
         ) : (
-          <View className="h-full w-full items-center justify-center">
-            <Ionicons name="musical-notes" size={20} color="#3f3f46" />
+          <View className="h-full w-full items-center justify-center bg-primary/5">
+            <Ionicons name="musical-notes" size={24} color="#00FF85" />
           </View>
         )}
       </View>
 
       <View className="min-w-0 flex-1">
-        <Text className="text-sm font-bold text-white" numberOfLines={1}>
+        <Text className="text-[15px] font-black tracking-tight text-white" numberOfLines={1}>
           {capitalize(song.title)}
         </Text>
-        <Text className="mt-0.5 text-xs font-semibold text-zinc-500" numberOfLines={1}>
+        <Text className="mt-0.5 text-xs font-bold text-zinc-500" numberOfLines={1}>
           {capitalize(song.artistName)}
         </Text>
       </View>
@@ -76,15 +85,15 @@ export default function SongRow({ song, index }: SongRowProps) {
       <Pressable
         onPress={() => favMutation.mutate()}
         disabled={favMutation.isPending}
-        className="h-9 w-9 items-center justify-center rounded-full"
+        className="h-10 w-10 items-center justify-center rounded-full active:bg-white/[0.05]"
         hitSlop={8}>
         {favMutation.isPending ? (
-          <ActivityIndicator color="#22c55e" size="small" />
+          <ActivityIndicator color="#00FF85" size="small" />
         ) : (
           <Ionicons
             name={liked ? 'heart' : 'heart-outline'}
-            size={20}
-            color={liked ? '#ef4444' : '#52525b'}
+            size={22}
+            color={liked ? '#ef4444' : '#3f3f46'}
           />
         )}
       </Pressable>

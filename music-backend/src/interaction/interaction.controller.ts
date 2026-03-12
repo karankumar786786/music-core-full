@@ -44,6 +44,11 @@ export class InteractionController {
     return this.interactionService.removeFavourite(req.user.id, songId);
   }
 
+  @Get('favourites/check/:songId')
+  checkFavourite(@Request() req, @Param('songId') songId: string) {
+    return this.interactionService.checkFavourite(req.user.id, songId);
+  }
+
   @Get('favourites')
   getFavourites(@Request() req, @Query() paginationQuery: PaginationQueryDto) {
     return this.interactionService.getFavourites(req.user.id, paginationQuery);
