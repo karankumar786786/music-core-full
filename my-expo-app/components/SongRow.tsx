@@ -27,12 +27,14 @@ export default function SongRow({ song, index }: SongRowProps) {
   }, [song.isLiked]);
 
   const favMutation = useMutation({
-    mutationFn: () => (liked ? musicApi.removeFavourite(song.id) : musicApi.addFavourite(song.id)),
+    mutationFn: (wasLiked: boolean) =>
+      wasLiked ? musicApi.removeFavourite(song.id) : musicApi.addFavourite(song.id),
     onMutate: () => {
       setLiked((prev) => !prev);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favourites'] });
+      queryClient.invalidateQueries({ queryKey: ['favourite-check'] });
     },
     onError: (error: any) => {
       setLiked((prev) => !prev);
@@ -83,7 +85,10 @@ export default function SongRow({ song, index }: SongRowProps) {
       </View>
 
       <Pressable
-        onPress={() => favMutation.mutate()}
+        onPress={(e) => {
+          e.stopPropagation();
+          favMutation.mutate(liked);
+        }}
         disabled={favMutation.isPending}
         className="h-10 w-10 items-center justify-center rounded-full active:bg-white/[0.05]"
         hitSlop={8}>

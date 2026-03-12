@@ -13,7 +13,7 @@ export default function Favourites() {
       queryFn: ({ pageParam = 1 }) => musicApi.getFavourites(pageParam, 20),
       initialPageParam: 1,
       getNextPageParam: (lastPage) => {
-        if (!lastPage?.data || lastPage.data.length < 50) return undefined;
+        if (!lastPage?.data || lastPage.data.length < 20) return undefined;
         return (lastPage.meta?.page ?? 0) + 1;
       },
     });

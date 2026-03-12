@@ -72,19 +72,19 @@ export default function PlayerScreen() {
   });
 
   const favMutation = useMutation({
-    mutationFn: () =>
-      isLiked
+    mutationFn: (wasLiked: boolean) =>
+      wasLiked
         ? musicApi.removeFavourite(currentSong?.id || songId!)
         : musicApi.addFavourite(currentSong?.id || songId!),
     onMutate: () => {
-      setIsLiked(!isLiked);
+      setIsLiked((prev) => !prev);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favourites'] });
       refetchFav();
     },
     onError: (error: any) => {
-      setIsLiked(!isLiked);
+      setIsLiked((prev) => !prev);
       if (error.response?.status === 409) {
         Alert.alert('Already exists', 'Song already in favourites');
         queryClient.invalidateQueries({ queryKey: ['favourites'] });
@@ -152,7 +152,7 @@ export default function PlayerScreen() {
 
   return (
     <View
-      className="bg-surface flex-1"
+      className="flex-1 bg-surface"
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
       <StatusBar style="light" />
       {/* ── Header ── */}
@@ -160,14 +160,14 @@ export default function PlayerScreen() {
         <View className="gap-4">
           <Pressable
             onPress={() => router.back()}
-            className="bg-surface-card h-12 w-12 items-center justify-center rounded-full border border-white/[0.05] shadow-lg">
+            className="h-12 w-12 items-center justify-center rounded-full border border-white/[0.05] bg-surface-card shadow-lg">
             <Ionicons name="chevron-down" size={26} color="#fff" />
           </Pressable>
           <Pressable
             onPress={() => setShowQualityModal(true)}
             className={`h-12 w-12 items-center justify-center rounded-full border shadow-lg ${
               currentQualityType === 'auto'
-                ? 'bg-surface-card border-white/[0.05]'
+                ? 'border-white/[0.05] bg-surface-card'
                 : 'border-primary/20 bg-primary/5'
             }`}>
             <Ionicons
@@ -186,7 +186,7 @@ export default function PlayerScreen() {
 
         <Pressable
           onPress={() => setShowPlaylistModal(true)}
-          className="bg-surface-card h-12 w-12 items-center justify-center rounded-full border border-white/[0.05] shadow-lg">
+          className="h-12 w-12 items-center justify-center rounded-full border border-white/[0.05] bg-surface-card shadow-lg">
           <Ionicons name="add" size={28} color="#00FF85" />
         </Pressable>
       </View>
@@ -195,7 +195,7 @@ export default function PlayerScreen() {
       <View className="flex-1 items-center justify-center px-10">
         <View
           style={{ width: ART_SIZE, height: ART_SIZE, borderRadius: 32 }}
-          className="bg-surface-card overflow-hidden border border-white/[0.03] shadow-2xl shadow-primary/5">
+          className="overflow-hidden border border-white/[0.03] bg-surface-card shadow-2xl shadow-primary/5">
           {coverImage ? (
             <Image
               source={{ uri: coverImage }}
@@ -227,9 +227,9 @@ export default function PlayerScreen() {
             </Text>
           </View>
           <Pressable
-            onPress={() => favMutation.mutate()}
+            onPress={() => favMutation.mutate(isLiked)}
             disabled={favMutation.isPending}
-            className="bg-surface-card h-14 w-14 items-center justify-center rounded-full border border-white/[0.03] shadow-md">
+            className="h-14 w-14 items-center justify-center rounded-full border border-white/[0.03] bg-surface-card shadow-md">
             {favMutation.isPending ? (
               <ActivityIndicator color="#00FF85" size="small" />
             ) : (
@@ -315,7 +315,7 @@ export default function PlayerScreen() {
         <Pressable
           onPress={() => setShowQualityModal(false)}
           className="flex-1 items-center justify-center bg-black/90 px-8">
-          <View className="bg-surface-card w-full rounded-[40px] border border-white/[0.03] p-10 shadow-2xl">
+          <View className="w-full rounded-[40px] border border-white/[0.03] bg-surface-card p-10 shadow-2xl">
             <View className="mb-10 flex-row items-center justify-between">
               <Text className="text-2xl font-black tracking-tighter text-white">Audio Quality</Text>
               <Pressable
@@ -338,7 +338,7 @@ export default function PlayerScreen() {
                     className={`flex-row items-center justify-between rounded-2xl border px-6 py-5 ${
                       isActive
                         ? 'border-primary/40 bg-primary/5'
-                        : 'bg-surface-muted border-white/[0.02]'
+                        : 'border-white/[0.02] bg-surface-muted'
                     }`}>
                     <View className="flex-row items-center gap-5">
                       <Ionicons
@@ -372,7 +372,7 @@ export default function PlayerScreen() {
       {/* Playlist Modal */}
       <Modal visible={showPlaylistModal} animationType="slide" transparent>
         <View className="flex-1 justify-end bg-black/80">
-          <View className="bg-surface-card rounded-t-[48px] border-t border-white/[0.03] px-8 pb-14 pt-10 shadow-2xl">
+          <View className="rounded-t-[48px] border-t border-white/[0.03] bg-surface-card px-8 pb-14 pt-10 shadow-2xl">
             <View className="mb-8 items-center">
               <View className="mb-6 h-1.5 w-12 rounded-full bg-zinc-800" />
               <Text className="text-3xl font-black tracking-tighter text-white">
@@ -384,7 +384,7 @@ export default function PlayerScreen() {
             </View>
 
             {playlists.length === 0 ? (
-              <View className="bg-surface-muted/50 mb-6 items-center rounded-3xl py-10">
+              <View className="mb-6 items-center rounded-3xl bg-surface-muted/50 py-10">
                 <Ionicons name="folder-open-outline" size={48} color="#27272a" />
                 <Text className="mt-4 text-lg font-bold text-zinc-600">No playlists found</Text>
                 <Text className="mt-1 text-sm font-bold text-zinc-700">
@@ -402,7 +402,7 @@ export default function PlayerScreen() {
                     onPress={() => addToPlaylistMutation.mutate(item.id)}
                     disabled={addToPlaylistMutation.isPending}
                     className="mb-2 flex-row items-center gap-4 rounded-3xl px-3 py-4 active:bg-white/[0.03]">
-                    <View className="bg-surface-muted h-16 w-16 items-center justify-center rounded-2xl shadow-sm shadow-black">
+                    <View className="h-16 w-16 items-center justify-center rounded-2xl bg-surface-muted shadow-sm shadow-black">
                       <Ionicons name="musical-notes" size={28} color="#00FF85" />
                     </View>
                     <View className="flex-1">
