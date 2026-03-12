@@ -1,7 +1,16 @@
-import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from 'react';
 import { router } from 'expo-router';
-import { useVideoPlayer } from 'expo-video';
+import { useVideoPlayer, VideoTrack } from 'expo-video';
 import { getSongBaseUrl } from './s3';
+import { parseMasterM3U8, HLSVariant } from './hls';
 import { musicApi } from './api';
 
 export interface PlayerSong {
@@ -21,6 +30,11 @@ interface PlayerContextType {
   duration: number; // seconds
   position: number; // seconds
   baseUrl: string;
+  activeTrack: VideoTrack | null;
+  availableTracks: VideoTrack[];
+  manifestVariants: HLSVariant[];
+  currentQualityType: 'auto' | 'high' | 'med' | 'low';
+  setQualityType: (type: 'auto' | 'high' | 'med' | 'low') => void;
   play: (song: PlayerSong) => void;
   togglePlayPause: () => void;
   seekTo: (seconds: number) => void;
@@ -43,20 +57,83 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isBuffering, setIsBuffering] = useState(false);
+  const [activeTrack, setActiveTrack] = useState<VideoTrack | null>(null);
+  const [availableTracks, setAvailableTracks] = useState<VideoTrack[]>([]);
+  const [manifestVariants, setManifestVariants] = useState<HLSVariant[]>([]);
+  const [qualityType, setQualityType] = useState<'auto' | 'high' | 'med' | 'low'>('auto');
 
-  const streamUrl = useMemo(() => {
+  const masterUrl = useMemo(() => {
     if (!currentSong) return '';
     const baseUrl = getSongBaseUrl(currentSong.storageKey) || currentSong.songBaseUrl;
     return baseUrl ? `${baseUrl}/master.m3u8` : '';
   }, [currentSong]);
 
-  // Handle source changes
-  useEffect(() => {
-    if (streamUrl) {
-      player.replace(streamUrl);
-      player.play();
+  const activeStreamUrl = useMemo(() => {
+    if (!masterUrl) return '';
+    if (qualityType === 'auto' || manifestVariants.length === 0) return masterUrl;
+
+    // Sort variants by bandwidth (High to Low)
+    const sorted = [...manifestVariants].sort((a, b) => b.bandwidth - a.bandwidth);
+    const baseUrl = masterUrl.replace('/master.m3u8', '');
+
+    let targetVariant: HLSVariant;
+    if (qualityType === 'high') {
+      targetVariant = sorted[0];
+    } else if (qualityType === 'med') {
+      targetVariant = sorted[Math.floor(sorted.length / 2)];
+    } else {
+      targetVariant = sorted[sorted.length - 1];
     }
-  }, [streamUrl, player]);
+
+    // Handle relative/absolute URIs
+    if (targetVariant.uri.startsWith('http')) return targetVariant.uri;
+    return `${baseUrl}/${targetVariant.uri}`;
+  }, [masterUrl, qualityType, manifestVariants]);
+
+  const prevSongIdRef = useRef<string | null>(null);
+
+  // Handle manifest parsing and actual playback source (Auto vs Force)
+  useEffect(() => {
+    if (!masterUrl || !activeStreamUrl) {
+      setManifestVariants([]);
+      return;
+    }
+
+    let isEffectCurrent = true;
+    const isNewSong = currentSong?.id !== prevSongIdRef.current;
+
+    // Capture position *before* replacing the source only if it's not a new song
+    const currentPos = isNewSong ? 0 : player.currentTime;
+
+    // 1. Fetch manifest
+    fetch(masterUrl)
+      .then((r) => r.text())
+      .then((text) => {
+        if (isEffectCurrent) setManifestVariants(parseMasterM3U8(text));
+      })
+      .catch(() => {
+        if (isEffectCurrent) setManifestVariants([]);
+      });
+
+    // 2. Proactively swap player source
+    player.replaceAsync(activeStreamUrl).then(() => {
+      if (!isEffectCurrent) return;
+      try {
+        if (currentPos > 0) {
+          player.currentTime = currentPos;
+        }
+        player.play();
+        // Update the ref to the current song ID
+        prevSongIdRef.current = currentSong?.id || null;
+      } catch (e) {
+        console.warn('Playback resume failed:', e);
+      }
+    });
+
+    return () => {
+      isEffectCurrent = false;
+    };
+  }, [masterUrl, activeStreamUrl, player, currentSong?.id]);
 
   // Sync state from player
   useEffect(() => {
@@ -73,10 +150,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setDuration(player.duration);
     });
 
+    const trackSub = player.addListener('videoTrackChange', ({ videoTrack }) => {
+      setActiveTrack(videoTrack);
+    });
+
+    const metadataSub = player.addListener('sourceLoad', (payload) => {
+      setAvailableTracks(payload?.availableVideoTracks || []);
+    });
+
     return () => {
       statusSub.remove();
       playSub.remove();
       timeSub.remove();
+      trackSub.remove();
+      metadataSub.remove();
     };
   }, [player]);
 
@@ -129,7 +216,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       isBuffering,
       duration,
       position,
-      baseUrl: streamUrl.replace('/master.m3u8', ''),
+      baseUrl: masterUrl.replace('/master.m3u8', ''),
+      activeTrack,
+      availableTracks,
+      manifestVariants,
+      currentQualityType: qualityType,
+      setQualityType,
       play,
       togglePlayPause,
       seekTo,
@@ -142,7 +234,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       isBuffering,
       duration,
       position,
-      streamUrl,
+      masterUrl,
+      activeTrack,
+      availableTracks,
+      manifestVariants,
+      qualityType,
       play,
       togglePlayPause,
       seekTo,

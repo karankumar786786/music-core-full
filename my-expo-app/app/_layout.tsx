@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from '../lib/auth';
 import { PlayerProvider } from '../lib/player-context';
 import { StatusBar } from 'expo-status-bar';
 import { setupOnlineManager, useAppStateFocusManager } from '../lib/query-setup';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Initialize online manager at module level
 setupOnlineManager();
@@ -58,8 +59,12 @@ function AuthGate() {
         <Stack.Screen name="search/index" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="history" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen
+          name="lyrics"
+          options={{ animation: 'slide_from_bottom', presentation: 'fullScreenModal' }}
+        />
+        <Stack.Screen
           name="player"
-          options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
+          options={{ animation: 'slide_from_bottom', presentation: 'fullScreenModal' }}
         />
       </Stack>
     </>
@@ -68,12 +73,14 @@ function AuthGate() {
 
 export default function RootLayout() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <PlayerProvider>
-          <AuthGate />
-        </PlayerProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <PlayerProvider>
+            <AuthGate />
+          </PlayerProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }
