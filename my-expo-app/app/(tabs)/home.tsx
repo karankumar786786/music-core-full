@@ -48,6 +48,12 @@ export default function Home() {
     queryFn: () => musicApi.getPlaylists(),
   });
 
+  const { data: feedData, isLoading: feedLoading } = useQuery({
+    queryKey: ['feed'],
+    queryFn: () => musicApi.getFeed(),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const {
     data: songsData,
     isLoading: songsLoading,
@@ -306,6 +312,74 @@ export default function Home() {
     );
   };
 
+  const renderDiscoverForYou = () => {
+    const feedSongs = feedData?.data || [];
+    if (feedLoading) {
+      return (
+        <View className="mb-8 px-4">
+          <View className="h-44 animate-pulse rounded-xl bg-zinc-900" />
+        </View>
+      );
+    }
+    if (feedSongs.length === 0) return null;
+
+    return (
+      <View className="mb-8">
+        <View className="mb-4 flex-row items-center gap-2 px-4">
+          <Ionicons name="sparkles" size={20} color="#00FF85" />
+          <Text className="text-xl font-black tracking-tight text-white">Discover For You</Text>
+        </View>
+        <FlatList
+          data={feedSongs.slice(0, 15)}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => {
+            const coverUrl =
+              item.coverUrl || getCoverImageUrl(item.storageKey, 'medium', true) || null;
+            return (
+              <Pressable
+                className="w-40"
+                onPress={() =>
+                  play({
+                    id: item.id,
+                    title: item.title,
+                    artistName: item.artistName,
+                    storageKey: item.storageKey,
+                    coverUrl,
+                  })
+                }>
+                <View className="mb-2 h-40 overflow-hidden rounded-2xl border border-white/5 bg-zinc-900">
+                  {coverUrl ? (
+                    <Image
+                      source={{ uri: coverUrl }}
+                      className="h-full w-full"
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View className="h-full w-full items-center justify-center bg-green-500/5">
+                      <Ionicons name="sparkles" size={36} color="#00FF85" />
+                    </View>
+                  )}
+                  <View className="absolute bottom-0 left-0 right-0 bg-black/60 px-3 py-2">
+                    <Text className="text-xs font-bold text-green-400">For You</Text>
+                  </View>
+                </View>
+                <Text className="text-sm font-bold text-white" numberOfLines={1}>
+                  {capitalize(item.title)}
+                </Text>
+                <Text className="text-xs font-semibold text-zinc-500" numberOfLines={1}>
+                  {capitalize(item.artistName)}
+                </Text>
+              </Pressable>
+            );
+          }}
+        />
+      </View>
+    );
+  };
+
   // ── Header ──
   const renderHeader = () => (
     <View>
@@ -324,6 +398,7 @@ export default function Home() {
       {renderArtists()}
       {renderPlaylists()}
       {renderTrending()}
+      {renderDiscoverForYou()}
 
       {/* Songs Section Header */}
       <View className="mb-2 flex-row items-center justify-between border-b border-white/5 px-4 pb-3">

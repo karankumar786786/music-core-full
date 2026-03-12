@@ -1,17 +1,17 @@
-import { View, Text, FlatList, Image, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, Image, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { musicApi } from '../../lib/api';
 import { getCoverImageUrl } from '../../lib/s3';
 import { capitalize } from '../../lib/utils';
 import { usePlayer } from '../../lib/player-context';
-import SongRow from '../../components/SongRow';
 
 export default function UserPlaylistDetail() {
   const { userPlaylistId } = useLocalSearchParams<{ userPlaylistId: string }>();
   const { play } = usePlayer();
+  const queryClient = useQueryClient();
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['userPlaylist', userPlaylistId],
@@ -112,7 +112,9 @@ export default function UserPlaylistDetail() {
       <FlatList
         data={songs}
         keyExtractor={(item, index) => item?.id || `song-${index}`}
-        renderItem={({ item, index }) => <SongRow song={item} index={index} />}
+        renderItem={({ item, index }) => (
+          <PlaylistSongRow song={item} index={index} playlistId={userPlaylistId!} />
+        )}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={
           <View className="items-center py-20">
@@ -139,5 +141,87 @@ export default function UserPlaylistDetail() {
         contentContainerStyle={{ paddingBottom: 100 }}
       />
     </SafeAreaView>
+  );
+}
+
+function PlaylistSongRow({
+  song,
+  index,
+  playlistId,
+}: {
+  song: any;
+  index: number;
+  playlistId: string;
+}) {
+  const queryClient = useQueryClient();
+  const { play } = usePlayer();
+  const coverUrl = getCoverImageUrl(song.storageKey, 'small', true) || null;
+
+  const removeMutation = useMutation({
+    mutationFn: () => musicApi.removeSongFromUserPlaylist(playlistId, song.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userPlaylist', playlistId] });
+      queryClient.invalidateQueries({ queryKey: ['userPlaylists'] });
+    },
+    onError: () => Alert.alert('Error', 'Failed to remove song'),
+  });
+
+  const handleRemove = () => {
+    Alert.alert('Remove Song', `Remove "${song.title}" from this playlist?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => removeMutation.mutate() },
+    ]);
+  };
+
+  return (
+    <Pressable
+      onPress={() =>
+        play({
+          id: song.id,
+          title: song.title,
+          artistName: song.artistName,
+          storageKey: song.storageKey,
+          coverUrl,
+        })
+      }
+      className="flex-row items-center gap-4 rounded-[20px] px-4 py-3.5 active:bg-white/[0.04]">
+      <Text className="w-6 text-center text-xs font-black text-zinc-700">
+        {String(index + 1).padStart(2, '0')}
+      </Text>
+
+      <View className="h-14 w-14 overflow-hidden rounded-xl bg-zinc-900 shadow-sm">
+        {coverUrl ? (
+          <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
+        ) : (
+          <View className="h-full w-full items-center justify-center bg-green-500/5">
+            <Ionicons name="musical-notes" size={24} color="#00FF85" />
+          </View>
+        )}
+      </View>
+
+      <View className="min-w-0 flex-1">
+        <Text className="text-[15px] font-black tracking-tight text-white" numberOfLines={1}>
+          {capitalize(song.title)}
+        </Text>
+        <Text className="mt-0.5 text-xs font-bold text-zinc-500" numberOfLines={1}>
+          {capitalize(song.artistName)}
+        </Text>
+      </View>
+
+      <Pressable
+        onPress={(e) => {
+          e.stopPropagation();
+          handleRemove();
+        }}
+        disabled={removeMutation.isPending}
+        className="h-10 w-10 items-center justify-center rounded-full active:bg-red-500/10"
+        hitSlop={8}>
+        {removeMutation.isPending ? (
+          <ActivityIndicator color="#ef4444" size="small" />
+        ) : (
+          <Ionicons name="trash-outline" size={18} color="#71717a" />
+        )}
+      </Pressable>
+    </Pressable>
   );
 }

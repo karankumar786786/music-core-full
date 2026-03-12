@@ -15,6 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import axios from 'axios';
 import { musicApi } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { getCoverImageUrl } from '../../lib/s3';
@@ -71,6 +73,43 @@ export default function Profile() {
     },
   });
 
+  const uploadMutation = useMutation({
+    mutationFn: async (uri: string) => {
+      const fileName = uri.split('/').pop() || 'profile.jpg';
+      const ext = fileName.split('.').pop()?.toLowerCase() || 'jpeg';
+      const contentType = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+      const { uploadUrl, key } = await musicApi.getProfilePictureUploadUrl(fileName, contentType);
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      await axios.put(uploadUrl, blob, {
+        headers: { 'Content-Type': contentType },
+      });
+      return musicApi.updateProfile({ profilePictureKey: key });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+      Alert.alert('Success', 'Profile picture updated');
+    },
+    onError: () => Alert.alert('Error', 'Failed to upload profile picture'),
+  });
+
+  const pickImage = async () => {
+    const permResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permResult.granted) {
+      Alert.alert('Permission needed', 'Please grant access to your photos.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      uploadMutation.mutate(result.assets[0].uri);
+    }
+  };
+
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
@@ -121,13 +160,23 @@ export default function Profile() {
         {/* ── Profile Header ── */}
         <View className="items-center px-4 pb-6 pt-8">
           {/* Avatar */}
-          <View className="mb-4 h-32 w-32 items-center justify-center overflow-hidden rounded-3xl border-2 border-green-500/30 bg-green-500/10">
+          <Pressable
+            onPress={pickImage}
+            disabled={uploadMutation.isPending}
+            className="relative mb-4 h-32 w-32 items-center justify-center overflow-hidden rounded-3xl border-2 border-green-500/30 bg-green-500/10">
             {avatarUrl ? (
               <Image source={{ uri: avatarUrl }} className="h-full w-full" resizeMode="cover" />
             ) : (
               <Text className="text-5xl font-black text-green-500">{userInitial}</Text>
             )}
-          </View>
+            <View className="absolute -bottom-0 -right-0 h-9 w-9 items-center justify-center rounded-tl-2xl bg-green-500">
+              {uploadMutation.isPending ? (
+                <ActivityIndicator color="#000" size="small" />
+              ) : (
+                <Ionicons name="camera" size={16} color="#000" />
+              )}
+            </View>
+          </Pressable>
 
           <Text className="text-2xl font-black tracking-tight text-white">{user?.name}</Text>
           <View className="mt-1 flex-row items-center">
