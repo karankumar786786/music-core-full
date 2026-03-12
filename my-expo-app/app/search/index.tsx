@@ -73,7 +73,7 @@ export default function SearchScreen() {
   const hasPlaylists = results?.playlists?.length > 0;
   const hasResults = hasSongs || hasArtists || hasPlaylists;
 
-  const searchHistory = historyData?.data || [];
+  const searchHistory = historyData || [];
   const showHistory = !debouncedQuery && searchHistory.length > 0;
 
   return (
