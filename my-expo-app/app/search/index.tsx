@@ -76,6 +76,15 @@ export default function SearchScreen() {
   const searchHistory = historyData || [];
   const showHistory = !debouncedQuery && searchHistory.length > 0;
 
+  const handleSaveHistory = (searchString: string) => {
+    const exists = searchHistory.some(
+      (item: any) => item.searchString.toLowerCase() === searchString.toLowerCase()
+    );
+    if (!exists) {
+      saveHistoryMutation.mutate(searchString);
+    }
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top']}>
       {/* Back + Title */}
@@ -179,7 +188,7 @@ export default function SearchScreen() {
                     key={song.id}
                     song={song}
                     index={index}
-                    onPress={() => saveHistoryMutation.mutate(song.title)}
+                    onPress={() => handleSaveHistory(song.title)}
                   />
                 ))}
               </View>
@@ -197,7 +206,7 @@ export default function SearchScreen() {
                     <Pressable
                       key={artist.id}
                       onPress={() => {
-                        saveHistoryMutation.mutate(artist.artistName);
+                        handleSaveHistory(artist.artistName);
                         router.push(`/artist/${artist.id}`);
                       }}
                       className="flex-row items-center gap-4 rounded-2xl px-4 py-3 active:bg-white/5">
@@ -243,7 +252,7 @@ export default function SearchScreen() {
                     <Pressable
                       key={playlist.id}
                       onPress={() => {
-                        saveHistoryMutation.mutate(playlist.title);
+                        handleSaveHistory(playlist.title);
                         router.push(`/playlist/${playlist.id}`);
                       }}
                       className="flex-row items-center gap-4 rounded-2xl px-4 py-3 active:bg-white/5">
