@@ -4,7 +4,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { usePlayer } from '../lib/player-context';
 import { capitalize } from '../lib/utils';
-import { BlurView } from 'expo-blur';
 
 export default function MiniPlayer() {
   const { currentSong, isPlaying, isBuffering, position, duration, togglePlayPause, playNext } =

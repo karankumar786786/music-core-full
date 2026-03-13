@@ -17,6 +17,7 @@ import { getCoverImageUrl } from '../../lib/s3';
 import { capitalize } from '../../lib/utils';
 import SongRow from '../../components/SongRow';
 import { LinearGradient } from 'expo-linear-gradient';
+import { usePlayer } from '../../lib/player-context';
 
 export default function SearchTab() {
   const [query, setQuery] = useState('');
@@ -24,6 +25,7 @@ export default function SearchTab() {
   const inputRef = useRef<TextInput>(null);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queryClient = useQueryClient();
+  const { play } = usePlayer();
 
   // Debounce: update debouncedQuery 500ms after user stops typing
   const handleTextChange = useCallback((text: string) => {
@@ -55,6 +57,14 @@ export default function SearchTab() {
   // Save search history when a search is performed
   const saveHistoryMutation = useMutation({
     mutationFn: (searchString: string) => musicApi.addSearchHistory({ searchString }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['searchHistory'] });
+    },
+  });
+
+  // Clear search history
+  const clearHistoryMutation = useMutation({
+    mutationFn: () => musicApi.clearSearchHistory(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['searchHistory'] });
     },
@@ -96,16 +106,25 @@ export default function SearchTab() {
 
       {/* Search Bar */}
       <View className="px-6 py-4">
-        <View className="h-14 flex-row items-center rounded-2xl border border-white/[0.08] bg-white/[0.05] px-5 shadow-lg">
-          <Ionicons name="search" size={20} color="#52525b" />
+        <View
+          style={{ overflow: 'hidden' }}
+          className="h-16 flex-row items-center rounded-3xl border border-white/10 bg-white/10 px-6 shadow-2xl">
+          <Ionicons name="search" size={22} color="#71717a" />
           <TextInput
             ref={inputRef}
-            className="ml-4 flex-1 text-[17px] font-bold text-white"
-            placeholder="Songs, artists, or playlists..."
-            placeholderTextColor="#3f3f46"
+            className="ml-4 flex-1 text-[18px] font-bold text-white"
+            placeholder="Artists, songs, or lyrics..."
+            placeholderTextColor="#52525b"
             value={query}
             onChangeText={handleTextChange}
             returnKeyType="search"
+            selectionColor="#22c55e"
+            onSubmitEditing={() => {
+              const trimmed = query.trim();
+              if (trimmed.length > 0) {
+                handleSaveHistory(trimmed);
+              }
+            }}
           />
           {query.length > 0 && (
             <Pressable
@@ -113,8 +132,9 @@ export default function SearchTab() {
                 setQuery('');
                 setDebouncedQuery('');
               }}
-              hitSlop={10}>
-              <Ionicons name="close-circle" size={20} color="#52525b" />
+              hitSlop={15}
+              className="h-8 w-8 items-center justify-center rounded-full bg-white/10">
+              <Ionicons name="close" size={18} color="#a1a1aa" />
             </Pressable>
           )}
         </View>
@@ -122,28 +142,49 @@ export default function SearchTab() {
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: 100 }}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}>
         {/* Search History (when no query) */}
         {showHistory && (
-          <View className="px-4 pb-4">
-            <Text className="mb-3 text-sm font-bold uppercase tracking-widest text-zinc-500">
-              Recent Searches
-            </Text>
-            {searchHistory.slice(0, 10).map((item: any, index: number) => (
+          <View className="px-6 pb-4">
+            <View className="mb-4 flex-row items-center justify-between">
+              <Text className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
+                Recent Searches
+              </Text>
               <Pressable
-                key={item.id || index}
-                onPress={() => {
-                  setQuery(item.searchString);
-                  setDebouncedQuery(item.searchString);
-                }}
-                className="flex-row items-center gap-3 rounded-xl py-2.5 active:bg-white/5">
-                <Ionicons name="time-outline" size={16} color="#52525b" />
-                <Text className="flex-1 text-base font-medium text-zinc-300" numberOfLines={1}>
-                  {item.searchString}
+                onPress={() => clearHistoryMutation.mutate()}
+                className="rounded-full bg-white/5 px-3 py-1.5 active:bg-white/10">
+                <Text className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                  Clear All
                 </Text>
-                <Ionicons name="arrow-forward" size={14} color="#3f3f46" />
               </Pressable>
-            ))}
+            </View>
+            <View className="gap-1">
+              {searchHistory.slice(0, 10).map((item: any, index: number) => (
+                <Pressable
+                  key={item.id || index}
+                  onPress={() => {
+                    setQuery(item.searchString);
+                    setDebouncedQuery(item.searchString);
+                  }}
+                  className="flex-row items-center gap-4 rounded-2xl py-3 active:bg-white/10">
+                  <View className="h-10 w-10 items-center justify-center rounded-full bg-zinc-900/50">
+                    <Ionicons name="time-outline" size={18} color="#71717a" />
+                  </View>
+                  <Text
+                    className="flex-1 text-[16px] font-semibold text-zinc-300"
+                    numberOfLines={1}>
+                    {item.searchString}
+                  </Text>
+                  <Ionicons
+                    name="arrow-up-outline"
+                    size={16}
+                    color="#3f3f46"
+                    style={{ transform: [{ rotate: '-45deg' }] }}
+                  />
+                </Pressable>
+              ))}
+            </View>
           </View>
         )}
 
@@ -176,111 +217,136 @@ export default function SearchTab() {
 
         {/* Results */}
         {debouncedQuery && !isLoading && hasResults && (
-          <View className="gap-8 pb-20">
+          <View className="gap-10 pb-20">
             {/* Songs */}
             {hasSongs && (
               <View>
-                <Text className="mb-3 px-4 text-xl font-black tracking-tight text-white">
-                  Songs
-                </Text>
-                {results.songs.map((song: any, index: number) => (
-                  <SongRow
-                    key={song.id}
-                    song={song}
-                    index={index}
-                    onPress={() => handleSaveHistory(song.title)}
-                  />
-                ))}
+                <View className="mb-4 flex-row items-center justify-between px-6">
+                  <Text className="text-2xl font-black tracking-tight text-white">Songs</Text>
+                </View>
+                <View className="px-2">
+                  {results.songs.map((song: any, index: number) => (
+                    <SongRow
+                      key={song.id}
+                      song={song}
+                      index={index}
+                      onPress={() => {
+                        handleSaveHistory(song.title);
+                        play({
+                          id: song.id,
+                          title: song.title,
+                          artistName: song.artistName,
+                          storageKey: song.storageKey,
+                          coverUrl: getCoverImageUrl(song.storageKey, 'large', true) || null,
+                        });
+                      }}
+                    />
+                  ))}
+                </View>
               </View>
             )}
 
             {/* Artists */}
             {hasArtists && (
               <View>
-                <Text className="mb-3 px-4 text-xl font-black tracking-tight text-white">
+                <Text className="mb-4 px-6 text-2xl font-black tracking-tight text-white">
                   Artists
                 </Text>
-                {results.artists.map((artist: any) => {
-                  const avatarUrl = getCoverImageUrl(artist.storageKey, 'small') || null;
-                  return (
-                    <Pressable
-                      key={artist.id}
-                      onPress={() => {
-                        handleSaveHistory(artist.artistName);
-                        router.push(`/artist/${artist.id}`);
-                      }}
-                      className="flex-row items-center gap-4 rounded-2xl px-4 py-3 active:bg-white/5">
-                      <View className="h-14 w-14 overflow-hidden rounded-full border-2 border-green-500/20 bg-zinc-800">
-                        {avatarUrl ? (
-                          <Image
-                            source={{ uri: avatarUrl }}
-                            className="h-full w-full"
-                            resizeMode="cover"
-                          />
-                        ) : (
-                          <View className="h-full w-full items-center justify-center bg-green-500/10">
-                            <Text className="text-lg font-black text-green-500">
-                              {artist.artistName?.[0]?.toUpperCase()}
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                      <View className="flex-1">
-                        <Text className="text-base font-bold text-white" numberOfLines={1}>
-                          {capitalize(artist.artistName)}
-                        </Text>
-                        <Text className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-                          Artist
-                        </Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={18} color="#52525b" />
-                    </Pressable>
-                  );
-                })}
+                <View className="px-2">
+                  {results.artists.map((artist: any) => {
+                    const avatarUrl = getCoverImageUrl(artist.storageKey, 'small') || null;
+                    return (
+                      <Pressable
+                        key={artist.id}
+                        onPress={() => {
+                          handleSaveHistory(artist.artistName);
+                          router.push(`/artist/${artist.id}`);
+                        }}
+                        className="flex-row items-center gap-4 rounded-3xl px-4 py-3 active:bg-white/10">
+                        <View className="h-16 w-16 overflow-hidden rounded-full border border-white/10 bg-zinc-900 shadow-2xl">
+                          {avatarUrl ? (
+                            <Image
+                              source={{ uri: avatarUrl }}
+                              className="h-full w-full"
+                              resizeMode="cover"
+                            />
+                          ) : (
+                            <View className="h-full w-full items-center justify-center bg-zinc-800">
+                              <Text className="text-xl font-black text-white/20">
+                                {artist.artistName?.[0]?.toUpperCase()}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        <View className="flex-1">
+                          <Text
+                            className="text-[17px] font-black tracking-tight text-white"
+                            numberOfLines={1}>
+                            {capitalize(artist.artistName)}
+                          </Text>
+                          <Text className="mt-0.5 text-[11px] font-black uppercase tracking-[0.15em] text-zinc-500">
+                            Artist
+                          </Text>
+                        </View>
+                        <View className="h-10 w-10 items-center justify-center rounded-full bg-white/5">
+                          <Ionicons name="chevron-forward" size={18} color="#52525b" />
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </View>
             )}
 
             {/* Playlists */}
             {hasPlaylists && (
               <View>
-                <Text className="mb-3 px-4 text-xl font-black tracking-tight text-white">
+                <Text className="mb-4 px-6 text-2xl font-black tracking-tight text-white">
                   Playlists
                 </Text>
-                {results.playlists.map((playlist: any) => {
-                  const coverUrl = getCoverImageUrl(playlist.storageKey, 'small') || null;
-                  return (
-                    <Pressable
-                      key={playlist.id}
-                      onPress={() => {
-                        handleSaveHistory(playlist.title);
-                        router.push(`/playlist/${playlist.id}`);
-                      }}
-                      className="flex-row items-center gap-4 rounded-2xl px-4 py-3 active:bg-white/5">
-                      <View className="h-14 w-14 overflow-hidden rounded-xl border border-white/5 bg-zinc-800">
-                        {coverUrl ? (
-                          <Image
-                            source={{ uri: coverUrl }}
-                            className="h-full w-full"
-                            resizeMode="cover"
-                          />
-                        ) : (
-                          <View className="h-full w-full items-center justify-center">
-                            <Ionicons name="list" size={24} color="#3f3f46" />
-                          </View>
-                        )}
-                      </View>
-                      <View className="flex-1">
-                        <Text className="text-base font-bold text-white" numberOfLines={1}>
-                          {capitalize(playlist.title)}
-                        </Text>
-                        <Text className="text-xs font-semibold text-zinc-500">
-                          {playlist.description || 'Playlist'}
-                        </Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={18} color="#52525b" />
-                    </Pressable>
-                  );
-                })}
+                <View className="px-2">
+                  {results.playlists.map((playlist: any) => {
+                    const coverUrl = getCoverImageUrl(playlist.storageKey, 'small') || null;
+                    return (
+                      <Pressable
+                        key={playlist.id}
+                        onPress={() => {
+                          handleSaveHistory(playlist.title);
+                          router.push(`/playlist/${playlist.id}`);
+                        }}
+                        className="flex-row items-center gap-4 rounded-3xl px-4 py-3 active:bg-white/10">
+                        <View className="h-16 w-16 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl">
+                          {coverUrl ? (
+                            <Image
+                              source={{ uri: coverUrl }}
+                              className="h-full w-full"
+                              resizeMode="cover"
+                            />
+                          ) : (
+                            <View className="h-full w-full items-center justify-center bg-zinc-800">
+                              <Ionicons name="musical-notes-outline" size={24} color="#3f3f46" />
+                            </View>
+                          )}
+                        </View>
+                        <View className="flex-1">
+                          <Text
+                            className="text-[17px] font-black tracking-tight text-white"
+                            numberOfLines={1}>
+                            {capitalize(playlist.title)}
+                          </Text>
+                          <Text
+                            className="mt-0.5 text-[13px] font-medium text-zinc-500"
+                            numberOfLines={1}>
+                            {playlist.description || 'Curated Playlist'}
+                          </Text>
+                        </View>
+                        <View className="h-10 w-10 items-center justify-center rounded-full bg-white/5">
+                          <Ionicons name="chevron-forward" size={18} color="#52525b" />
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </View>
             )}
           </View>

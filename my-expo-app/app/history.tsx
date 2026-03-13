@@ -16,6 +16,7 @@ import { musicApi } from '../lib/api';
 import { getCoverImageUrl } from '../lib/s3';
 import { capitalize } from '../lib/utils';
 import { usePlayer } from '../lib/player-context';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function HistoryScreen() {
   const { play } = usePlayer();
@@ -68,60 +69,79 @@ export default function HistoryScreen() {
     const coverUrl = getCoverImageUrl(song.storageKey, 'small', true) || null;
 
     return (
-      <Pressable
-        onPress={() => {
-          play({
-            id: song.id,
-            title: song.title,
-            artistName: song.artistName,
-            storageKey: song.storageKey,
-            coverUrl,
-          });
-        }}
-        className="flex-row items-center gap-3 rounded-2xl">
-        <View className="h-14 w-14 overflow-hidden rounded-xl border border-white/5 bg-zinc-900">
-          {coverUrl ? (
-            <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
-          ) : (
-            <View className="h-full w-full items-center justify-center">
-              <Ionicons name="musical-notes" size={20} color="#3f3f46" />
+      <View className="px-4 py-1">
+        <Pressable
+          onPress={() => {
+            play({
+              id: song.id,
+              title: song.title,
+              artistName: song.artistName,
+              storageKey: song.storageKey,
+              coverUrl,
+            });
+          }}
+          className="flex-row items-center gap-4 rounded-3xl p-3 active:bg-white/10">
+          <View className="h-16 w-16 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl">
+            {coverUrl ? (
+              <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
+            ) : (
+              <View className="h-full w-full items-center justify-center bg-zinc-800">
+                <Ionicons name="musical-notes-outline" size={24} color="#3f3f46" />
+              </View>
+            )}
+          </View>
+          <View className="min-w-0 flex-1">
+            <Text className="text-[17px] font-black tracking-tight text-white" numberOfLines={1}>
+              {capitalize(song.title)}
+            </Text>
+            <Text className="mt-0.5 text-[13px] font-medium text-zinc-500" numberOfLines={1}>
+              {capitalize(song.artistName)}
+            </Text>
+          </View>
+          <View className="items-end gap-1.5">
+            {item.viewedAt && (
+              <Text className="text-[10px] font-black uppercase tracking-wider text-zinc-700">
+                {new Date(item.viewedAt).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </Text>
+            )}
+            <View className="h-8 w-8 items-center justify-center rounded-full bg-white/5">
+              <Ionicons name="play" size={14} color="#22c55e" className="ml-0.5" />
             </View>
-          )}
-        </View>
-        <View className="min-w-0 flex-1">
-          <Text className="text-sm font-bold text-white" numberOfLines={1}>
-            {capitalize(song.title)}
-          </Text>
-          <Text className="mt-0.5 text-xs font-semibold text-zinc-500" numberOfLines={1}>
-            {capitalize(song.artistName)}
-          </Text>
-        </View>
-        {item.viewedAt && (
-          <Text className="text-[10px] font-semibold text-zinc-700">
-            {new Date(item.viewedAt).toLocaleDateString(undefined, {
-              month: 'short',
-              day: 'numeric',
-            })}
-          </Text>
-        )}
-      </Pressable>
+          </View>
+        </Pressable>
+      </View>
     );
   };
 
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top']}>
+      <LinearGradient
+        colors={['#1a1a1a', '#000000']}
+        className="absolute inset-0 h-1/2"
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+
       {/* Header */}
-      <View className="flex-row items-center gap-3 px-5 pb-4 pt-2">
-        <Pressable
-          onPress={() => router.back()}
-          className="h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-zinc-900/80">
-          <Ionicons name="arrow-back" size={20} color="#a1a1aa" />
-        </Pressable>
-        <View className="flex-1">
-          <Text className="text-xl font-black tracking-tight text-white">History</Text>
-          <Text className="text-xs font-semibold text-zinc-500">
-            {history.length} songs listened
-          </Text>
+      <View className="px-5 pb-6 pt-4">
+        <View className="flex-row items-center gap-4">
+          <Pressable
+            onPress={() => router.back()}
+            className="h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 shadow-xl">
+            <Ionicons name="chevron-back" size={24} color="white" />
+          </Pressable>
+          <View className="flex-1">
+            <Text className="text-3xl font-black tracking-tighter text-white">History</Text>
+            <View className="mt-1 flex-row items-center gap-2">
+              <View className="h-1 w-1 rounded-full bg-green-500" />
+              <Text className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                {history.length} Songs Collected
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
 

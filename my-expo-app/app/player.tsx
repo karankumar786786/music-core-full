@@ -22,7 +22,6 @@ import { capitalize } from '../lib/utils';
 import { musicApi } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 

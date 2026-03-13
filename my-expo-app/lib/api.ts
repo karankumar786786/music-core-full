@@ -188,4 +188,9 @@ export const musicApi = {
         const response = await api.get('/interaction/search-history');
         return response.data;
     },
+
+    clearSearchHistory: async () => {
+        const response = await api.delete('/interaction/search-history');
+        return response.data;
+    },
 };
