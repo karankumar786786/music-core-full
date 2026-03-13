@@ -3,13 +3,13 @@ import {
   View,
   Text,
   FlatList,
+  ScrollView,
   Image,
   Pressable,
   ActivityIndicator,
   RefreshControl,
   Dimensions,
 } from 'react-native';
-import { Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,7 +21,6 @@ import { usePlayer } from '../../lib/player-context';
 import { playerActions, PlayerSong } from '../../lib/player-store';
 import SongRow from '../../components/SongRow';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -75,14 +74,11 @@ export default function Home() {
 
   const allSongs = songsData?.pages?.flatMap((page) => page.data || []) || [];
 
-  // Sync data to player global store
+  // Sync feed/trending to player global store
   useEffect(() => {
     const feedSongs = feedData?.data || [];
     const trendSongs = trendingData?.data || [];
-
-    // Choose what to sync: prioritize Personalized Feed if available
     const activeData = feedSongs.length > 0 ? feedSongs : trendSongs;
-
     if (activeData.length > 0) {
       const playerSongs: PlayerSong[] = activeData.map((s: any) => ({
         id: s.id,
@@ -100,23 +96,23 @@ export default function Home() {
     setRefreshing(true);
     await refetchFeatured();
     setRefreshing(false);
-  }, []);
+  }, [refetchFeatured]);
 
-  // ── Sections ──
-  const { play, addToQueue } = usePlayer();
+  const { play } = usePlayer();
 
   // Auto-sliding featured carousel
-  const featuredRef = useRef<FlatList>(null);
+  const featuredScrollRef = useRef<ScrollView>(null);
   const [featuredIndex, setFeaturedIndex] = React.useState(0);
-  const featuredCount = (featuredData?.data || []).slice(0, 8).length;
+  const featured = (featuredData?.data || []).slice(0, 8);
+  const featuredCount = featured.length;
 
   useEffect(() => {
     if (featuredCount <= 1) return;
     const timer = setInterval(() => {
       setFeaturedIndex((prev) => {
         const next = (prev + 1) % featuredCount;
-        featuredRef.current?.scrollToOffset({
-          offset: next * (SCREEN_WIDTH - 32),
+        featuredScrollRef.current?.scrollTo({
+          x: next * (SCREEN_WIDTH - 32),
           animated: true,
         });
         return next;
@@ -125,12 +121,13 @@ export default function Home() {
     return () => clearInterval(timer);
   }, [featuredCount]);
 
+  // ── Sections ──
+
   const renderFeatured = () => {
-    const featured = featuredData?.data || [];
     if (featuredLoading) {
       return (
         <View className="mb-8 px-4">
-          <View className="h-56 animate-pulse rounded-3xl bg-zinc-900" />
+          <View className="h-56 rounded-3xl bg-zinc-900" />
         </View>
       );
     }
@@ -138,21 +135,23 @@ export default function Home() {
 
     return (
       <View className="mb-8">
-        <FlatList
-          ref={featuredRef}
-          data={featured.slice(0, 8)}
+        <ScrollView
+          ref={featuredScrollRef}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
-          nestedScrollEnabled
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => {
+          scrollEventThrottle={16}
+          onScroll={(e) => {
+            const idx = Math.round(e.nativeEvent.contentOffset.x / (SCREEN_WIDTH - 32));
+            setFeaturedIndex(idx);
+          }}>
+          {featured.map((item: any) => {
             const coverUrl =
               item.coverUrl || getCoverImageUrl(item.storageKey, 'large', true) || null;
             return (
               <Pressable
-                style={{ width: SCREEN_WIDTH - 32 }}
-                className="mx-4"
+                key={item.id}
+                style={{ width: SCREEN_WIDTH - 32, marginHorizontal: 16 }}
                 onPress={() =>
                   play({
                     id: item.id,
@@ -164,11 +163,7 @@ export default function Home() {
                 }>
                 <View className="h-56 overflow-hidden rounded-[32px] border border-white/[0.08] bg-white/[0.03] shadow-2xl shadow-black/50">
                   {coverUrl ? (
-                    <Image
-                      source={{ uri: coverUrl }}
-                      className="h-full w-full"
-                      resizeMode="cover"
-                    />
+                    <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
                   ) : (
                     <View className="h-full w-full items-center justify-center bg-green-500/10">
                       <Ionicons name="musical-notes" size={56} color="#22c55e" />
@@ -176,9 +171,7 @@ export default function Home() {
                   )}
                   <View className="absolute bottom-0 left-0 right-0 flex-row items-center bg-black/60 px-6 py-5">
                     <View className="mr-4 flex-1">
-                      <Text
-                        className="text-2xl font-black tracking-tighter text-white"
-                        numberOfLines={1}>
+                      <Text className="text-2xl font-black tracking-tighter text-white" numberOfLines={1}>
                         {capitalize(item.title)}
                       </Text>
                       <Text className="mt-1 text-sm font-bold text-zinc-300" numberOfLines={1}>
@@ -192,12 +185,12 @@ export default function Home() {
                 </View>
               </Pressable>
             );
-          }}
-        />
+          })}
+        </ScrollView>
         {/* Page dots */}
         {featured.length > 1 && (
           <View className="mt-3 flex-row items-center justify-center gap-1.5">
-            {featured.slice(0, 8).map((_: any, i: any) => (
+            {featured.map((_: any, i: number) => (
               <View
                 key={i}
                 className={`h-1.5 rounded-full ${
@@ -216,7 +209,7 @@ export default function Home() {
     if (artistsLoading) {
       return (
         <View className="mb-8 px-4">
-          <View className="h-40 animate-pulse rounded-xl bg-zinc-900" />
+          <View className="h-40 rounded-xl bg-zinc-900" />
         </View>
       );
     }
@@ -227,26 +220,20 @@ export default function Home() {
         <Text className="mb-5 px-6 text-2xl font-black tracking-tighter text-white">
           Top Artists
         </Text>
-        <FlatList
-          data={artists.slice(0, 15)}
+        <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          nestedScrollEnabled
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => {
+          contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}>
+          {artists.slice(0, 15).map((item: any) => {
             const avatarUrl = getCoverImageUrl(item.storageKey, 'medium') || null;
             return (
               <Pressable
+                key={item.id}
                 className="w-32 items-center"
                 onPress={() => router.push(`/artist/${item.id}`)}>
                 <View className="mb-4 h-28 w-28 overflow-hidden rounded-full border-2 border-white/[0.05] bg-white/[0.03] shadow-lg">
                   {avatarUrl ? (
-                    <Image
-                      source={{ uri: avatarUrl }}
-                      className="h-full w-full"
-                      resizeMode="cover"
-                    />
+                    <Image source={{ uri: avatarUrl }} className="h-full w-full" resizeMode="cover" />
                   ) : (
                     <View className="h-full w-full items-center justify-center bg-green-500/10">
                       <Ionicons name="person" size={40} color="#22c55e" />
@@ -261,8 +248,8 @@ export default function Home() {
                 </Text>
               </Pressable>
             );
-          }}
-        />
+          })}
+        </ScrollView>
       </View>
     );
   };
@@ -272,7 +259,7 @@ export default function Home() {
     if (playlistsLoading) {
       return (
         <View className="mb-8 px-4">
-          <View className="h-36 animate-pulse rounded-xl bg-zinc-900" />
+          <View className="h-36 rounded-xl bg-zinc-900" />
         </View>
       );
     }
@@ -281,27 +268,23 @@ export default function Home() {
     return (
       <View className="mb-8">
         <Text className="mb-5 px-6 text-2xl font-black tracking-tighter text-white">Playlists</Text>
-        <FlatList
-          data={playlists}
+        <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          nestedScrollEnabled
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => {
+          contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}>
+          {playlists.map((item: any) => {
             const coverUrl =
               getCoverImageUrl(item.storageKey, 'medium') ||
               getCoverImageUrl(item.storageKey, 'small') ||
               null;
             return (
-              <Pressable className="w-40" onPress={() => router.push(`/playlist/${item.id}`)}>
+              <Pressable
+                key={item.id}
+                className="w-40"
+                onPress={() => router.push(`/playlist/${item.id}`)}>
                 <View className="mb-3 h-40 overflow-hidden rounded-[24px] border border-white/[0.08] bg-white/[0.03] shadow-lg">
                   {coverUrl ? (
-                    <Image
-                      source={{ uri: coverUrl }}
-                      className="h-full w-full"
-                      resizeMode="cover"
-                    />
+                    <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
                   ) : (
                     <View className="h-full w-full items-center justify-center bg-zinc-800">
                       <Ionicons name="musical-notes" size={36} color="#3f3f46" />
@@ -313,8 +296,8 @@ export default function Home() {
                 </Text>
               </Pressable>
             );
-          }}
-        />
+          })}
+        </ScrollView>
       </View>
     );
   };
@@ -324,7 +307,7 @@ export default function Home() {
     if (trendingLoading) {
       return (
         <View className="mb-8 px-4">
-          <View className="h-44 animate-pulse rounded-xl bg-zinc-900" />
+          <View className="h-44 rounded-xl bg-zinc-900" />
         </View>
       );
     }
@@ -335,20 +318,18 @@ export default function Home() {
         <Text className="mb-5 px-6 text-2xl font-black tracking-tighter text-white">
           🔥 Trending Now
         </Text>
-        <FlatList
-          data={trending.slice(0, 10)}
+        <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          nestedScrollEnabled
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => {
+          contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}>
+          {trending.slice(0, 10).map((item: any) => {
             const coverUrl =
               item.coverUrl || getCoverImageUrl(item.storageKey, 'medium', true) || null;
             const largeCoverUrl =
               item.coverUrl || getCoverImageUrl(item.storageKey, 'large', true) || null;
             return (
               <Pressable
+                key={item.id}
                 className="w-44"
                 onPress={() =>
                   play({
@@ -361,11 +342,7 @@ export default function Home() {
                 }>
                 <View className="mb-3 h-44 overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.03] shadow-lg">
                   {coverUrl ? (
-                    <Image
-                      source={{ uri: coverUrl }}
-                      className="h-full w-full"
-                      resizeMode="cover"
-                    />
+                    <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
                   ) : (
                     <View className="h-full w-full items-center justify-center bg-zinc-800">
                       <Ionicons name="flame" size={40} color="#f97316" />
@@ -380,8 +357,8 @@ export default function Home() {
                 </Text>
               </Pressable>
             );
-          }}
-        />
+          })}
+        </ScrollView>
       </View>
     );
   };
@@ -391,7 +368,7 @@ export default function Home() {
     if (feedLoading) {
       return (
         <View className="mb-8 px-4">
-          <View className="h-44 animate-pulse rounded-xl bg-zinc-900" />
+          <View className="h-44 rounded-xl bg-zinc-900" />
         </View>
       );
     }
@@ -403,20 +380,18 @@ export default function Home() {
           <Ionicons name="sparkles" size={24} color="#00FF85" />
           <Text className="text-2xl font-black tracking-tighter text-white">Discover For You</Text>
         </View>
-        <FlatList
-          data={feedSongs.slice(0, 15)}
+        <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          nestedScrollEnabled
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => {
+          contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}>
+          {feedSongs.slice(0, 15).map((item: any) => {
             const coverUrl =
               item.coverUrl || getCoverImageUrl(item.storageKey, 'medium', true) || null;
             const largeCoverUrl =
               item.coverUrl || getCoverImageUrl(item.storageKey, 'large', true) || null;
             return (
               <Pressable
+                key={item.id}
                 className="w-40"
                 onPress={() =>
                   play({
@@ -429,11 +404,7 @@ export default function Home() {
                 }>
                 <View className="mb-3 h-40 overflow-hidden rounded-[24px] border border-white/[0.08] bg-white/[0.03] shadow-lg">
                   {coverUrl ? (
-                    <Image
-                      source={{ uri: coverUrl }}
-                      className="h-full w-full"
-                      resizeMode="cover"
-                    />
+                    <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
                   ) : (
                     <View className="h-full w-full items-center justify-center bg-green-500/5">
                       <Ionicons name="sparkles" size={36} color="#00FF85" />
@@ -451,8 +422,8 @@ export default function Home() {
                 </Text>
               </Pressable>
             );
-          }}
-        />
+          })}
+        </ScrollView>
       </View>
     );
   };
@@ -465,8 +436,6 @@ export default function Home() {
       {renderPlaylists()}
       {renderTrending()}
       {renderDiscoverForYou()}
-
-      {/* Songs Section Header */}
       <View className="mb-4 flex-row items-center justify-between border-b border-white/[0.05] px-6 pb-4">
         <Text className="text-2xl font-black tracking-tighter text-white">All Songs</Text>
       </View>
