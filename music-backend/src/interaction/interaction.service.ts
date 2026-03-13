@@ -30,7 +30,6 @@ export class InteractionService {
     if (!song) {
       throw new NotFoundException(`Song with ID ${songId} not found`);
     }
-    console.log("history added");
     // Log the view in history
     return await this.prisma.userHistory.create({
       data: {

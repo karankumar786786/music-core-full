@@ -260,13 +260,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const play = useCallback((song: PlayerSong) => {
     shouldAutoPlayRef.current = true;
-    playerActions.setCurrentSong(song);
-    // Ensure it's in queue if not present (simplified add-if-not-exists)
-    playerStore.setState((s) => {
-      if (s.queue.find((x) => x.id === song.id)) return s;
-      return { ...s, queue: [...s.queue, song] };
-    });
-    setTimeout(() => musicApi.addView(song.id).catch(() => {}), 0);
+    playerActions.playSong(song);
     router.push({ pathname: '/player', params: { songId: song.id } });
   }, []);
 
@@ -274,7 +268,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (songs.length === 0) return;
     shouldAutoPlayRef.current = true;
     playerActions.playAll(songs);
-    musicApi.addView(songs[0].id).catch(() => {});
   }, []);
 
   const stop = useCallback(() => {

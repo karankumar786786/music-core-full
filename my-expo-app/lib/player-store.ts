@@ -59,6 +59,17 @@ export const playerActions = {
         }));
     },
 
+    playSong: (song: PlayerSong) => {
+        playerActions.setCurrentSong(song);
+        playerStore.setState((state) => {
+            const idx = state.queue.findIndex((s) => s.id === song.id);
+            if (idx !== -1) return { ...state, lastQueueIndex: idx };
+            const newQueue = [...state.queue, song];
+            return { ...state, queue: newQueue, lastQueueIndex: newQueue.length - 1 };
+        });
+        musicApi.addView(song.id).catch(() => { });
+    },
+
     playAll: (songs: PlayerSong[]) => {
         if (songs.length === 0) return;
         playerStore.setState((state) => ({
@@ -68,6 +79,7 @@ export const playerActions = {
             currentSong: songs[0],
             isPlaying: true,
         }));
+        musicApi.addView(songs[0].id).catch(() => { });
     },
 
     addToQueue: (songs: PlayerSong[]) => {
@@ -138,9 +150,13 @@ export const playerActions = {
         }
 
         if (nextIndex >= 0 && nextIndex < queue.length) {
-            playerActions.setCurrentSong(queue[nextIndex]);
+            const nextSong = queue[nextIndex];
+            playerActions.setCurrentSong(nextSong);
+            musicApi.addView(nextSong.id).catch(() => { });
         } else if (repeatMode === 'all' && queue.length > 0) {
-            playerActions.setCurrentSong(queue[0]);
+            const nextSong = queue[0];
+            playerActions.setCurrentSong(nextSong);
+            musicApi.addView(nextSong.id).catch(() => { });
         } else {
             // Queue exhausted or empty - fallback to general songs
             try {
@@ -191,11 +207,16 @@ export const playerActions = {
         let prevIndex = lastQueueIndex - 1;
 
         if (prevIndex >= 0) {
-            playerActions.setCurrentSong(queue[prevIndex]);
+            const prevSong = queue[prevIndex];
+            playerActions.setCurrentSong(prevSong);
+            musicApi.addView(prevSong.id).catch(() => { });
         } else if (repeatMode === 'all' && queue.length > 0) {
-            playerActions.setCurrentSong(queue[queue.length - 1]);
+            const lastSong = queue[queue.length - 1];
+            playerActions.setCurrentSong(lastSong);
+            musicApi.addView(lastSong.id).catch(() => { });
         } else {
             playerActions.setCurrentSong(currentSong);
+            if (currentSong) musicApi.addView(currentSong.id).catch(() => { });
         }
     },
 
