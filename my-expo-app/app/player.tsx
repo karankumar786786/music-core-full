@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Modal,
   FlatList,
   Alert,
+  LayoutChangeEvent,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -51,16 +52,21 @@ export default function PlayerScreen() {
   } = usePlayer();
   const { user } = useAuth();
 
-  // ── Misc ──
   const [isLiked, setIsLiked] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showQualityModal, setShowQualityModal] = useState(false);
 
+  // FIX #10: Measure actual progress bar width instead of hardcoding
+  const progressBarWidthRef = useRef(SCREEN_WIDTH - 80);
+
+  // FIX #11: Derive stable songId from currentSong first, fall back to param
+  const effectiveSongId = currentSong?.id ?? songId ?? '';
+
   // Check if song is liked
   const { data: favStatus, refetch: refetchFav } = useQuery({
-    queryKey: ['favourite-check', currentSong?.id],
-    queryFn: () => musicApi.checkFavourite(currentSong!.id),
-    enabled: !!currentSong?.id && !!user,
+    queryKey: ['favourite-check', effectiveSongId],
+    queryFn: () => musicApi.checkFavourite(effectiveSongId),
+    enabled: !!effectiveSongId && !!user,
   });
 
   React.useEffect(() => {
@@ -69,8 +75,6 @@ export default function PlayerScreen() {
     }
   }, [favStatus]);
 
-  // ─── Queries & Mutations ──────────────────────────────────────────────────
-
   const { data: playlistsData } = useQuery({
     queryKey: ['userPlaylists'],
     queryFn: () => musicApi.getUserPlaylists(),
@@ -78,10 +82,11 @@ export default function PlayerScreen() {
   });
 
   const favMutation = useMutation({
+    // FIX #11: Use effectiveSongId — always acts on the correct current song
     mutationFn: (wasLiked: boolean) =>
       wasLiked
-        ? musicApi.removeFavourite(currentSong?.id || songId!)
-        : musicApi.addFavourite(currentSong?.id || songId!),
+        ? musicApi.removeFavourite(effectiveSongId)
+        : musicApi.addFavourite(effectiveSongId),
     onMutate: () => {
       setIsLiked((prev) => !prev);
     },
@@ -102,8 +107,9 @@ export default function PlayerScreen() {
   });
 
   const addToPlaylistMutation = useMutation({
+    // FIX #11: Use effectiveSongId here too
     mutationFn: (playlistId: string) =>
-      musicApi.addSongToUserPlaylist(playlistId, currentSong?.id || songId!),
+      musicApi.addSongToUserPlaylist(playlistId, effectiveSongId),
     onSuccess: () => {
       setShowPlaylistModal(false);
       Alert.alert('Added!', 'Song added to playlist');
@@ -161,6 +167,7 @@ export default function PlayerScreen() {
       className="flex-1 bg-surface"
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
       <StatusBar style="light" />
+
       {/* ── Header ── */}
       <View className="flex-row justify-between px-8 pb-8 pt-4">
         <View className="gap-4">
@@ -245,11 +252,14 @@ export default function PlayerScreen() {
 
         {/* Progress Bar */}
         <View className="mb-10">
+          {/* FIX #10: Measure actual rendered width via onLayout */}
           <Pressable
+            onLayout={(e: LayoutChangeEvent) => {
+              progressBarWidthRef.current = e.nativeEvent.layout.width;
+            }}
             onPress={(e) => {
               const x = e.nativeEvent.locationX;
-              const barWidth = SCREEN_WIDTH - 80;
-              const ratio = Math.max(0, Math.min(1, x / barWidth));
+              const ratio = Math.max(0, Math.min(1, x / progressBarWidthRef.current));
               seekTo(ratio * duration);
             }}
             className="shadow-inner h-2.5 overflow-hidden rounded-full bg-zinc-900">
@@ -308,11 +318,12 @@ export default function PlayerScreen() {
           </View>
 
           <View className="flex-row items-center gap-2">
+            {/* FIX #9: Removed pointless ternary on icon name */}
             <Pressable
               onPress={toggleRepeat}
               className="h-14 w-14 items-center justify-center rounded-full active:bg-white/[0.03]">
               <Ionicons
-                name={repeatMode === 'one' ? 'repeat' : 'repeat'}
+                name="repeat"
                 size={24}
                 color={repeatMode !== 'none' ? '#00FF85' : '#3f3f46'}
               />

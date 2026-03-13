@@ -52,20 +52,54 @@ export const playerActions = {
     },
 
     syncFeedToQueue: (songs: PlayerSong[]) => {
-        playerStore.setState((state) => ({
-            ...state,
-            queue: songs,
-            lastQueueIndex: -1,
-        }));
+        playerStore.setState((state) => {
+            let newIdx = -1;
+            if (state.currentSong) {
+                newIdx = songs.findIndex((s) => s.id === state.currentSong?.id);
+            }
+            return {
+                ...state,
+                queue: songs,
+                lastQueueIndex: newIdx,
+            };
+        });
+        // Feed has arrived — reset fallback pool flags so it is no longer used
+        const actions = playerActions as any;
+        actions._fallbackPool = [];
+        actions._fallbackPoolFetched = true;
     },
 
     playSong: (song: PlayerSong) => {
-        playerActions.setCurrentSong(song);
         playerStore.setState((state) => {
-            const idx = state.queue.findIndex((s) => s.id === song.id);
-            if (idx !== -1) return { ...state, lastQueueIndex: idx };
-            const newQueue = [...state.queue, song];
-            return { ...state, queue: newQueue, lastQueueIndex: newQueue.length - 1 };
+            const existingIdx = state.queue.findIndex((s) => s.id === song.id);
+
+            if (existingIdx !== -1) {
+                // Song already in queue — just move the pointer, queue untouched
+                return {
+                    ...state,
+                    currentSong: song,
+                    isPlaying: true,
+                    lastQueueIndex: existingIdx,
+                };
+            }
+
+            // Song not in queue — insert it right after the current position
+            // so playNext continues from here into the existing feed queue.
+            // This preserves everything ahead and behind.
+            const insertAt = state.lastQueueIndex + 1;
+            const newQueue = [
+                ...state.queue.slice(0, insertAt),
+                song,
+                ...state.queue.slice(insertAt),
+            ];
+
+            return {
+                ...state,
+                queue: newQueue,
+                currentSong: song,
+                isPlaying: true,
+                lastQueueIndex: insertAt,
+            };
         });
         musicApi.addView(song.id).catch(() => { });
     },
@@ -132,11 +166,42 @@ export const playerActions = {
         });
     },
 
+    // FIX #6: Returns 'restart' signal when position > 3s so context can seek to 0
+    playPrevious: (currentPosition: number = 0): 'restart' | 'previous' => {
+        const { queue, lastQueueIndex, repeatMode, currentSong } = playerStore.state;
+
+        // If more than 3 seconds in — restart current song
+        if (currentPosition > 3) {
+            playerStore.setState((s) => ({ ...s, isPlaying: true }));
+            return 'restart';
+        }
+
+        if (queue.length === 0) return 'restart';
+
+        const prevIndex = lastQueueIndex - 1;
+
+        if (prevIndex >= 0) {
+            const prevSong = queue[prevIndex];
+            playerActions.setCurrentSong(prevSong);
+            musicApi.addView(prevSong.id).catch(() => { });
+        } else if (repeatMode === 'all' && queue.length > 0) {
+            const lastSong = queue[queue.length - 1];
+            playerActions.setCurrentSong(lastSong);
+            musicApi.addView(lastSong.id).catch(() => { });
+        } else {
+            // At the beginning and no repeat — restart current
+            playerStore.setState((s) => ({ ...s, isPlaying: true }));
+            return 'restart';
+        }
+
+        return 'previous';
+    },
+
     playNext: async () => {
         const { queue, lastQueueIndex, isShuffle, repeatMode, currentSong } = playerStore.state;
 
         if (repeatMode === 'one' && currentSong) {
-            playerStore.setState(s => ({ ...s, isPlaying: true }));
+            playerStore.setState((s) => ({ ...s, isPlaying: true }));
             return;
         }
 
@@ -145,8 +210,13 @@ export const playerActions = {
             nextIndex = 0;
         }
 
-        if (isShuffle && queue.length > 0) {
-            nextIndex = Math.floor(Math.random() * queue.length);
+        // FIX #7: Shuffle excludes current song index
+        if (isShuffle && queue.length > 1) {
+            do {
+                nextIndex = Math.floor(Math.random() * queue.length);
+            } while (nextIndex === lastQueueIndex);
+        } else if (isShuffle && queue.length === 1) {
+            nextIndex = 0;
         }
 
         if (nextIndex >= 0 && nextIndex < queue.length) {
@@ -158,40 +228,13 @@ export const playerActions = {
             playerActions.setCurrentSong(nextSong);
             musicApi.addView(nextSong.id).catch(() => { });
         } else {
-            // Queue exhausted or empty - fallback to general songs
-            try {
-                const fallbackRes = await musicApi.getSongs(1, 10);
-                if (fallbackRes?.data && fallbackRes.data.length > 0) {
-                    const fallbackSongs: PlayerSong[] = fallbackRes.data.map((s: any) => ({
-                        id: s.id,
-                        title: s.title,
-                        artistName: s.artistName,
-                        storageKey: s.storageKey,
-                        coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
-                    }));
-
-                    // Skip songs already in queue
-                    const existingIds = new Set(queue.map((s) => s.id));
-                    const filtered = fallbackSongs.filter((s) => !existingIds.has(s.id));
-
-                    if (filtered.length > 0) {
-                        const firstFallback = filtered[0];
-                        playerStore.setState((state) => ({
-                            ...state,
-                            queue: [...state.queue, ...filtered],
-                            currentSong: firstFallback,
-                            isPlaying: true,
-                            lastQueueIndex: state.queue.length,
-                        }));
-                        setTimeout(() => musicApi.addView(firstFallback.id).catch(() => { }), 0);
-                    }
-                }
-            } catch (err) {
-                console.warn('Fallback fetch failed in playNext:', err);
-            }
+            // Queue exhausted and feed not loaded yet.
+            // Pull ONE song from the fallback pool as a placeholder.
+            // When feed arrives it will replace the queue and take over.
+            await playerActions.playNextFromFallback();
         }
 
-        // Auto-fetch more feed songs if nearing end
+        // Trigger feed fetch if nearing end of queue (2 songs remaining)
         const finalQueue = playerStore.state.queue;
         const finalIdx = playerStore.state.lastQueueIndex;
         const remaining = finalQueue.length - finalIdx - 1;
@@ -200,24 +243,62 @@ export const playerActions = {
         }
     },
 
-    playPrevious: () => {
-        const { queue, lastQueueIndex, repeatMode, currentSong } = playerStore.state;
-        if (queue.length === 0) return;
+    // Fallback pool — songs fetched from /songs endpoint when feed is not ready.
+    // Capped at 2 songs total to avoid flooding the queue with non-personalised content.
+    // Each call to this pops ONE song from the pool so rapid next-clicks
+    // each get exactly one placeholder, not a burst of 10.
+    _fallbackPool: [] as PlayerSong[],
+    _fallbackPoolFetched: false,
+    _fallbackPoolFetching: false,
 
-        let prevIndex = lastQueueIndex - 1;
+    playNextFromFallback: async () => {
+        const actions = playerActions as any;
+        const existingIds = new Set(playerStore.state.queue.map((s) => s.id));
 
-        if (prevIndex >= 0) {
-            const prevSong = queue[prevIndex];
-            playerActions.setCurrentSong(prevSong);
-            musicApi.addView(prevSong.id).catch(() => { });
-        } else if (repeatMode === 'all' && queue.length > 0) {
-            const lastSong = queue[queue.length - 1];
-            playerActions.setCurrentSong(lastSong);
-            musicApi.addView(lastSong.id).catch(() => { });
-        } else {
-            playerActions.setCurrentSong(currentSong);
-            if (currentSong) musicApi.addView(currentSong.id).catch(() => { });
+        // Fetch the pool once — max 2 songs, not already in queue
+        if (!actions._fallbackPoolFetched && !actions._fallbackPoolFetching) {
+            actions._fallbackPoolFetching = true;
+            try {
+                const res = await musicApi.getSongs(1, 10);
+                if (res?.data) {
+                    const mapped: PlayerSong[] = res.data.map((s: any) => ({
+                        id: s.id,
+                        title: s.title,
+                        artistName: s.artistName,
+                        storageKey: s.storageKey,
+                        coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
+                    }));
+                    // Only keep 2 non-duplicate songs as the fallback pool
+                    actions._fallbackPool = mapped
+                        .filter((s: PlayerSong) => !existingIds.has(s.id))
+                        .slice(0, 2);
+                }
+            } catch (err) {
+                console.warn('Fallback pool fetch failed:', err);
+            } finally {
+                actions._fallbackPoolFetched = true;
+                actions._fallbackPoolFetching = false;
+            }
         }
+
+        // Pop one song from the pool
+        const pool: PlayerSong[] = actions._fallbackPool;
+        const nextFallback = pool.find((s) => !existingIds.has(s.id));
+
+        if (nextFallback) {
+            // Remove it from pool so the next rapid click gets a different song
+            actions._fallbackPool = pool.filter((s: PlayerSong) => s.id !== nextFallback.id);
+
+            playerStore.setState((state) => ({
+                ...state,
+                queue: [...state.queue, nextFallback],
+                currentSong: nextFallback,
+                isPlaying: true,
+                lastQueueIndex: state.queue.length,
+            }));
+            musicApi.addView(nextFallback.id).catch(() => { });
+        }
+        // If pool is empty and feed still not loaded — do nothing, stay on current song
     },
 
     fetchAndAddFeedToQueue: async () => {
@@ -233,11 +314,36 @@ export const playerActions = {
                     storageKey: s.storageKey,
                     coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
                 }));
+
                 playerStore.setState((state) => {
                     const existingIds = new Set(state.queue.map((s) => s.id));
-                    const filteredNewSongs = newSongs.filter((s) => !existingIds.has(s.id));
-                    return { ...state, queue: [...state.queue, ...filteredNewSongs] };
+                    const freshFeedSongs = newSongs.filter((s) => !existingIds.has(s.id));
+
+                    if (freshFeedSongs.length === 0) return state;
+
+                    // Replace any fallback placeholder songs still ahead of the
+                    // current position with feed songs.
+                    // Songs already played (index <= lastQueueIndex) are kept as history.
+                    const played = state.queue.slice(0, state.lastQueueIndex + 1);
+                    const actions = playerActions as any;
+                    const fallbackIds = new Set(
+                        (actions._fallbackPool as PlayerSong[]).map((s: PlayerSong) => s.id)
+                    );
+
+                    // Keep songs ahead that are NOT fallback placeholders
+                    const keptAhead = state.queue
+                        .slice(state.lastQueueIndex + 1)
+                        .filter((s) => !fallbackIds.has(s.id));
+
+                    const merged = [...played, ...keptAhead, ...freshFeedSongs];
+
+                    // Reset fallback pool now that feed is loaded
+                    actions._fallbackPool = [];
+                    actions._fallbackPoolFetched = true;
+
+                    return { ...state, queue: merged };
                 });
+
                 return newSongs;
             }
         } catch (error) {
