@@ -163,7 +163,11 @@ export default function Home() {
                 }>
                 <View className="h-56 overflow-hidden rounded-[32px] border border-white/[0.08] bg-white/[0.03] shadow-2xl shadow-black/50">
                   {coverUrl ? (
-                    <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
+                    <Image
+                      source={{ uri: coverUrl }}
+                      className="h-full w-full"
+                      resizeMode="cover"
+                    />
                   ) : (
                     <View className="h-full w-full items-center justify-center bg-green-500/10">
                       <Ionicons name="musical-notes" size={56} color="#22c55e" />
@@ -171,7 +175,9 @@ export default function Home() {
                   )}
                   <View className="absolute bottom-0 left-0 right-0 flex-row items-center bg-black/60 px-6 py-5">
                     <View className="mr-4 flex-1">
-                      <Text className="text-2xl font-black tracking-tighter text-white" numberOfLines={1}>
+                      <Text
+                        className="text-2xl font-black tracking-tighter text-white"
+                        numberOfLines={1}>
                         {capitalize(item.title)}
                       </Text>
                       <Text className="mt-1 text-sm font-bold text-zinc-300" numberOfLines={1}>
@@ -233,7 +239,11 @@ export default function Home() {
                 onPress={() => router.push(`/artist/${item.id}`)}>
                 <View className="mb-4 h-28 w-28 overflow-hidden rounded-full border-2 border-white/[0.05] bg-white/[0.03] shadow-lg">
                   {avatarUrl ? (
-                    <Image source={{ uri: avatarUrl }} className="h-full w-full" resizeMode="cover" />
+                    <Image
+                      source={{ uri: avatarUrl }}
+                      className="h-full w-full"
+                      resizeMode="cover"
+                    />
                   ) : (
                     <View className="h-full w-full items-center justify-center bg-green-500/10">
                       <Ionicons name="person" size={40} color="#22c55e" />
@@ -284,7 +294,11 @@ export default function Home() {
                 onPress={() => router.push(`/playlist/${item.id}`)}>
                 <View className="mb-3 h-40 overflow-hidden rounded-[24px] border border-white/[0.08] bg-white/[0.03] shadow-lg">
                   {coverUrl ? (
-                    <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
+                    <Image
+                      source={{ uri: coverUrl }}
+                      className="h-full w-full"
+                      resizeMode="cover"
+                    />
                   ) : (
                     <View className="h-full w-full items-center justify-center bg-zinc-800">
                       <Ionicons name="musical-notes" size={36} color="#3f3f46" />
@@ -342,7 +356,11 @@ export default function Home() {
                 }>
                 <View className="mb-3 h-44 overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.03] shadow-lg">
                   {coverUrl ? (
-                    <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
+                    <Image
+                      source={{ uri: coverUrl }}
+                      className="h-full w-full"
+                      resizeMode="cover"
+                    />
                   ) : (
                     <View className="h-full w-full items-center justify-center bg-zinc-800">
                       <Ionicons name="flame" size={40} color="#f97316" />
@@ -404,7 +422,11 @@ export default function Home() {
                 }>
                 <View className="mb-3 h-40 overflow-hidden rounded-[24px] border border-white/[0.08] bg-white/[0.03] shadow-lg">
                   {coverUrl ? (
-                    <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
+                    <Image
+                      source={{ uri: coverUrl }}
+                      className="h-full w-full"
+                      resizeMode="cover"
+                    />
                   ) : (
                     <View className="h-full w-full items-center justify-center bg-green-500/5">
                       <Ionicons name="sparkles" size={36} color="#00FF85" />
@@ -428,6 +450,18 @@ export default function Home() {
   // ── Header ──
   const renderHeader = () => (
     <View>
+      {/* Branding Section */}
+      <View className="flex-row items-center gap-3 px-6 pb-6 pt-4">
+        <View className="h-10 w-10 items-center justify-center rounded-xl bg-white/[0.03] shadow-sm">
+          <Image
+            source={require('../../assets/logo.png')}
+            className="h-7 w-7"
+            resizeMode="contain"
+          />
+        </View>
+        <Text className="text-xl font-black tracking-tighter text-white">One Melody</Text>
+      </View>
+
       {renderFeatured()}
       {renderArtists()}
       {renderPlaylists()}
