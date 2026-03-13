@@ -111,8 +111,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (targetQuality === 'auto') return masterUrl;
 
     try {
-      const res = await fetch(masterUrl);
-      const text = await res.text();
+      // Use XMLHttpRequest instead of fetch — RN fetch can hang on S3 URLs
+      const text = await new Promise<string>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', masterUrl);
+        xhr.timeout = 10000;
+        xhr.setRequestHeader('Accept', '*/*');
+        xhr.onload = () =>
+          xhr.status >= 200 && xhr.status < 300
+            ? resolve(xhr.responseText)
+            : reject(new Error(`HTTP ${xhr.status}`));
+        xhr.onerror = () => reject(new Error('XHR error'));
+        xhr.ontimeout = () => reject(new Error('XHR timeout'));
+        xhr.send();
+      });
+
       const variants = parseMasterM3U8(text);
       if (variants.length === 0) return masterUrl;
 

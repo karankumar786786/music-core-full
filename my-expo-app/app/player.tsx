@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -56,6 +56,14 @@ export default function PlayerScreen() {
   const [isLiked, setIsLiked] = useState(false);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showQualityModal, setShowQualityModal] = useState(false);
+  const [pendingQuality, setPendingQuality] = useState(currentQualityType);
+
+  // Sync pending quality with actual quality when opening modal
+  useEffect(() => {
+    if (showQualityModal) {
+      setPendingQuality(currentQualityType);
+    }
+  }, [showQualityModal, currentQualityType]);
 
   const progressBarWidthRef = useRef(SCREEN_WIDTH - 80);
 
@@ -385,14 +393,11 @@ export default function PlayerScreen() {
 
               <View className="mb-10 gap-3">
                 {qualityOptions.map((opt) => {
-                  const isActive = currentQualityType === opt.id;
+                  const isActive = pendingQuality === opt.id;
                   return (
                     <Pressable
                       key={opt.id}
-                      onPress={() => {
-                        setQualityType(opt.id);
-                        setShowQualityModal(false);
-                      }}
+                      onPress={() => setPendingQuality(opt.id as QualityOption)}
                       className={`flex-row items-center justify-between rounded-2xl border px-6 py-5 ${
                         isActive
                           ? 'border-primary/40 bg-primary/10'
@@ -419,7 +424,10 @@ export default function PlayerScreen() {
               </View>
 
               <Pressable
-                onPress={() => setShowQualityModal(false)}
+                onPress={() => {
+                  setQualityType(pendingQuality);
+                  setShowQualityModal(false);
+                }}
                 className="h-16 items-center justify-center rounded-[20px] bg-primary shadow-lg shadow-primary/20 active:opacity-90">
                 <Text className="text-lg font-black text-black">Apply Changes</Text>
               </Pressable>
