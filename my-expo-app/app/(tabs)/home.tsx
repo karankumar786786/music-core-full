@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useEffect } from 'react';
+import React, { useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -220,7 +220,7 @@ export default function Home() {
     );
   };
 
-  const renderArtists = () => {
+  const renderArtists = useMemo(() => {
     const artists = artistsData?.data || [];
     if (artistsLoading) {
       return (
@@ -256,7 +256,7 @@ export default function Home() {
                     />
                   ) : (
                     <View className="h-full w-full items-center justify-center bg-green-500/10">
-                      <Ionicons name="person" size={40} color="#22c55e" />
+                      <Ionicons name="person" size={40} color="#08f808" />
                     </View>
                   )}
                 </View>
@@ -272,9 +272,9 @@ export default function Home() {
         </ScrollView>
       </View>
     );
-  };
+  }, [artistsData, artistsLoading]);
 
-  const renderPlaylists = () => {
+  const renderPlaylists = useMemo(() => {
     const playlists = playlistsData?.data || [];
     if (playlistsLoading) {
       return (
@@ -324,9 +324,9 @@ export default function Home() {
         </ScrollView>
       </View>
     );
-  };
+  }, [playlistsData, playlistsLoading]);
 
-  const renderTrending = () => {
+  const renderTrending = useMemo(() => {
     const trending = trendingData?.data || [];
     if (trendingLoading) {
       return (
@@ -389,9 +389,9 @@ export default function Home() {
         </ScrollView>
       </View>
     );
-  };
+  }, [trendingData, trendingLoading, play]);
 
-  const renderDiscoverForYou = () => {
+  const renderDiscoverForYou = useMemo(() => {
     const feedSongs = feedData?.data || [];
     if (feedLoading) {
       return (
@@ -455,32 +455,35 @@ export default function Home() {
         </ScrollView>
       </View>
     );
-  };
+  }, [feedData, feedLoading, play]);
 
   // ── Header ──
-  const renderHeader = () => (
-    <View>
-      {/* Branding Section */}
-      <View className="flex-row items-center gap-3 px-6 pb-6 pt-4">
-        <View className="h-10 w-10 items-center justify-center rounded-xl bg-white/[0.03] shadow-sm">
-          <Image
-            source={require('../../assets/logo.png')}
-            className="h-7 w-7"
-            resizeMode="contain"
-          />
+  const renderHeader = useMemo(
+    () => (
+      <View>
+        {/* Branding Section */}
+        <View className="flex-row items-center gap-3 px-6 pb-6 pt-4">
+          <View className="h-10 w-10 items-center justify-center rounded-xl bg-white/[0.03] shadow-sm">
+            <Image
+              source={require('../../assets/logo.png')}
+              className="h-7 w-7"
+              resizeMode="contain"
+            />
+          </View>
+          <Text className="text-xl font-black tracking-tighter text-white">One Melody</Text>
         </View>
-        <Text className="text-xl font-black tracking-tighter text-white">One Melody</Text>
-      </View>
 
-      {renderFeatured()}
-      {renderArtists()}
-      {renderPlaylists()}
-      {renderTrending()}
-      {renderDiscoverForYou()}
-      <View className="mb-4 flex-row items-center justify-between border-b border-white/[0.05] px-6 pb-4">
-        <Text className="text-2xl font-black tracking-tighter text-white">All Songs</Text>
+        {renderFeatured()}
+        {renderArtists}
+        {renderPlaylists}
+        {renderTrending}
+        {renderDiscoverForYou}
+        <View className="mb-4 flex-row items-center justify-between border-b border-white/[0.05] px-6 pb-4">
+          <Text className="text-2xl font-black tracking-tighter text-white">All Songs</Text>
+        </View>
       </View>
-    </View>
+    ),
+    [renderFeatured, renderArtists, renderPlaylists, renderTrending, renderDiscoverForYou]
   );
 
   // ── Main List ──

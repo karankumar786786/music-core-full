@@ -100,15 +100,6 @@ export default function ArtistDetail() {
 
   const renderHeader = () => (
     <View>
-      {/* Back button */}
-      <View className="absolute left-4 top-2 z-10">
-        <Pressable
-          onPress={() => router.back()}
-          className="h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/60">
-          <Ionicons name="arrow-back" size={20} color="#fff" />
-        </Pressable>
-      </View>
-
       {/* Hero Banner - Full width */}
       <View className="h-64 w-full overflow-hidden bg-zinc-900">
         {bannerUrl ? (

@@ -41,14 +41,11 @@ export default function PlayerScreen() {
     bufferedPosition,
     togglePlayPause,
     seekTo,
-    activeTrack,
     currentQualityType,
     setQualityType,
     playNext,
     playPrevious,
-    toggleShuffle,
     toggleRepeat,
-    isShuffle,
     repeatMode,
   } = usePlayer();
   const { user } = useAuth();
