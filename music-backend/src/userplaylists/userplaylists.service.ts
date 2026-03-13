@@ -11,13 +11,28 @@ export class UserplaylistsService {
   private prisma = getPrismaClient();
 
   async create(userId: number, createUserplaylistDto: CreateUserplaylistDto) {
-    this.logger.log(`Creating playlist: "${createUserplaylistDto.title}" for user ${userId}`);
+    const title = createUserplaylistDto.title?.toLowerCase();
+    this.logger.log(`Creating playlist: "${title}" for user ${userId}`);
+
+    const existingPlaylist = await this.prisma.userPlaylist.findUnique({
+      where: {
+        title_userId: {
+          title,
+          userId,
+        },
+      },
+    });
+
+    if (existingPlaylist) {
+      throw new ConflictException(`Playlist with title "${title}" already exists`);
+    }
+
     const id = SignatureUtility.generateSignedId();
 
     return await this.prisma.userPlaylist.create({
       data: {
         id,
-        title: createUserplaylistDto.title?.toLowerCase(),
+        title,
         userId: userId,
       },
     });

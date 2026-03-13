@@ -106,21 +106,27 @@ export class InteractionService {
       throw new NotFoundException(`Song with ID ${songId} not found`);
     }
 
-    try {
-      const result = await this.prisma.userFavourites.create({
-        data: {
+    const existingFavourite = await this.prisma.userFavourites.findUnique({
+      where: {
+        userId_songId: {
           userId,
           songId,
         },
-      });
-      this.logger.log(`Successfully saved favourite for user ${userId}, record ID: ${result.id}`);
-      return result;
-    } catch (error) {
-      if (error.code === 'P2002') {
-        throw new ConflictException('Song already in favourites');
-      }
-      throw error;
+      },
+    });
+
+    if (existingFavourite) {
+      throw new ConflictException('Song already in favourites');
     }
+
+    const result = await this.prisma.userFavourites.create({
+      data: {
+        userId,
+        songId,
+      },
+    });
+    this.logger.log(`Successfully saved favourite for user ${userId}, record ID: ${result.id}`);
+    return result;
   }
 
   async checkFavourite(userId: number, songId: string) {

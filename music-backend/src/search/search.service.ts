@@ -85,7 +85,6 @@ export class SearchService {
         };
 
         await this.cache.set(cacheKey, result);
-
         return result;
     }
 }

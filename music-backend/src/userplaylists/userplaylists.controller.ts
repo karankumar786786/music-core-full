@@ -20,6 +20,7 @@ export class UserplaylistsController {
 
   @Get()
   findAll(@Request() req, @Query() paginationQuery: PaginationQueryDto) {
+    console.log("here")
     return this.userplaylistsService.findAll(req.user.id, paginationQuery);
   }
 

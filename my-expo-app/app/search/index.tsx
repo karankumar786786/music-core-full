@@ -1,56 +1,55 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
-  FlatList,
   Image,
   Pressable,
   TextInput,
   ActivityIndicator,
   ScrollView,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { musicApi } from '../../lib/api';
 import { getCoverImageUrl } from '../../lib/s3';
 import { capitalize } from '../../lib/utils';
 import SongRow from '../../components/SongRow';
+import { LinearGradient } from 'expo-linear-gradient';
+import { usePlayer } from '../../lib/player-context';
 
-export default function SearchScreen() {
+export default function SearchTab() {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const inputRef = useRef<TextInput>(null);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const queryClient = useQueryClient();
+  const { play } = usePlayer();
 
-  // Focus the input after mount
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      inputRef.current?.focus();
-    }, 400);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Debounce: update debouncedQuery 500ms after user stops typing
   const handleTextChange = useCallback((text: string) => {
     setQuery(text);
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
-      const trimmed = text.trim();
-      if (trimmed.length >= 2) {
-        setDebouncedQuery(trimmed);
-      } else if (trimmed.length === 0) {
-        setDebouncedQuery('');
-      }
-    }, 500);
+      setDebouncedQuery(text.trim());
+    }, 300);
+  }, []);
+
+  const handleClear = useCallback(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    setQuery('');
+    setDebouncedQuery('');
+    inputRef.current?.focus();
   }, []);
 
   // Search query
   const { data, isLoading } = useQuery({
     queryKey: ['search', debouncedQuery],
     queryFn: () => musicApi.search(debouncedQuery),
-    enabled: debouncedQuery.length >= 2,
+    enabled: debouncedQuery.length > 1,
+    // Keep previous results visible while new ones load — no flicker
+    placeholderData: (prev: any) => prev,
   });
 
   // Search history
@@ -59,73 +58,82 @@ export default function SearchScreen() {
     queryFn: () => musicApi.getSearchHistory(),
   });
 
-  // Save search history when a search is performed
   const saveHistoryMutation = useMutation({
     mutationFn: (searchString: string) => musicApi.addSearchHistory({ searchString }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['searchHistory'] });
+    },
   });
 
-  // Save history when debounced query changes (and is meaningful)
-  // Replaced with on-tap save to match web frontend
+  const handleSaveHistory = useCallback(
+    (searchString: string) => {
+      const exists = (historyData || []).some(
+        (item: any) => item.searchString.toLowerCase() === searchString.toLowerCase()
+      );
+      if (!exists) saveHistoryMutation.mutate(searchString);
+    },
+    [historyData, saveHistoryMutation]
+  );
 
   const results = data?.data;
-  const hasSongs = results?.songs?.length > 0;
-  const hasArtists = results?.artists?.length > 0;
-  const hasPlaylists = results?.playlists?.length > 0;
+  const hasSongs = (results?.songs?.length ?? 0) > 0;
+  const hasArtists = (results?.artists?.length ?? 0) > 0;
+  const hasPlaylists = (results?.playlists?.length ?? 0) > 0;
   const hasResults = hasSongs || hasArtists || hasPlaylists;
 
   const searchHistory = historyData || [];
   const showHistory = !debouncedQuery && searchHistory.length > 0;
 
-  const handleSaveHistory = (searchString: string) => {
-    const exists = searchHistory.some(
-      (item: any) => item.searchString.toLowerCase() === searchString.toLowerCase()
-    );
-    if (!exists) {
-      saveHistoryMutation.mutate(searchString);
-    }
-  };
-
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top']}>
-      {/* Back + Title */}
-      <View className="flex-row items-center gap-3 px-4 pb-2 pt-2">
-        <Pressable
-          onPress={() => router.back()}
-          className="h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-zinc-900">
-          <Ionicons name="arrow-back" size={20} color="#a1a1aa" />
-        </Pressable>
-        <Text className="text-xl font-black tracking-tight text-white">Search</Text>
+      <LinearGradient
+        colors={['#1a1a1a', '#050505']}
+        className="absolute inset-0"
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 0.5 }}
+      />
+
+      {/* Title */}
+      <View className="px-6 pb-2 pt-6">
+        <Text className="text-4xl font-black tracking-tighter text-white">Search</Text>
       </View>
 
       {/* Search Bar */}
-      <View className="px-4 py-3">
-        <View className="h-12 flex-row items-center rounded-2xl border border-white/10 bg-zinc-900 px-4">
-          <Ionicons name="search" size={18} color="#71717a" />
+      <View className="px-6 py-4">
+        <View className="h-14 flex-row items-center rounded-2xl border border-white/[0.08] bg-white/[0.05] px-5 shadow-lg">
+          <Ionicons name="search" size={20} color="#52525b" />
           <TextInput
             ref={inputRef}
-            className="ml-3 flex-1 text-base text-white"
+            className="ml-4 flex-1 text-[17px] font-bold text-white"
             placeholder="Songs, artists, or playlists..."
-            placeholderTextColor="#52525b"
+            placeholderTextColor="#3f3f46"
             value={query}
             onChangeText={handleTextChange}
             returnKeyType="search"
+            // KEY FIX: never dismiss keyboard on submit — keeps results visible
+            blurOnSubmit={false}
+            onSubmitEditing={() => {
+              if (query.trim().length > 1) {
+                handleSaveHistory(query.trim());
+              }
+            }}
           />
           {query.length > 0 && (
-            <Pressable
-              onPress={() => {
-                setQuery('');
-                setDebouncedQuery('');
-              }}>
-              <Ionicons name="close-circle" size={20} color="#71717a" />
+            <Pressable onPress={handleClear} hitSlop={10}>
+              <Ionicons name="close-circle" size={20} color="#52525b" />
             </Pressable>
           )}
         </View>
       </View>
 
+      {/* KEY FIX: keyboardShouldPersistTaps="always" so tapping results
+          never accidentally dismisses keyboard and re-triggers a state change */}
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 100 }}
-        keyboardShouldPersistTaps="handled">
-        {/* Search History (when no query) */}
+        contentContainerStyle={{ paddingBottom: 120 }}
+        keyboardShouldPersistTaps="always"
+        keyboardDismissMode="on-drag">
+
+        {/* Search History */}
         {showHistory && (
           <View className="px-4 pb-4">
             <Text className="mb-3 text-sm font-bold uppercase tracking-widest text-zinc-500">
@@ -149,7 +157,7 @@ export default function SearchScreen() {
           </View>
         )}
 
-        {/* Empty state (no query, no history) */}
+        {/* Empty state */}
         {!debouncedQuery && !showHistory && (
           <View className="items-center py-20">
             <Ionicons name="search" size={48} color="#3f3f46" />
@@ -159,24 +167,26 @@ export default function SearchScreen() {
           </View>
         )}
 
-        {/* Loading */}
-        {debouncedQuery && isLoading && (
+        {/* Loading — only show spinner on fresh search, not on refetch */}
+        {debouncedQuery.length > 1 && isLoading && !hasResults && (
           <View className="items-center py-12">
             <ActivityIndicator color="#22c55e" size="large" />
           </View>
         )}
 
         {/* No results */}
-        {debouncedQuery && !isLoading && !hasResults && (
+        {debouncedQuery.length > 1 && !isLoading && !hasResults && (
           <View className="items-center py-20">
             <Ionicons name="sad-outline" size={48} color="#3f3f46" />
-            <Text className="mt-4 text-base text-zinc-500">No results for "{debouncedQuery}"</Text>
+            <Text className="mt-4 text-base text-zinc-500">
+              No results for "{debouncedQuery}"
+            </Text>
           </View>
         )}
 
         {/* Results */}
-        {debouncedQuery && !isLoading && hasResults && (
-          <View className="gap-8 pb-20">
+        {hasResults && (
+          <View className="gap-8 pb-4">
             {/* Songs */}
             {hasSongs && (
               <View>
@@ -188,7 +198,16 @@ export default function SearchScreen() {
                     key={song.id}
                     song={song}
                     index={index}
-                    onPress={() => handleSaveHistory(song.title)}
+                    onPress={() => {
+                      handleSaveHistory(song.title);
+                      play({
+                        id: song.id,
+                        title: song.title,
+                        artistName: song.artistName,
+                        storageKey: song.storageKey,
+                        coverUrl: getCoverImageUrl(song.storageKey, 'large', true) || null,
+                      });
+                    }}
                   />
                 ))}
               </View>

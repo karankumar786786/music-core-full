@@ -31,19 +31,19 @@ export default function SearchTab() {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
       const trimmed = text.trim();
-      if (trimmed.length >= 2) {
+      if (trimmed.length > 0) {
         setDebouncedQuery(trimmed);
-      } else if (trimmed.length === 0) {
+      } else {
         setDebouncedQuery('');
       }
-    }, 500);
+    }, 300);
   }, []);
 
   // Search query
   const { data, isLoading } = useQuery({
     queryKey: ['search', debouncedQuery],
     queryFn: () => musicApi.search(debouncedQuery),
-    enabled: debouncedQuery.length >= 2,
+    enabled: debouncedQuery.length > 0,
   });
 
   // Search history
