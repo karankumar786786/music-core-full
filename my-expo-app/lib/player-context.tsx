@@ -60,7 +60,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const initPlayer = (p: any) => {
     p.loop = false;
-    p.timeUpdateEventInterval = 0.5;
+    p.timeUpdateEventInterval = 0.001; // 50ms for smooth "Spotify-like" movement
     p.bufferOptions = { preferredForwardBufferDuration: 20 };
   };
 
@@ -82,6 +82,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const shouldAutoPlayRef = useRef(false);
   const isSourceLoadingRef = useRef(false);
   const lastPlayCommandTimeRef = useRef<number>(0);
+  const lastSeekTimeRef = useRef<number>(0);
 
   // FIX #1: Track when standby player has fully finished loading
   const standbyReadyRef = useRef(false);
@@ -301,7 +302,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const timeSub = player.addListener(
       'timeUpdate',
       ({ currentTime, bufferedPosition: newBuffered }) => {
-        setPosition(currentTime);
+        // Optimistic UI: Don't overwrite state if we just seeked (wait 1s for player to settle)
+        const isRecentlySeeked = Date.now() - lastSeekTimeRef.current < 1000;
+        if (!isRecentlySeeked) {
+          setPosition(currentTime);
+        }
+
         // FIX #5: Use strict null check — newBuffered can be 0 (falsy but valid)
         setBufferedPosition(
           newBuffered !== undefined && newBuffered !== null ? newBuffered : player.bufferedPosition
@@ -354,6 +360,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // FIX #4: seekTo uses correct expo-video API
   const seekTo = useCallback(
     (seconds: number) => {
+      // Optimistic UI update: instantly set position so the seekbar jumps
+      setPosition(seconds);
+      lastSeekTimeRef.current = Date.now();
+
       try {
         // expo-video exposes seekBy — calculate delta from current position
         const delta = seconds - player.currentTime;
