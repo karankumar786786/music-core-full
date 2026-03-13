@@ -60,7 +60,7 @@ function AuthGate() {
           </View>
           <Text className="text-4xl font-black tracking-tighter text-white">One Melody</Text>
           <View className="mt-8 flex-row items-center gap-2">
-            <ActivityIndicator color="#00FF85" size="small" />
+            <ActivityIndicator color="#08f808" size="small" />
             <Text className="text-xs font-black uppercase tracking-[0.2em] text-zinc-600">
               Initializing...
             </Text>

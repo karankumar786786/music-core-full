@@ -21,7 +21,6 @@ import { getCoverImageUrl } from '../lib/s3';
 import { capitalize } from '../lib/utils';
 import { musicApi } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -57,11 +56,13 @@ export default function PlayerScreen() {
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showQualityModal, setShowQualityModal] = useState(false);
 
-  // FIX #10: Measure actual progress bar width instead of hardcoding
   const progressBarWidthRef = useRef(SCREEN_WIDTH - 80);
 
   // FIX #11: Derive stable songId from currentSong first, fall back to param
   const effectiveSongId = currentSong?.id ?? songId ?? '';
+
+  const coverImage =
+    currentSong?.coverUrl || getCoverImageUrl(currentSong?.storageKey || null, 'large', true);
 
   // Check if song is liked
   const { data: favStatus, refetch: refetchFav } = useQuery({
@@ -127,8 +128,6 @@ export default function PlayerScreen() {
 
   const progress = duration > 0 ? position / duration : 0;
   const ART_SIZE = SCREEN_WIDTH - 48;
-  const coverImage =
-    currentSong?.coverUrl || getCoverImageUrl(currentSong?.storageKey || null, 'large', true);
 
   if (!currentSong) {
     return (
@@ -162,12 +161,16 @@ export default function PlayerScreen() {
 
   return (
     <View className="flex-1 bg-black">
-      <LinearGradient
-        colors={['#1a1a1a', '#050505', '#000000']}
-        className="absolute inset-0"
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
+      {coverImage ? (
+        <Image
+          source={{ uri: coverImage }}
+          className="absolute inset-0 h-full w-full"
+          style={{ opacity: 0.6 }}
+          blurRadius={90}
+        />
+      ) : null}
+      <View className="absolute inset-0 bg-black/60" />
+
       <StatusBar style="light" />
       <View className="flex-1" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
         {/* ── Header ── */}
@@ -188,7 +191,7 @@ export default function PlayerScreen() {
               <Ionicons
                 name="options-outline"
                 size={24}
-                color={currentQualityType === 'auto' ? '#a1a1aa' : '#00FF85'}
+                color={currentQualityType === 'auto' ? '#a1a1aa' : '#08f808'}
               />
             </Pressable>
           </View>
@@ -202,7 +205,7 @@ export default function PlayerScreen() {
           <Pressable
             onPress={() => setShowPlaylistModal(true)}
             className="h-12 w-12 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] shadow-lg">
-            <Ionicons name="add" size={28} color="#00FF85" />
+            <Ionicons name="add" size={28} color="#08f808" />
           </Pressable>
         </View>
 
@@ -219,7 +222,7 @@ export default function PlayerScreen() {
               />
             ) : (
               <View className="flex-1 items-center justify-center bg-primary/5">
-                <Ionicons name="musical-notes" size={100} color="#00FF85" />
+                <Ionicons name="musical-notes" size={100} color="#08f808" />
               </View>
             )}
           </View>
@@ -241,7 +244,7 @@ export default function PlayerScreen() {
               disabled={favMutation.isPending}
               className="h-14 w-14 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] shadow-md">
               {favMutation.isPending ? (
-                <ActivityIndicator color="#00FF85" size="small" />
+                <ActivityIndicator color="#08f808" size="small" />
               ) : (
                 <Ionicons
                   name={isLiked ? 'heart' : 'heart-outline'}
@@ -270,14 +273,14 @@ export default function PlayerScreen() {
                 style={{ width: `${duration > 0 ? (bufferedPosition / duration) * 100 : 0}%` }}
               />
               <View
-                className="h-full rounded-full bg-primary shadow shadow-primary"
+                className="h-full rounded-full bg-primary"
                 style={{ width: `${progress * 100}%` }}
               />
               {/* Seekbar Thumb */}
               <View
                 className="absolute -top-1.5 h-6 w-6 items-center justify-center"
                 style={{ left: `${progress * 100}%`, marginLeft: -12 }}>
-                <View className="h-4 w-4 rounded-full bg-white shadow-lg shadow-white/20" />
+                <View className="h-4 w-4 rounded-full bg-white" />
               </View>
             </Pressable>
             <View className="mt-4 flex-row justify-between">
@@ -295,7 +298,7 @@ export default function PlayerScreen() {
             <Pressable
               onPress={toggleShuffle}
               className="h-14 w-14 items-center justify-center rounded-full active:bg-white/[0.03]">
-              <Ionicons name="shuffle" size={24} color={isShuffle ? '#00FF85' : '#3f3f46'} />
+              <Ionicons name="shuffle" size={24} color={isShuffle ? '#08f808' : '#3f3f46'} />
             </Pressable>
 
             <View className="flex-row items-center gap-10">
@@ -333,7 +336,7 @@ export default function PlayerScreen() {
                 <Ionicons
                   name="repeat"
                   size={24}
-                  color={repeatMode !== 'none' ? '#00FF85' : '#3f3f46'}
+                  color={repeatMode !== 'none' ? '#08f808' : '#3f3f46'}
                 />
                 {repeatMode === 'one' && (
                   <View className="absolute bottom-2 h-3 w-3 items-center justify-center rounded-full bg-primary">
@@ -344,7 +347,7 @@ export default function PlayerScreen() {
               <Pressable
                 onPress={() => router.push('/lyrics')}
                 className="h-14 w-14 items-center justify-center rounded-full bg-primary/10 transition-all active:scale-90">
-                <Ionicons name="text" size={24} color="#00FF85" />
+                <Ionicons name="text" size={24} color="#08f808" />
               </Pressable>
             </View>
           </View>
@@ -387,7 +390,7 @@ export default function PlayerScreen() {
                         <Ionicons
                           name={opt.icon}
                           size={22}
-                          color={isActive ? '#00FF85' : '#3f3f46'}
+                          color={isActive ? '#08f808' : '#3f3f46'}
                         />
                         <View>
                           <Text
@@ -397,7 +400,7 @@ export default function PlayerScreen() {
                           <Text className="text-xs font-bold text-zinc-600">{opt.description}</Text>
                         </View>
                       </View>
-                      {isActive && <Ionicons name="checkmark-circle" size={26} color="#00FF85" />}
+                      {isActive && <Ionicons name="checkmark-circle" size={26} color="#08f808" />}
                     </Pressable>
                   );
                 })}
@@ -450,7 +453,7 @@ export default function PlayerScreen() {
                       disabled={addToPlaylistMutation.isPending}
                       className="mb-2 flex-row items-center gap-4 rounded-3xl px-3 py-4 active:bg-white/[0.03]">
                       <View className="h-16 w-16 items-center justify-center rounded-2xl bg-surface-muted shadow-sm shadow-black">
-                        <Ionicons name="musical-notes" size={28} color="#00FF85" />
+                        <Ionicons name="musical-notes" size={28} color="#08f808" />
                       </View>
                       <View className="flex-1">
                         <Text
@@ -463,10 +466,10 @@ export default function PlayerScreen() {
                         </Text>
                       </View>
                       {addToPlaylistMutation.isPending ? (
-                        <ActivityIndicator color="#00FF85" size="small" />
+                        <ActivityIndicator color="#08f808" size="small" />
                       ) : (
                         <View className="h-10 w-10 items-center justify-center rounded-full bg-primary/5">
-                          <Ionicons name="add" size={24} color="#00FF85" />
+                          <Ionicons name="add" size={24} color="#08f808" />
                         </View>
                       )}
                     </Pressable>

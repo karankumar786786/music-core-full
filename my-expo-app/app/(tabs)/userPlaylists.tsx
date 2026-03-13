@@ -169,7 +169,7 @@ export default function UserPlaylists() {
             <Pressable
               onPress={handleCreate}
               disabled={createMutation.isPending}
-              className="h-12 w-12 items-center justify-center rounded-xl bg-green-500 active:opacity-80">
+              className="h-12 w-12 items-center justify-center rounded-xl bg-primary active:opacity-80">
               {createMutation.isPending ? (
                 <ActivityIndicator color="#000" size="small" />
               ) : (
@@ -188,9 +188,9 @@ export default function UserPlaylists() {
         ) : (
           <Pressable
             onPress={() => setShowCreate(true)}
-            className="h-12 flex-row items-center justify-center rounded-2xl border border-green-500/20 bg-green-500/10 active:bg-green-500/20">
-            <Ionicons name="add" size={20} color="#22c55e" />
-            <Text className="ml-2 font-bold text-green-500">Create Playlist</Text>
+            className="h-12 flex-row items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 active:bg-primary/20">
+            <Ionicons name="add" size={20} color="#08f808" />
+            <Text className="ml-2 font-bold text-primary">Create Playlist</Text>
           </Pressable>
         )}
       </View>

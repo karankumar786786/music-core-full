@@ -169,7 +169,7 @@ export default function Home() {
                       resizeMode="cover"
                     />
                   ) : (
-                    <View className="h-full w-full items-center justify-center bg-green-500/10">
+                    <View className="h-full w-full items-center justify-center bg-primary/10">
                       <Ionicons name="musical-notes" size={56} color="#22c55e" />
                     </View>
                   )}
@@ -395,7 +395,7 @@ export default function Home() {
     return (
       <View className="mb-8">
         <View className="mb-5 flex-row items-center gap-3 px-6">
-          <Ionicons name="sparkles" size={24} color="#00FF85" />
+          <Ionicons name="sparkles" size={24} color="#08f808" />
           <Text className="text-2xl font-black tracking-tighter text-white">Discover For You</Text>
         </View>
         <ScrollView
@@ -428,8 +428,8 @@ export default function Home() {
                       resizeMode="cover"
                     />
                   ) : (
-                    <View className="h-full w-full items-center justify-center bg-green-500/5">
-                      <Ionicons name="sparkles" size={36} color="#00FF85" />
+                    <View className="h-full w-full items-center justify-center bg-primary/5">
+                      <Ionicons name="sparkles" size={36} color="#08f808" />
                     </View>
                   )}
                 </View>

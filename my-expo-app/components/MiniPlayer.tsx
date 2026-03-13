@@ -48,7 +48,7 @@ export default function MiniPlayer() {
               />
             ) : (
               <View className="h-full w-full items-center justify-center bg-primary/10">
-                <Ionicons name="musical-notes" size={20} color="#00FF85" />
+                <Ionicons name="musical-notes" size={20} color="#08f808" />
               </View>
             )}
           </View>

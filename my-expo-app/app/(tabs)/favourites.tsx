@@ -105,11 +105,11 @@ export default function Favourites() {
           </View>
           <View className="flex-row items-center gap-3">
             {isFetching && !isFetchingNextPage && !isLoading && (
-              <ActivityIndicator color="#00FF85" size="small" />
+              <ActivityIndicator color="#08f808" size="small" />
             )}
             {favorites.length > 0 && (
               <View className="h-10 w-10 items-center justify-center rounded-full bg-primary/20">
-                <Ionicons name="heart" size={20} color="#00FF85" />
+                <Ionicons name="heart" size={20} color="#08f808" />
               </View>
             )}
           </View>

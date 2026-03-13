@@ -122,7 +122,7 @@ export default function ArtistDetail() {
             style={{ opacity: 0.5 }}
           />
         ) : (
-          <View className="h-full w-full bg-green-500/10" />
+          <View className="h-full w-full bg-primary/10" />
         )}
         {/* Dark gradient overlay */}
         <View className="absolute inset-0 bg-black/40" />
@@ -133,19 +133,19 @@ export default function ArtistDetail() {
         <View className="rounded-3xl border border-white/10 bg-zinc-950/90 p-5">
           <View className="flex-row items-center gap-4">
             {/* Avatar */}
-            <View className="h-24 w-24 overflow-hidden rounded-2xl border-2 border-green-500/30 bg-zinc-800">
+            <View className="h-24 w-24 overflow-hidden rounded-2xl border-2 border-primary/30 bg-zinc-800">
               {avatarUrl ? (
                 <Image source={{ uri: avatarUrl }} className="h-full w-full" resizeMode="cover" />
               ) : (
-                <View className="h-full w-full items-center justify-center bg-green-500/10">
-                  <Text className="text-3xl font-black text-green-500">
+                <View className="h-full w-full items-center justify-center bg-primary/10">
+                  <Text className="text-3xl font-black text-primary">
                     {artist.artistName?.[0]?.toUpperCase()}
                   </Text>
                 </View>
               )}
             </View>
             <View className="flex-1">
-              <Text className="mb-1 text-xs font-bold uppercase tracking-widest text-green-500">
+              <Text className="mb-1 text-xs font-bold uppercase tracking-widest text-primary">
                 Artist
               </Text>
               <Text className="text-2xl font-black tracking-tight text-white" numberOfLines={2}>
@@ -168,7 +168,7 @@ export default function ArtistDetail() {
       {songs.length > 0 && (
         <Pressable
           onPress={handlePlayAll}
-          className="mx-5 mb-4 h-12 flex-row items-center justify-center rounded-full bg-green-500 active:opacity-80">
+          className="mx-5 mb-4 h-12 flex-row items-center justify-center rounded-full bg-primary active:opacity-80">
           <Ionicons name="play" size={20} color="#000" style={{ marginLeft: 2 }} />
           <Text className="ml-2 text-base font-black text-black">Play All</Text>
         </Pressable>

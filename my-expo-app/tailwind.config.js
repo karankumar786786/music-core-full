@@ -11,7 +11,7 @@ module.exports = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#00FF85', // Vibrant Neon Green
+          DEFAULT: '#08f808', // Vibrant Neon Green from logo
           dark: '#00CC6A',
           light: '#33FF9D',
           muted: '#00FF8520',

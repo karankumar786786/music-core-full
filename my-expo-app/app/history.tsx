@@ -136,7 +136,7 @@ export default function HistoryScreen() {
           <View className="flex-1">
             <Text className="text-3xl font-black tracking-tighter text-white">History</Text>
             <View className="mt-1 flex-row items-center gap-2">
-              <View className="h-1 w-1 rounded-full bg-green-500" />
+              <View className="h-1 w-1 rounded-full bg-primary" />
               <Text className="text-xs font-bold uppercase tracking-widest text-zinc-500">
                 {history.length} Songs Collected
               </Text>

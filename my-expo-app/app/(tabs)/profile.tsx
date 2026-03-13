@@ -163,13 +163,13 @@ export default function Profile() {
           <Pressable
             onPress={pickImage}
             disabled={uploadMutation.isPending}
-            className="relative mb-4 h-32 w-32 items-center justify-center overflow-hidden rounded-3xl border-2 border-green-500/30 bg-green-500/10">
+            className="relative mb-4 h-32 w-32 items-center justify-center overflow-hidden rounded-3xl border-2 border-primary/30 bg-primary/10">
             {avatarUrl ? (
               <Image source={{ uri: avatarUrl }} className="h-full w-full" resizeMode="cover" />
             ) : (
-              <Text className="text-5xl font-black text-green-500">{userInitial}</Text>
+              <Text className="text-5xl font-black text-primary">{userInitial}</Text>
             )}
-            <View className="absolute -bottom-0 -right-0 h-9 w-9 items-center justify-center rounded-tl-2xl bg-green-500">
+            <View className="absolute -bottom-0 -right-0 h-9 w-9 items-center justify-center rounded-tl-2xl bg-primary">
               {uploadMutation.isPending ? (
                 <ActivityIndicator color="#000" size="small" />
               ) : (
@@ -191,7 +191,7 @@ export default function Profile() {
                   setIsEditing(true);
                   setFormData({ name: user?.name || '' });
                 }}
-                className="h-11 flex-row items-center rounded-xl bg-green-500 px-6 active:opacity-80">
+                className="h-11 flex-row items-center rounded-xl bg-primary px-6 active:opacity-80">
                 <Ionicons name="pencil" size={16} color="#000" />
                 <Text className="ml-2 font-bold text-black">Edit Profile</Text>
               </Pressable>
@@ -223,7 +223,7 @@ export default function Profile() {
               <Pressable
                 onPress={() => updateProfileMutation.mutate({ name: formData.name })}
                 disabled={updateProfileMutation.isPending}
-                className="h-12 w-12 items-center justify-center rounded-xl bg-green-500 active:opacity-80">
+                className="h-12 w-12 items-center justify-center rounded-xl bg-primary active:opacity-80">
                 {updateProfileMutation.isPending ? (
                   <ActivityIndicator color="#000" size="small" />
                 ) : (
@@ -271,7 +271,7 @@ export default function Profile() {
           </Text>
           <View className="mb-3 flex-row items-center justify-between">
             <Text className="text-sm font-medium text-zinc-400">Status</Text>
-            <Text className="text-sm font-bold text-green-500">Active</Text>
+            <Text className="text-sm font-bold text-primary">Active</Text>
           </View>
           <View className="flex-row items-center justify-between">
             <Text className="text-sm font-medium text-zinc-400">Joined</Text>
@@ -396,7 +396,7 @@ export default function Profile() {
               <Pressable
                 onPress={handlePasswordChange}
                 disabled={changePasswordMutation.isPending}
-                className="mb-3 h-14 items-center justify-center rounded-2xl bg-green-500 active:opacity-80">
+                className="mb-3 h-14 items-center justify-center rounded-2xl bg-primary active:opacity-80">
                 {changePasswordMutation.isPending ? (
                   <ActivityIndicator color="#000" />
                 ) : (

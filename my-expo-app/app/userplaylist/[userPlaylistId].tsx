@@ -82,7 +82,7 @@ export default function UserPlaylistDetail() {
           {coverUrl ? (
             <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
           ) : (
-            <View className="h-full w-full items-center justify-center bg-green-500/5">
+            <View className="h-full w-full items-center justify-center bg-primary/5">
               <Ionicons name="musical-notes" size={60} color="#22c55e" />
             </View>
           )}
@@ -98,7 +98,7 @@ export default function UserPlaylistDetail() {
         {songs.length > 0 && (
           <Pressable
             onPress={handlePlayAll}
-            className="mt-6 h-12 w-44 flex-row items-center justify-center rounded-full bg-green-500 active:opacity-80">
+            className="mt-6 h-12 w-44 flex-row items-center justify-center rounded-full bg-primary active:opacity-80">
             <Ionicons name="play" size={20} color="#000" style={{ marginLeft: 2 }} />
             <Text className="ml-2 text-base font-black text-black">Play All</Text>
           </Pressable>
@@ -196,8 +196,8 @@ function PlaylistSongRow({
         {coverUrl ? (
           <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
         ) : (
-          <View className="h-full w-full items-center justify-center bg-green-500/5">
-            <Ionicons name="musical-notes" size={24} color="#00FF85" />
+          <View className="h-full w-full items-center justify-center bg-primary/5">
+            <Ionicons name="musical-notes" size={24} color="#08f808" />
           </View>
         )}
       </View>

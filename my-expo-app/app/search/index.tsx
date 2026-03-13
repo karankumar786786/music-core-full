@@ -132,7 +132,6 @@ export default function SearchTab() {
         contentContainerStyle={{ paddingBottom: 120 }}
         keyboardShouldPersistTaps="always"
         keyboardDismissMode="on-drag">
-
         {/* Search History */}
         {showHistory && (
           <View className="px-4 pb-4">
@@ -178,9 +177,7 @@ export default function SearchTab() {
         {debouncedQuery.length > 1 && !isLoading && !hasResults && (
           <View className="items-center py-20">
             <Ionicons name="sad-outline" size={48} color="#3f3f46" />
-            <Text className="mt-4 text-base text-zinc-500">
-              No results for "{debouncedQuery}"
-            </Text>
+            <Text className="mt-4 text-base text-zinc-500">No results for "{debouncedQuery}"</Text>
           </View>
         )}
 
@@ -229,7 +226,7 @@ export default function SearchTab() {
                         router.push(`/artist/${artist.id}`);
                       }}
                       className="flex-row items-center gap-4 rounded-2xl px-4 py-3 active:bg-white/5">
-                      <View className="h-14 w-14 overflow-hidden rounded-full border-2 border-green-500/20 bg-zinc-800">
+                      <View className="h-14 w-14 overflow-hidden rounded-full border-2 border-primary/20 bg-zinc-800">
                         {avatarUrl ? (
                           <Image
                             source={{ uri: avatarUrl }}
@@ -237,8 +234,8 @@ export default function SearchTab() {
                             resizeMode="cover"
                           />
                         ) : (
-                          <View className="h-full w-full items-center justify-center bg-green-500/10">
-                            <Text className="text-lg font-black text-green-500">
+                          <View className="h-full w-full items-center justify-center bg-primary/10">
+                            <Text className="text-lg font-black text-primary">
                               {artist.artistName?.[0]?.toUpperCase()}
                             </Text>
                           </View>

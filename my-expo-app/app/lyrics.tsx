@@ -7,6 +7,8 @@ import { StatusBar } from 'expo-status-bar';
 import { usePlayer } from '../lib/player-context';
 import { capitalize } from '../lib/utils';
 import { parseVTT, LyricCue } from '../lib/lyrics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { getCoverImageUrl } from '../lib/s3';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -90,8 +92,14 @@ export default function LyricsScreen() {
 
   return (
     <View
-      className="flex-1 bg-surface"
+      className="flex-1 bg-black"
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
+      <LinearGradient
+        colors={['#1a1a1a', '#050505', '#000000']}
+        className="absolute inset-0"
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
       <StatusBar style="light" />
       {/* ── Header ── */}
       <View className="flex-row items-center justify-between px-8 pb-8 pt-6">
@@ -144,7 +152,7 @@ export default function LyricsScreen() {
                   style={{
                     fontSize: isActive ? 34 : 26,
                     fontWeight: '900',
-                    color: isActive ? '#00FF85' : isPast ? '#27272a' : '#3f3f46',
+                    color: isActive ? '#08f808' : isPast ? '#27272a' : '#3f3f46',
                     opacity: isActive ? 1 : isPast ? 0.3 : 0.6,
                     lineHeight: isActive ? 46 : 38,
                     letterSpacing: -0.5,
@@ -156,7 +164,7 @@ export default function LyricsScreen() {
           })
         ) : (
           <View className="items-center justify-center py-24">
-            <ActivityIndicator color="#00FF85" size="large" />
+            <ActivityIndicator color="#08f808" size="large" />
             <Text className="mt-6 text-sm font-black uppercase tracking-widest text-zinc-700">
               Fetching Lyrics...
             </Text>
