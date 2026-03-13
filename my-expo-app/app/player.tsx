@@ -21,6 +21,7 @@ import { getCoverImageUrl } from '../lib/s3';
 import { capitalize } from '../lib/utils';
 import { musicApi } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -164,13 +165,29 @@ export default function PlayerScreen() {
       {coverImage ? (
         <Image
           source={{ uri: coverImage }}
-          className="absolute inset-0 h-full w-full"
-          style={{ opacity: 0.6 }}
-          blurRadius={90}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100%',
+            height: '100%',
+          }}
+          blurRadius={80}
+          resizeMode="cover"
         />
       ) : null}
-      <View className="absolute inset-0 bg-black/60" />
-
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.55)',
+        }}
+      />
       <StatusBar style="light" />
       <View className="flex-1" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
         {/* ── Header ── */}

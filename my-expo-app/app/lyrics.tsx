@@ -1,5 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, Dimensions, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  ActivityIndicator,
+  Dimensions,
+  ScrollView,
+  Image,
+} from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,7 +15,6 @@ import { StatusBar } from 'expo-status-bar';
 import { usePlayer } from '../lib/player-context';
 import { capitalize } from '../lib/utils';
 import { parseVTT, LyricCue } from '../lib/lyrics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { getCoverImageUrl } from '../lib/s3';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -28,19 +35,66 @@ export default function LyricsScreen() {
   } = usePlayer();
 
   const [lyrics, setLyrics] = useState<LyricCue[]>([]);
+  const [isFetchingLyrics, setIsFetchingLyrics] = useState(false);
   const [activeCueIndex, setActiveCueIndex] = useState(-1);
   const lyricsScrollRef = useRef<ScrollView>(null);
   const cueRefs = useRef<Record<number, number>>({});
 
   // ── Load VTT lyrics ──
   useEffect(() => {
-    if (!baseUrl) return;
+    if (!baseUrl) {
+      console.log('[Lyrics] No baseUrl, skipping fetch');
+      setLyrics([]);
+      setIsFetchingLyrics(false);
+      return;
+    }
     const captionUrl = `${baseUrl}/caption.vtt`;
+    console.log('[Lyrics] Fetching:', captionUrl);
 
-    fetch(captionUrl)
-      .then((r) => (r.ok ? r.text() : Promise.reject()))
-      .then((text) => setLyrics(parseVTT(text)))
-      .catch(() => setLyrics([]));
+    let cancelled = false;
+    setIsFetchingLyrics(true);
+
+    // Use XMLHttpRequest as RN fetch can hang on some S3 URLs
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', captionUrl);
+    xhr.timeout = 10000;
+    xhr.setRequestHeader('Accept', 'text/vtt, text/plain, */*');
+    xhr.setRequestHeader('Cache-Control', 'no-cache');
+
+    xhr.onload = () => {
+      if (cancelled) return;
+      console.log('[Lyrics] XHR status:', xhr.status);
+      if (xhr.status >= 200 && xhr.status < 300 && xhr.responseText) {
+        const cues = parseVTT(xhr.responseText);
+        console.log('[Lyrics] Parsed', cues.length, 'cues');
+        setLyrics(cues);
+      } else {
+        console.warn('[Lyrics] Non-ok status:', xhr.status);
+        setLyrics([]);
+      }
+      setIsFetchingLyrics(false);
+    };
+
+    xhr.onerror = () => {
+      if (cancelled) return;
+      console.warn('[Lyrics] XHR error');
+      setLyrics([]);
+      setIsFetchingLyrics(false);
+    };
+
+    xhr.ontimeout = () => {
+      if (cancelled) return;
+      console.warn('[Lyrics] XHR timeout');
+      setLyrics([]);
+      setIsFetchingLyrics(false);
+    };
+
+    xhr.send();
+
+    return () => {
+      cancelled = true;
+      xhr.abort();
+    };
   }, [baseUrl]);
 
   // ── Sync active lyric on position change ──
@@ -73,6 +127,9 @@ export default function LyricsScreen() {
 
   const progress = duration > 0 ? position / duration : 0;
 
+  const coverImage =
+    currentSong?.coverUrl || getCoverImageUrl(currentSong?.storageKey || null, 'large', true);
+
   if (!currentSong) {
     return (
       <View
@@ -94,11 +151,31 @@ export default function LyricsScreen() {
     <View
       className="flex-1 bg-black"
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
-      <LinearGradient
-        colors={['#1a1a1a', '#050505', '#000000']}
-        className="absolute inset-0"
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+      {coverImage ? (
+        <Image
+          source={{ uri: coverImage }}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100%',
+            height: '100%',
+          }}
+          blurRadius={80}
+          resizeMode="cover"
+        />
+      ) : null}
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.55)',
+        }}
       />
       <StatusBar style="light" />
       {/* ── Header ── */}
@@ -136,7 +213,14 @@ export default function LyricsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingVertical: 120, paddingHorizontal: 40 }}
         className="flex-1">
-        {lyrics.length > 0 ? (
+        {isFetchingLyrics ? (
+          <View className="items-center justify-center py-24">
+            <ActivityIndicator color="#08f808" size="large" />
+            <Text className="mt-6 text-sm font-black uppercase tracking-widest text-zinc-700">
+              Fetching Lyrics...
+            </Text>
+          </View>
+        ) : lyrics.length > 0 ? (
           lyrics.map((cue, index) => {
             const isActive = index === activeCueIndex;
             const isPast = index < activeCueIndex;
@@ -152,7 +236,11 @@ export default function LyricsScreen() {
                   style={{
                     fontSize: isActive ? 34 : 26,
                     fontWeight: '900',
-                    color: isActive ? '#08f808' : isPast ? '#27272a' : '#3f3f46',
+                    color: isActive
+                      ? '#ffffff'
+                      : isPast
+                        ? 'rgba(255,255,255,0.2)'
+                        : 'rgba(255,255,255,0.45)',
                     opacity: isActive ? 1 : isPast ? 0.3 : 0.6,
                     lineHeight: isActive ? 46 : 38,
                     letterSpacing: -0.5,
@@ -164,9 +252,9 @@ export default function LyricsScreen() {
           })
         ) : (
           <View className="items-center justify-center py-24">
-            <ActivityIndicator color="#08f808" size="large" />
+            <Ionicons name="document-text-outline" size={48} color="#3f3f46" />
             <Text className="mt-6 text-sm font-black uppercase tracking-widest text-zinc-700">
-              Fetching Lyrics...
+              No lyrics available
             </Text>
           </View>
         )}
@@ -189,14 +277,14 @@ export default function LyricsScreen() {
               style={{ width: `${duration > 0 ? (bufferedPosition / duration) * 100 : 0}%` }}
             />
             <View
-              className="h-full rounded-full bg-primary shadow-sm shadow-primary"
+              className="h-full rounded-full bg-primary"
               style={{ width: `${progress * 100}%` }}
             />
             {/* Seekbar Thumb */}
             <View
               className="absolute -top-2 h-6 w-6 items-center justify-center"
               style={{ left: `${progress * 100}%`, marginLeft: -12 }}>
-              <View className="h-4 w-4 rounded-full bg-white shadow-lg shadow-white/20" />
+              <View className="h-4 w-4 rounded-full bg-white" />
             </View>
           </Pressable>
           <View className="mt-4 flex-row justify-between">
