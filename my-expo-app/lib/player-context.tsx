@@ -1,6 +1,6 @@
 import React, {
   createContext,
-  useContext, // Force reload
+  useContext,
   useState,
   useCallback,
   useMemo,
@@ -9,20 +9,13 @@ import React, {
 } from 'react';
 import { router } from 'expo-router';
 import { useVideoPlayer, VideoTrack } from 'expo-video';
+import { useStore } from '@tanstack/react-store';
 import { getSongBaseUrl } from './s3';
-import { parseMasterM3U8, HLSVariant } from './hls';
+import { parseMasterM3U8 } from './hls';
 import { musicApi } from './api';
-import { getCoverImageUrl } from './s3';
 import { useAuth } from './auth';
-
-export interface PlayerSong {
-  id: string;
-  title: string;
-  artistName: string;
-  storageKey: string;
-  coverUrl: string | null;
-  songBaseUrl?: string;
-}
+import { playerStore, playerActions, PlayerSong } from './player-store';
+export { PlayerSong };
 
 interface PlayerContextType {
   currentSong: PlayerSong | null;
@@ -37,11 +30,9 @@ interface PlayerContextType {
   availableTracks: VideoTrack[];
   currentQualityType: 'auto' | 'high' | 'med' | 'low';
   setQualityType: (type: 'auto' | 'high' | 'med' | 'low') => void;
-  // Queue
   queue: PlayerSong[];
   isShuffle: boolean;
   repeatMode: 'none' | 'one' | 'all';
-  // Actions
   play: (song: PlayerSong) => void;
   playAll: (songs: PlayerSong[]) => void;
   addToQueue: (songs: PlayerSong[]) => void;
@@ -57,19 +48,21 @@ interface PlayerContextType {
 const PlayerContext = createContext<PlayerContextType | null>(null);
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
-  const [currentSong, setCurrentSong] = useState<PlayerSong | null>(null);
-  const [queue, setQueue] = useState<PlayerSong[]>([]);
-  const [lastQueueIndex, setLastQueueIndex] = useState(-1);
-  const [isShuffle, setIsShuffle] = useState(false);
-  const [repeatMode, setRepeatMode] = useState<'none' | 'one' | 'all'>('none');
+  const state = useStore(playerStore, (s) => s);
+  const {
+    currentSong,
+    queue,
+    lastQueueIndex,
+    isShuffle,
+    repeatMode,
+    isPlaying: isPlayingStore,
+  } = state;
   const { isAuthenticated } = useAuth();
 
   const initPlayer = (p: any) => {
     p.loop = false;
     p.timeUpdateEventInterval = 0.5;
-    p.bufferOptions = {
-      preferredForwardBufferDuration: 20,
-    };
+    p.bufferOptions = { preferredForwardBufferDuration: 20 };
   };
 
   const p0 = useVideoPlayer('', initPlayer);
@@ -78,8 +71,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [activePlayerIndex, setActivePlayerIndex] = useState<0 | 1>(0);
   const player = activePlayerIndex === 0 ? p0 : p1;
 
-  // State mirrored from player for context consumers
-  const [isPlaying, setIsPlayingState] = useState(false);
+  // Visual/Playback state mirrored from player (non-global store items)
   const [position, setPosition] = useState(0);
   const [bufferedPosition, setBufferedPosition] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -88,99 +80,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [availableTracks, setAvailableTracks] = useState<VideoTrack[]>([]);
   const [qualityType, setQualityType] = useState<'auto' | 'high' | 'med' | 'low'>('auto');
 
-  // Refs for stable access in callbacks
-  const queueRef = useRef(queue);
-  const lastQueueIndexRef = useRef(lastQueueIndex);
-  const isShuffleRef = useRef(isShuffle);
-  const repeatModeRef = useRef(repeatMode);
-  const positionRef = useRef(position);
-  const currentSongRef = useRef(currentSong);
   const shouldAutoPlayRef = useRef(false);
-  const activePlayerIndexRef = useRef(activePlayerIndex);
 
+  // Restore history on mount
   useEffect(() => {
-    queueRef.current = queue;
-  }, [queue]);
-  useEffect(() => {
-    lastQueueIndexRef.current = lastQueueIndex;
-  }, [lastQueueIndex]);
-  useEffect(() => {
-    isShuffleRef.current = isShuffle;
-  }, [isShuffle]);
-  useEffect(() => {
-    repeatModeRef.current = repeatMode;
-  }, [repeatMode]);
-  useEffect(() => {
-    positionRef.current = position;
-  }, [position]);
-  useEffect(() => {
-    currentSongRef.current = currentSong;
-  }, [currentSong]);
-  useEffect(() => {
-    activePlayerIndexRef.current = activePlayerIndex;
-  }, [activePlayerIndex]);
-
-  // Load last played songs from history on mount (only when authenticated)
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const loadHistoryAndFeed = async () => {
-      try {
-        // 1. Load History
-        const res = await musicApi.getHistory(1, 10);
-        const historySongs = res?.data;
-        let initialQueue: PlayerSong[] = [];
-
-        if (historySongs && historySongs.length > 0) {
-          initialQueue = historySongs.map((h: any) => {
-            const song = h.song || h;
-            return {
-              id: song.id,
-              title: song.title,
-              artistName: song.artistName,
-              storageKey: song.storageKey,
-              coverUrl: getCoverImageUrl(song.storageKey, 'large', true) || null,
-            };
-          });
-
-          // Only set if queue is currently empty (avoids overwriting active playback)
-          setQueue((prev) => {
-            if (prev.length === 0) {
-              setLastQueueIndex(0);
-              const firstSong = initialQueue[0];
-              setCurrentSong(firstSong);
-              setPosition(0);
-              setDuration(0);
-              return initialQueue;
-            }
-            return prev;
-          });
-        }
-
-        // 2. Load Feed (merged into queue)
-        const currentIds = initialQueue.map((s) => s.id);
-        const feedData = await musicApi.getFeed(currentIds);
-        if (feedData?.data) {
-          const freshFeedSongs: PlayerSong[] = feedData.data.map((s: any) => ({
-            id: s.id,
-            title: s.title,
-            artistName: s.artistName,
-            storageKey: s.storageKey,
-            coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
-          }));
-
-          setQueue((prev) => {
-            const existingIds = new Set(prev.map((s) => s.id));
-            const filtered = freshFeedSongs.filter((s) => !existingIds.has(s.id));
-            return [...prev, ...filtered];
-          });
-        }
-      } catch (e) {
-        console.warn('Failed to load initial history/feed for player:', e);
-      }
-    };
-
-    loadHistoryAndFeed();
+    if (isAuthenticated) {
+      playerActions.restoreFromHistory();
+    }
   }, [isAuthenticated]);
 
   const streamUrlCacheRef = useRef<Record<string, string>>({});
@@ -226,7 +132,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // ── Sync Playback & Preload ──
   useEffect(() => {
     let isCurrent = true;
-
     const syncPlayback = async () => {
       if (!currentSong) {
         p0.pause();
@@ -246,19 +151,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (needsActiveLoad) {
         const streamUrl = await resolveStreamUrl(currentSong, qualityType);
         if (!isCurrent) return;
-
         await activeP.replaceAsync(streamUrl);
         activeRef.current = { id: currentSong.id, quality: qualityType };
-
-        if (shouldAutoPlayRef.current) activeP.play();
-      } else {
-        if (shouldAutoPlayRef.current && !activeP.playing) activeP.play();
       }
 
       // 2. Preload Standby Player
       let nextIdx = lastQueueIndex + 1;
       if (isShuffle) {
-        nextIdx = (lastQueueIndex + 3) % queue.length; // Fake random for next UI display
+        nextIdx = (lastQueueIndex + 1) % queue.length; // Use simple next for standby
       } else if (nextIdx >= queue.length && repeatMode === 'all') {
         nextIdx = 0;
       }
@@ -271,16 +171,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (needsStandbyLoad) {
           const streamUrl = await resolveStreamUrl(nextSong, qualityType);
           if (!isCurrent) return;
-
           await standbyP.replaceAsync(streamUrl);
           standbyRef.current = { id: nextSong.id, quality: qualityType };
-          standbyP.pause(); // Ensure it stays paused in background
+          standbyP.pause();
         }
       }
     };
 
     syncPlayback();
-
     return () => {
       isCurrent = false;
     };
@@ -297,187 +195,23 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     resolveStreamUrl,
   ]);
 
-  // ── Internal: set current song with queue index tracking ──
-  const setCurrentSongWithIndex = useCallback((song: PlayerSong | null, index?: number) => {
-    if (index !== undefined) {
-      setLastQueueIndex(index);
-    } else if (song) {
-      // Fallback: search in current queue (still useful for external triggers)
-      const idx = queueRef.current.findIndex((s) => s.id === song.id);
-      if (idx !== -1) setLastQueueIndex(idx);
-    }
-    setCurrentSong(song);
-    setPosition(0);
-    setDuration(0);
-  }, []);
-
-  // ── playNext ──
-  const playNext = useCallback(async () => {
-    shouldAutoPlayRef.current = true;
-    const q = queue;
-    const idx = lastQueueIndex;
-    const rm = repeatMode;
-    const cs = currentSong;
-
-    if (q.length === 0) return;
-
-    if (rm === 'one' && cs) {
-      // Repeat one: restart current song
-      player.currentTime = 0;
-      player.play();
-      return;
-    }
-
-    let nextIndex = idx + 1;
-
-    if (isShuffle && q.length > 1) {
-      nextIndex = Math.floor(Math.random() * q.length);
-      // Avoid replaying the same song
-      if (nextIndex === idx && q.length > 1) {
-        nextIndex = (nextIndex + 1) % q.length;
-      }
-    }
-
-    if (nextIndex >= 0 && nextIndex < q.length) {
-      const nextSong = q[nextIndex];
-      const standbyRef = activePlayerIndexRef.current === 0 ? p1SongRef : p0SongRef;
-
-      player.pause(); // Pause current before swapping
-
-      if (standbyRef.current.id === nextSong.id && standbyRef.current.quality === qualityType) {
-        setActivePlayerIndex((prev) => (prev === 0 ? 1 : 0));
-      }
-
-      setCurrentSongWithIndex(nextSong, nextIndex);
-      setTimeout(() => musicApi.addView(nextSong.id).catch(() => {}), 0);
-    } else if (rm === 'all' && q.length > 0) {
-      const nextSong = q[0];
-      const standbyRef = activePlayerIndexRef.current === 0 ? p1SongRef : p0SongRef;
-
-      player.pause(); // Pause current before swapping
-
-      if (standbyRef.current.id === nextSong.id && standbyRef.current.quality === qualityType) {
-        setActivePlayerIndex((prev) => (prev === 0 ? 1 : 0));
-      }
-
-      setCurrentSongWithIndex(nextSong, 0);
-      setTimeout(() => musicApi.addView(nextSong.id).catch(() => {}), 0);
-    } else {
-      // Queue exhausted and no repeat all - fallback to general songs
-      try {
-        const fallbackRes = await musicApi.getSongs(1, 10);
-        if (fallbackRes?.data && fallbackRes.data.length > 0) {
-          const fallbackSongs: PlayerSong[] = fallbackRes.data.map((s: any) => ({
-            id: s.id,
-            title: s.title,
-            artistName: s.artistName,
-            storageKey: s.storageKey,
-            coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
-          }));
-
-          // Filter out any that might somehow be in queue already
-          const existingIds = new Set(q.map((s) => s.id));
-          const filtered = fallbackSongs.filter((s) => !existingIds.has(s.id));
-
-          if (filtered.length > 0) {
-            const firstFallback = filtered[0];
-            const newIndex = q.length;
-            setQueue((prev) => [...prev, ...filtered]);
-            setCurrentSongWithIndex(firstFallback, newIndex);
-            setTimeout(() => musicApi.addView(firstFallback.id).catch(() => {}), 0);
-          }
-        }
-      } catch (err) {
-        console.warn('Fallback fetch failed:', err);
-      }
-    }
-
-    // Auto-fetch more songs when nearing end of queue
-    const remaining = q.length - (nextIndex === -1 ? 0 : nextIndex) - 1;
-    if (remaining <= 2) {
-      fetchAndAddFeedToQueue();
-    }
-  }, [
-    player,
-    queue,
-    lastQueueIndex,
-    isShuffle,
-    repeatMode,
-    currentSong,
-    setCurrentSongWithIndex,
-    qualityType,
-  ]);
-
-  // ── playPrevious ──
-  const playPrevious = useCallback(() => {
-    shouldAutoPlayRef.current = true;
-    const q = queue;
-    const idx = lastQueueIndex;
-    const rm = repeatMode;
-    const pos = position;
-
-    if (q.length === 0) return;
-
-    // If more than 3 seconds in, restart current song
-    if (pos > 3) {
-      shouldAutoPlayRef.current = true;
-      player.currentTime = 0;
-      player.play();
-      return;
-    }
-
-    const prevIndex = idx - 1;
-
-    if (prevIndex >= 0) {
-      player.pause();
-      setCurrentSongWithIndex(q[prevIndex], prevIndex);
-      setTimeout(() => musicApi.addView(q[prevIndex].id).catch(() => {}), 0);
-    } else if (rm === 'all' && q.length > 0) {
-      player.pause();
-      const lastIdx = q.length - 1;
-      setCurrentSongWithIndex(q[lastIdx], lastIdx);
-      setTimeout(() => musicApi.addView(q[lastIdx].id).catch(() => {}), 0);
-    } else {
-      // Restart current song
-      player.currentTime = 0;
-      player.play();
-    }
-  }, [player, queue, lastQueueIndex, repeatMode, position, setCurrentSongWithIndex]);
-
-  // ── Auto-fetch more feed songs to queue ──
-  const fetchAndAddFeedToQueue = useCallback(async () => {
-    try {
-      const currentIds = queueRef.current.map((s) => s.id);
-      const feedData = await musicApi.getFeed(currentIds);
-      if (feedData?.data) {
-        const newSongs: PlayerSong[] = feedData.data.map((s: any) => ({
-          id: s.id,
-          title: s.title,
-          artistName: s.artistName,
-          storageKey: s.storageKey,
-          coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
-        }));
-        setQueue((prev) => {
-          const existingIds = new Set(prev.map((s) => s.id));
-          const filtered = newSongs.filter((s) => !existingIds.has(s.id));
-          return [...prev, ...filtered];
-        });
-      }
-    } catch (error) {
-      console.error('Failed to fetch feed:', error);
-    }
-  }, []);
-
-  // ── Sync state from player events ──
+  // Sync Store isPlaying -> Player status
   useEffect(() => {
-    const statusSub = player.addListener('statusChange', ({ status }) => {
-      setIsBuffering(status === 'loading');
-    });
+    if (isPlayingStore) player.play();
+    else player.pause();
+  }, [isPlayingStore, player]);
 
+  // Sync Player events -> Local/Store state
+  useEffect(() => {
+    const statusSub = player.addListener('statusChange', ({ status }) =>
+      setIsBuffering(status === 'loading')
+    );
     const playSub = player.addListener('playingChange', ({ isPlaying: newIsPlaying }) => {
-      setIsPlayingState(newIsPlaying);
+      // Guard: Only sync back if not loading and value is different
+      if (player.status !== 'loading' && newIsPlaying !== playerStore.state.isPlaying) {
+        playerActions.setIsPlaying(newIsPlaying);
+      }
     });
-
     const timeSub = player.addListener(
       'timeUpdate',
       ({ currentTime, bufferedPosition: newBuffered }) => {
@@ -486,14 +220,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setDuration(player.duration);
       }
     );
-
-    const trackSub = player.addListener('videoTrackChange', ({ videoTrack }) => {
-      setActiveTrack(videoTrack);
-    });
-
-    const metadataSub = player.addListener('sourceLoad', (payload) => {
-      setAvailableTracks(payload?.availableVideoTracks || []);
-    });
+    const trackSub = player.addListener('videoTrackChange', ({ videoTrack }) =>
+      setActiveTrack(videoTrack)
+    );
+    const metadataSub = player.addListener('sourceLoad', (payload) =>
+      setAvailableTracks(payload?.availableVideoTracks || [])
+    );
+    const endSub = player.addListener('playToEnd', () => playerActions.playNext());
 
     return () => {
       statusSub.remove();
@@ -501,115 +234,39 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       timeSub.remove();
       trackSub.remove();
       metadataSub.remove();
+      endSub.remove();
     };
   }, [player]);
 
-  // ── Auto-play next song when current one finishes ──
-  useEffect(() => {
-    const sub = player.addListener('playToEnd', () => {
-      playNext();
-    });
-    return () => sub.remove();
-  }, [player, playNext]);
-
-  // ── Public: play a single song ──
   const play = useCallback((song: PlayerSong) => {
     shouldAutoPlayRef.current = true;
-    // Add to queue if not already there
-    setQueue((prev) => {
-      const idx = prev.findIndex((s) => s.id === song.id);
-      if (idx !== -1) {
-        setLastQueueIndex(idx);
-        return prev;
-      }
-      const newQueue = [...prev, song];
-      setLastQueueIndex(newQueue.length - 1);
-      return newQueue;
+    playerActions.setCurrentSong(song);
+    // Ensure it's in queue if not present (simplified add-if-not-exists)
+    playerStore.setState((s) => {
+      if (s.queue.find((x) => x.id === song.id)) return s;
+      return { ...s, queue: [...s.queue, song] };
     });
-
-    setCurrentSong(song);
-    setPosition(0);
-    setDuration(0);
-
-    // Fire-and-forget: never block playback for a view track
     setTimeout(() => musicApi.addView(song.id).catch(() => {}), 0);
-    router.push({
-      pathname: '/player',
-      params: { songId: song.id },
-    });
+    router.push({ pathname: '/player', params: { songId: song.id } });
   }, []);
 
-  // ── Public: play all songs (replaces queue) ──
   const playAll = useCallback((songs: PlayerSong[]) => {
     if (songs.length === 0) return;
     shouldAutoPlayRef.current = true;
-    setQueue(songs);
-    setLastQueueIndex(0);
-    setCurrentSong(songs[0]);
-    setPosition(0);
-    setDuration(0);
+    playerActions.playAll(songs);
     musicApi.addView(songs[0].id).catch(() => {});
   }, []);
 
-  // ── Public: add songs to end of queue ──
-  const addToQueue = useCallback((songs: PlayerSong[]) => {
-    setQueue((prev) => {
-      const existingIds = new Set(prev.map((s) => s.id));
-      const filtered = songs.filter((s) => !existingIds.has(s.id));
-      return [...prev, ...filtered];
-    });
-  }, []);
-
-  const togglePlayPause = useCallback(() => {
-    if (player.playing) {
-      player.pause();
-    } else {
-      player.play();
-    }
-  }, [player]);
-
-  const setIsPlaying = useCallback(
-    (playing: boolean) => {
-      if (playing) player.play();
-      else player.pause();
-    },
-    [player]
-  );
-
-  const seekTo = useCallback(
-    (seconds: number) => {
-      player.currentTime = seconds;
-    },
-    [player]
-  );
-
   const stop = useCallback(() => {
     player.pause();
-    setCurrentSong(null);
-    setPosition(0);
-    setDuration(0);
+    playerActions.setCurrentSong(null);
   }, [player]);
-
-  const toggleShuffle = useCallback(() => {
-    setIsShuffle((prev) => !prev);
-  }, []);
-
-  const toggleRepeat = useCallback(() => {
-    setRepeatMode((prev) => {
-      const next: Record<string, 'none' | 'one' | 'all'> = {
-        none: 'all',
-        all: 'one',
-        one: 'none',
-      };
-      return next[prev];
-    });
-  }, []);
 
   const value = useMemo(
     () => ({
       currentSong,
-      isPlaying,
-      setIsPlaying,
+      isPlaying: isPlayingStore,
+      setIsPlaying: (p: boolean) => playerActions.setIsPlaying(p),
       isBuffering,
       duration,
       position,
@@ -626,19 +283,26 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       repeatMode,
       play,
       playAll,
-      addToQueue,
-      togglePlayPause,
-      seekTo,
+      addToQueue: (songs: PlayerSong[]) => playerActions.addToQueue(songs),
+      togglePlayPause: () => playerActions.setIsPlaying(!isPlayingStore),
+      seekTo: (s: number) => {
+        player.currentTime = s;
+      },
       stop,
-      playNext,
-      playPrevious,
-      toggleShuffle,
-      toggleRepeat,
+      playNext: () => {
+        shouldAutoPlayRef.current = true;
+        playerActions.playNext();
+      },
+      playPrevious: () => {
+        shouldAutoPlayRef.current = true;
+        playerActions.playPrevious();
+      },
+      toggleShuffle: () => playerActions.toggleShuffle(),
+      toggleRepeat: () => playerActions.toggleRepeat(),
     }),
     [
       currentSong,
-      isPlaying,
-      setIsPlaying,
+      isPlayingStore,
       isBuffering,
       duration,
       position,
@@ -651,14 +315,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       repeatMode,
       play,
       playAll,
-      addToQueue,
-      togglePlayPause,
-      seekTo,
       stop,
-      playNext,
-      playPrevious,
-      toggleShuffle,
-      toggleRepeat,
+      player,
     ]
   );
 
@@ -667,8 +325,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
 export const usePlayer = () => {
   const context = useContext(PlayerContext);
-  if (!context) {
-    throw new Error('usePlayer must be used within a PlayerProvider');
-  }
+  if (!context) throw new Error('usePlayer must be used within a PlayerProvider');
   return context;
 };

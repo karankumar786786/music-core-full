@@ -18,6 +18,7 @@ import { musicApi } from '../../lib/api';
 import { getCoverImageUrl } from '../../lib/s3';
 import { capitalize } from '../../lib/utils';
 import { usePlayer } from '../../lib/player-context';
+import { playerActions, PlayerSong } from '../../lib/player-store';
 import SongRow from '../../components/SongRow';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -71,6 +72,26 @@ export default function Home() {
   });
 
   const allSongs = songsData?.pages?.flatMap((page) => page.data || []) || [];
+
+  // Sync data to player global store
+  useEffect(() => {
+    const feedSongs = feedData?.data || [];
+    const trendSongs = trendingData?.data || [];
+
+    // Choose what to sync: prioritize Personalized Feed if available
+    const activeData = feedSongs.length > 0 ? feedSongs : trendSongs;
+
+    if (activeData.length > 0) {
+      const playerSongs: PlayerSong[] = activeData.map((s: any) => ({
+        id: s.id,
+        title: s.title,
+        artistName: s.artistName,
+        storageKey: s.storageKey,
+        coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
+      }));
+      playerActions.syncFeedToQueue(playerSongs);
+    }
+  }, [feedData, trendingData]);
 
   const [refreshing, setRefreshing] = React.useState(false);
   const onRefresh = useCallback(async () => {
