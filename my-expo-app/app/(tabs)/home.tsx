@@ -20,6 +20,8 @@ import { capitalize } from '../../lib/utils';
 import { usePlayer } from '../../lib/player-context';
 import { playerActions, PlayerSong } from '../../lib/player-store';
 import SongRow from '../../components/SongRow';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -160,7 +162,7 @@ export default function Home() {
                     coverUrl,
                   })
                 }>
-                <View className="h-56 overflow-hidden rounded-3xl border border-white/5 bg-zinc-900">
+                <View className="h-56 overflow-hidden rounded-[32px] border border-white/[0.08] bg-white/[0.03] shadow-2xl shadow-black/50">
                   {coverUrl ? (
                     <Image
                       source={{ uri: coverUrl }}
@@ -172,20 +174,18 @@ export default function Home() {
                       <Ionicons name="musical-notes" size={56} color="#22c55e" />
                     </View>
                   )}
-                  <View className="absolute bottom-0 left-0 right-0 flex-row items-center bg-black/70 px-5 py-4">
+                  <View className="absolute bottom-0 left-0 right-0 flex-row items-center bg-black/60 px-6 py-5">
                     <View className="mr-4 flex-1">
                       <Text
-                        className="text-xl font-black tracking-tight text-white"
+                        className="text-2xl font-black tracking-tighter text-white"
                         numberOfLines={1}>
                         {capitalize(item.title)}
                       </Text>
-                      <Text
-                        className="mt-0.5 text-sm font-semibold text-zinc-400"
-                        numberOfLines={1}>
+                      <Text className="mt-1 text-sm font-bold text-zinc-300" numberOfLines={1}>
                         {capitalize(item.artistName)}
                       </Text>
                     </View>
-                    <View className="h-14 w-14 items-center justify-center rounded-full bg-green-500">
+                    <View className="h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/20">
                       <Ionicons name="play" size={28} color="#000" style={{ marginLeft: 3 }} />
                     </View>
                   </View>
@@ -201,7 +201,7 @@ export default function Home() {
               <View
                 key={i}
                 className={`h-1.5 rounded-full ${
-                  i === featuredIndex ? 'w-6 bg-green-500' : 'w-1.5 bg-zinc-700'
+                  i === featuredIndex ? 'w-8 bg-primary' : 'w-1.5 bg-white/10'
                 }`}
               />
             ))}
@@ -224,7 +224,9 @@ export default function Home() {
 
     return (
       <View className="mb-8">
-        <Text className="mb-4 px-4 text-xl font-black tracking-tight text-white">Top Artists</Text>
+        <Text className="mb-5 px-6 text-2xl font-black tracking-tighter text-white">
+          Top Artists
+        </Text>
         <FlatList
           data={artists.slice(0, 15)}
           horizontal
@@ -238,7 +240,7 @@ export default function Home() {
               <Pressable
                 className="w-32 items-center"
                 onPress={() => router.push(`/artist/${item.id}`)}>
-                <View className="mb-3 h-28 w-28 overflow-hidden rounded-full border-2 border-green-500/20 bg-zinc-800">
+                <View className="mb-4 h-28 w-28 overflow-hidden rounded-full border-2 border-white/[0.05] bg-white/[0.03] shadow-lg">
                   {avatarUrl ? (
                     <Image
                       source={{ uri: avatarUrl }}
@@ -278,7 +280,7 @@ export default function Home() {
 
     return (
       <View className="mb-8">
-        <Text className="mb-4 px-4 text-xl font-black tracking-tight text-white">Playlists</Text>
+        <Text className="mb-5 px-6 text-2xl font-black tracking-tighter text-white">Playlists</Text>
         <FlatList
           data={playlists}
           horizontal
@@ -293,7 +295,7 @@ export default function Home() {
               null;
             return (
               <Pressable className="w-40" onPress={() => router.push(`/playlist/${item.id}`)}>
-                <View className="mb-2 h-40 overflow-hidden rounded-2xl border border-white/5 bg-zinc-900">
+                <View className="mb-3 h-40 overflow-hidden rounded-[24px] border border-white/[0.08] bg-white/[0.03] shadow-lg">
                   {coverUrl ? (
                     <Image
                       source={{ uri: coverUrl }}
@@ -330,7 +332,7 @@ export default function Home() {
 
     return (
       <View className="mb-8">
-        <Text className="mb-4 px-4 text-xl font-black tracking-tight text-white">
+        <Text className="mb-5 px-6 text-2xl font-black tracking-tighter text-white">
           🔥 Trending Now
         </Text>
         <FlatList
@@ -357,7 +359,7 @@ export default function Home() {
                     coverUrl: largeCoverUrl,
                   })
                 }>
-                <View className="mb-2 h-44 overflow-hidden rounded-2xl border border-white/5 bg-zinc-900">
+                <View className="mb-3 h-44 overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.03] shadow-lg">
                   {coverUrl ? (
                     <Image
                       source={{ uri: coverUrl }}
@@ -397,9 +399,9 @@ export default function Home() {
 
     return (
       <View className="mb-8">
-        <View className="mb-4 flex-row items-center gap-2 px-4">
-          <Ionicons name="sparkles" size={20} color="#00FF85" />
-          <Text className="text-xl font-black tracking-tight text-white">Discover For You</Text>
+        <View className="mb-5 flex-row items-center gap-3 px-6">
+          <Ionicons name="sparkles" size={24} color="#00FF85" />
+          <Text className="text-2xl font-black tracking-tighter text-white">Discover For You</Text>
         </View>
         <FlatList
           data={feedSongs.slice(0, 15)}
@@ -425,7 +427,7 @@ export default function Home() {
                     coverUrl: largeCoverUrl,
                   })
                 }>
-                <View className="mb-2 h-40 overflow-hidden rounded-2xl border border-white/5 bg-zinc-900">
+                <View className="mb-3 h-40 overflow-hidden rounded-[24px] border border-white/[0.08] bg-white/[0.03] shadow-lg">
                   {coverUrl ? (
                     <Image
                       source={{ uri: coverUrl }}
@@ -465,8 +467,8 @@ export default function Home() {
       {renderDiscoverForYou()}
 
       {/* Songs Section Header */}
-      <View className="mb-2 flex-row items-center justify-between border-b border-white/5 px-4 pb-3">
-        <Text className="text-xl font-black tracking-tight text-white">All Songs</Text>
+      <View className="mb-4 flex-row items-center justify-between border-b border-white/[0.05] px-6 pb-4">
+        <Text className="text-2xl font-black tracking-tighter text-white">All Songs</Text>
       </View>
     </View>
   );
@@ -474,6 +476,12 @@ export default function Home() {
   // ── Main List ──
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top']}>
+      <LinearGradient
+        colors={['#1a1a1a', '#050505']}
+        className="absolute inset-0"
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 0.5 }}
+      />
       <FlatList
         data={allSongs}
         keyExtractor={(item) => item.id}

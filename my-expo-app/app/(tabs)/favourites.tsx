@@ -8,6 +8,7 @@ import SongRow from '../../components/SongRow';
 import { usePlayer } from '../../lib/player-context';
 import { getCoverImageUrl } from '../../lib/s3';
 import { useCallback, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Favourites() {
   const { playAll } = usePlayer();
@@ -87,22 +88,28 @@ export default function Favourites() {
 
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top']}>
+      <LinearGradient
+        colors={['#1a1a1a', '#050505']}
+        className="absolute inset-0"
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 0.5 }}
+      />
       {/* Header */}
-      <View className="px-6 pb-2 pt-6">
+      <View className="px-6 pb-4 pt-6">
         <View className="flex-row items-center justify-between">
           <View>
-            <Text className="text-3xl font-black tracking-tighter text-white">Favourites</Text>
-            <Text className="mt-1 text-sm font-medium text-zinc-500">
+            <Text className="text-4xl font-black tracking-tighter text-white">Favourites</Text>
+            <Text className="mt-1 text-sm font-bold text-zinc-500">
               {favorites.length} liked songs
             </Text>
           </View>
           <View className="flex-row items-center gap-3">
             {isFetching && !isFetchingNextPage && !isLoading && (
-              <ActivityIndicator color="#22c55e" size="small" />
+              <ActivityIndicator color="#00FF85" size="small" />
             )}
             {favorites.length > 0 && (
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-green-500">
-                <Ionicons name="heart" size={20} color="#000" />
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-primary/20">
+                <Ionicons name="heart" size={20} color="#00FF85" />
               </View>
             )}
           </View>
@@ -112,9 +119,9 @@ export default function Favourites() {
         {favorites.length > 0 && (
           <Pressable
             onPress={handlePlayAll}
-            className="mt-4 h-12 flex-row items-center justify-center rounded-full bg-green-500 active:opacity-80">
-            <Ionicons name="play" size={20} color="#000" style={{ marginLeft: 2 }} />
-            <Text className="ml-2 text-base font-black text-black">Play All</Text>
+            className="mt-6 h-14 flex-row items-center justify-center rounded-2xl bg-primary shadow-xl shadow-primary/20 active:opacity-90">
+            <Ionicons name="play" size={22} color="#000" style={{ marginLeft: 2 }} />
+            <Text className="ml-2 text-lg font-black text-black">Play All</Text>
           </Pressable>
         )}
       </View>

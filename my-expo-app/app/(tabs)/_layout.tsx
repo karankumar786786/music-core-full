@@ -64,7 +64,7 @@ export default function TabLayout() {
         />
       </Tabs>
       {/* Mini Player sits above tab bar */}
-      <View className="absolute bottom-[88px] left-0 right-0">
+      <View className="absolute bottom-24 left-0 right-0">
         <MiniPlayer />
       </View>
     </View>

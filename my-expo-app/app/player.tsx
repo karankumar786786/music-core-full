@@ -21,6 +21,8 @@ import { getCoverImageUrl } from '../lib/s3';
 import { capitalize } from '../lib/utils';
 import { musicApi } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -84,9 +86,7 @@ export default function PlayerScreen() {
   const favMutation = useMutation({
     // FIX #11: Use effectiveSongId — always acts on the correct current song
     mutationFn: (wasLiked: boolean) =>
-      wasLiked
-        ? musicApi.removeFavourite(effectiveSongId)
-        : musicApi.addFavourite(effectiveSongId),
+      wasLiked ? musicApi.removeFavourite(effectiveSongId) : musicApi.addFavourite(effectiveSongId),
     onMutate: () => {
       setIsLiked((prev) => !prev);
     },
@@ -108,8 +108,7 @@ export default function PlayerScreen() {
 
   const addToPlaylistMutation = useMutation({
     // FIX #11: Use effectiveSongId here too
-    mutationFn: (playlistId: string) =>
-      musicApi.addSongToUserPlaylist(playlistId, effectiveSongId),
+    mutationFn: (playlistId: string) => musicApi.addSongToUserPlaylist(playlistId, effectiveSongId),
     onSuccess: () => {
       setShowPlaylistModal(false);
       Alert.alert('Added!', 'Song added to playlist');
@@ -163,310 +162,328 @@ export default function PlayerScreen() {
   ];
 
   return (
-    <View
-      className="flex-1 bg-surface"
-      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
+    <View className="flex-1 bg-black">
+      <LinearGradient
+        colors={['#1a1a1a', '#050505', '#000000']}
+        className="absolute inset-0"
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
       <StatusBar style="light" />
-
-      {/* ── Header ── */}
-      <View className="flex-row justify-between px-8 pb-8 pt-4">
-        <View className="gap-4">
-          <Pressable
-            onPress={() => router.back()}
-            className="h-12 w-12 items-center justify-center rounded-full border border-white/[0.05] bg-surface-card shadow-lg">
-            <Ionicons name="chevron-down" size={26} color="#fff" />
-          </Pressable>
-          <Pressable
-            onPress={() => setShowQualityModal(true)}
-            className={`h-12 w-12 items-center justify-center rounded-full border shadow-lg ${
-              currentQualityType === 'auto'
-                ? 'border-white/[0.05] bg-surface-card'
-                : 'border-primary/20 bg-primary/5'
-            }`}>
-            <Ionicons
-              name="options-outline"
-              size={24}
-              color={currentQualityType === 'auto' ? '#52525b' : '#00FF85'}
-            />
-          </Pressable>
-        </View>
-
-        <View className="flex-1 items-center pt-3">
-          <Text className="text-[11px] font-black uppercase tracking-[0.3em] text-zinc-600">
-            Playing Now
-          </Text>
-        </View>
-
-        <Pressable
-          onPress={() => setShowPlaylistModal(true)}
-          className="h-12 w-12 items-center justify-center rounded-full border border-white/[0.05] bg-surface-card shadow-lg">
-          <Ionicons name="add" size={28} color="#00FF85" />
-        </Pressable>
-      </View>
-
-      {/* ── Album Art ── */}
-      <View className="flex-1 items-center justify-center px-10">
-        <View
-          style={{ width: ART_SIZE, height: ART_SIZE, borderRadius: 32 }}
-          className="overflow-hidden border border-white/[0.03] bg-surface-card shadow-2xl shadow-primary/5">
-          {coverImage ? (
-            <Image
-              source={{ uri: coverImage }}
-              style={{ width: '100%', height: '100%' }}
-              resizeMode="cover"
-            />
-          ) : (
-            <View className="flex-1 items-center justify-center bg-primary/5">
-              <Ionicons name="musical-notes" size={100} color="#00FF85" />
-            </View>
-          )}
-        </View>
-      </View>
-
-      {/* ── Song Info + Controls ── */}
-      <View className="px-10 pb-12 pt-10">
-        <View className="mb-10 flex-row items-center justify-between">
-          <View className="mr-6 flex-1">
-            <Text className="text-3xl font-black tracking-tighter text-white" numberOfLines={1}>
-              {capitalize(currentSong.title || '')}
-            </Text>
-            <Text className="mt-2 text-lg font-bold text-zinc-500" numberOfLines={1}>
-              {capitalize(currentSong.artistName || '')}
-            </Text>
-          </View>
-          <Pressable
-            onPress={() => favMutation.mutate(isLiked)}
-            disabled={favMutation.isPending}
-            className="h-14 w-14 items-center justify-center rounded-full border border-white/[0.03] bg-surface-card shadow-md">
-            {favMutation.isPending ? (
-              <ActivityIndicator color="#00FF85" size="small" />
-            ) : (
-              <Ionicons
-                name={isLiked ? 'heart' : 'heart-outline'}
-                size={28}
-                color={isLiked ? '#ef4444' : '#3f3f46'}
-              />
-            )}
-          </Pressable>
-        </View>
-
-        {/* Progress Bar */}
-        <View className="mb-10">
-          {/* FIX #10: Measure actual rendered width via onLayout */}
-          <Pressable
-            onLayout={(e: LayoutChangeEvent) => {
-              progressBarWidthRef.current = e.nativeEvent.layout.width;
-            }}
-            onPress={(e) => {
-              const x = e.nativeEvent.locationX;
-              const ratio = Math.max(0, Math.min(1, x / progressBarWidthRef.current));
-              seekTo(ratio * duration);
-            }}
-            className="shadow-inner h-2.5 overflow-hidden rounded-full bg-zinc-900">
-            <View
-              className="absolute h-full rounded-full bg-white/10"
-              style={{ width: `${duration > 0 ? (bufferedPosition / duration) * 100 : 0}%` }}
-            />
-            <View
-              className="h-full rounded-full bg-primary shadow shadow-primary"
-              style={{ width: `${progress * 100}%` }}
-            />
-          </Pressable>
-          <View className="mt-4 flex-row justify-between">
-            <Text className="text-xs font-black tracking-widest text-zinc-600">
-              {formatTime(position)}
-            </Text>
-            <Text className="text-xs font-black tracking-widest text-zinc-600">
-              {formatTime(duration)}
-            </Text>
-          </View>
-        </View>
-
-        {/* Playback Controls */}
-        <View className="flex-row items-center justify-between">
-          <Pressable
-            onPress={toggleShuffle}
-            className="h-14 w-14 items-center justify-center rounded-full active:bg-white/[0.03]">
-            <Ionicons name="shuffle" size={24} color={isShuffle ? '#00FF85' : '#3f3f46'} />
-          </Pressable>
-
-          <View className="flex-row items-center gap-10">
+      <View className="flex-1" style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
+        {/* ── Header ── */}
+        <View className="flex-row justify-between px-8 pb-8 pt-4">
+          <View className="gap-4">
             <Pressable
-              onPress={playPrevious}
-              className="h-14 w-14 items-center justify-center rounded-full transition-transform active:scale-90">
-              <Ionicons name="play-skip-back" size={32} color="#fff" />
+              onPress={() => router.back()}
+              className="h-12 w-12 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] shadow-lg">
+              <Ionicons name="chevron-down" size={26} color="#fff" />
             </Pressable>
             <Pressable
-              onPress={togglePlayPause}
-              className="h-24 w-24 items-center justify-center rounded-full bg-white shadow-2xl shadow-white/10 transition-all active:scale-95">
-              {isBuffering ? (
-                <ActivityIndicator color="#000" size="large" />
+              onPress={() => setShowQualityModal(true)}
+              className={`h-12 w-12 items-center justify-center rounded-full border shadow-lg ${
+                currentQualityType === 'auto'
+                  ? 'border-white/[0.08] bg-white/[0.03]'
+                  : 'border-primary/30 bg-primary/10'
+              }`}>
+              <Ionicons
+                name="options-outline"
+                size={24}
+                color={currentQualityType === 'auto' ? '#a1a1aa' : '#00FF85'}
+              />
+            </Pressable>
+          </View>
+
+          <View className="flex-1 items-center pt-3">
+            <Text className="text-[11px] font-black uppercase tracking-[0.3em] text-zinc-600">
+              Playing Now
+            </Text>
+          </View>
+
+          <Pressable
+            onPress={() => setShowPlaylistModal(true)}
+            className="h-12 w-12 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] shadow-lg">
+            <Ionicons name="add" size={28} color="#00FF85" />
+          </Pressable>
+        </View>
+
+        {/* ── Album Art ── */}
+        <View className="flex-1 items-center justify-center px-10">
+          <View
+            style={{ width: ART_SIZE, height: ART_SIZE, borderRadius: 32 }}
+            className="overflow-hidden border border-white/[0.03] bg-surface-card shadow-2xl shadow-primary/5">
+            {coverImage ? (
+              <Image
+                source={{ uri: coverImage }}
+                style={{ width: '100%', height: '100%' }}
+                resizeMode="cover"
+              />
+            ) : (
+              <View className="flex-1 items-center justify-center bg-primary/5">
+                <Ionicons name="musical-notes" size={100} color="#00FF85" />
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* ── Song Info + Controls ── */}
+        <View className="px-10 pb-12 pt-10">
+          <View className="mb-10 flex-row items-center justify-between">
+            <View className="mr-6 flex-1">
+              <Text className="text-3xl font-black tracking-tighter text-white" numberOfLines={1}>
+                {capitalize(currentSong.title || '')}
+              </Text>
+              <Text className="mt-2 text-lg font-bold text-zinc-400" numberOfLines={1}>
+                {capitalize(currentSong.artistName || '')}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => favMutation.mutate(isLiked)}
+              disabled={favMutation.isPending}
+              className="h-14 w-14 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] shadow-md">
+              {favMutation.isPending ? (
+                <ActivityIndicator color="#00FF85" size="small" />
               ) : (
                 <Ionicons
-                  name={isPlaying ? 'pause' : 'play'}
-                  size={42}
-                  color="#000"
-                  style={!isPlaying ? { marginLeft: 5 } : undefined}
+                  name={isLiked ? 'heart' : 'heart-outline'}
+                  size={28}
+                  color={isLiked ? '#ef4444' : '#52525b'}
                 />
               )}
             </Pressable>
-            <Pressable
-              onPress={playNext}
-              className="h-14 w-14 items-center justify-center rounded-full transition-transform active:scale-90">
-              <Ionicons name="play-skip-forward" size={32} color="#fff" />
-            </Pressable>
           </View>
 
-          <View className="flex-row items-center gap-2">
-            {/* FIX #9: Removed pointless ternary on icon name */}
+          {/* Progress Bar */}
+          <View className="mb-10">
+            {/* FIX #10: Measure actual rendered width via onLayout */}
             <Pressable
-              onPress={toggleRepeat}
-              className="h-14 w-14 items-center justify-center rounded-full active:bg-white/[0.03]">
-              <Ionicons
-                name="repeat"
-                size={24}
-                color={repeatMode !== 'none' ? '#00FF85' : '#3f3f46'}
+              onLayout={(e: LayoutChangeEvent) => {
+                progressBarWidthRef.current = e.nativeEvent.layout.width;
+              }}
+              onPress={(e) => {
+                const x = e.nativeEvent.locationX;
+                const ratio = Math.max(0, Math.min(1, x / progressBarWidthRef.current));
+                seekTo(ratio * duration);
+              }}
+              className="shadow-inner h-2.5 rounded-full bg-zinc-900">
+              <View
+                className="absolute h-full rounded-full bg-white/10"
+                style={{ width: `${duration > 0 ? (bufferedPosition / duration) * 100 : 0}%` }}
               />
-              {repeatMode === 'one' && (
-                <View className="absolute bottom-2 h-3 w-3 items-center justify-center rounded-full bg-primary">
-                  <Text className="text-[7px] font-black text-black">1</Text>
-                </View>
-              )}
+              <View
+                className="h-full rounded-full bg-primary shadow shadow-primary"
+                style={{ width: `${progress * 100}%` }}
+              />
+              {/* Seekbar Thumb */}
+              <View
+                className="absolute -top-1.5 h-6 w-6 items-center justify-center"
+                style={{ left: `${progress * 100}%`, marginLeft: -12 }}>
+                <View className="h-4 w-4 rounded-full bg-white shadow-lg shadow-white/20" />
+              </View>
             </Pressable>
-            <Pressable
-              onPress={() => router.push('/lyrics')}
-              className="h-14 w-14 items-center justify-center rounded-full bg-primary/10 transition-all active:scale-90">
-              <Ionicons name="text" size={24} color="#00FF85" />
-            </Pressable>
+            <View className="mt-4 flex-row justify-between">
+              <Text className="text-xs font-black tracking-widest text-zinc-600">
+                {formatTime(position)}
+              </Text>
+              <Text className="text-xs font-black tracking-widest text-zinc-600">
+                {formatTime(duration)}
+              </Text>
+            </View>
           </View>
-        </View>
-      </View>
 
-      {/* Quality Modal */}
-      <Modal visible={showQualityModal} animationType="fade" transparent>
-        <Pressable
-          onPress={() => setShowQualityModal(false)}
-          className="flex-1 items-center justify-center bg-black/90 px-8">
-          <View className="w-full rounded-[40px] border border-white/[0.03] bg-surface-card p-10 shadow-2xl">
-            <View className="mb-10 flex-row items-center justify-between">
-              <Text className="text-2xl font-black tracking-tighter text-white">Audio Quality</Text>
+          {/* Playback Controls */}
+          <View className="flex-row items-center justify-between">
+            <Pressable
+              onPress={toggleShuffle}
+              className="h-14 w-14 items-center justify-center rounded-full active:bg-white/[0.03]">
+              <Ionicons name="shuffle" size={24} color={isShuffle ? '#00FF85' : '#3f3f46'} />
+            </Pressable>
+
+            <View className="flex-row items-center gap-10">
               <Pressable
-                onPress={() => setShowQualityModal(false)}
-                className="h-10 w-10 items-center justify-center rounded-full bg-white/[0.05]">
-                <Ionicons name="close" size={24} color="#52525b" />
+                onPress={playPrevious}
+                className="h-14 w-14 items-center justify-center rounded-full transition-transform active:scale-90">
+                <Ionicons name="play-skip-back" size={32} color="#fff" />
+              </Pressable>
+              <Pressable
+                onPress={togglePlayPause}
+                className="h-24 w-24 items-center justify-center rounded-full bg-white shadow-2xl shadow-white/10 transition-all active:scale-95">
+                {isBuffering ? (
+                  <ActivityIndicator color="#000" size="large" />
+                ) : (
+                  <Ionicons
+                    name={isPlaying ? 'pause' : 'play'}
+                    size={42}
+                    color="#000"
+                    style={!isPlaying ? { marginLeft: 5 } : undefined}
+                  />
+                )}
+              </Pressable>
+              <Pressable
+                onPress={playNext}
+                className="h-14 w-14 items-center justify-center rounded-full transition-transform active:scale-90">
+                <Ionicons name="play-skip-forward" size={32} color="#fff" />
               </Pressable>
             </View>
 
-            <View className="mb-10 gap-3">
-              {qualityOptions.map((opt) => {
-                const isActive = currentQualityType === opt.id;
-                return (
-                  <Pressable
-                    key={opt.id}
-                    onPress={() => {
-                      setQualityType(opt.id);
-                      setShowQualityModal(false);
-                    }}
-                    className={`flex-row items-center justify-between rounded-2xl border px-6 py-5 ${
-                      isActive
-                        ? 'border-primary/40 bg-primary/5'
-                        : 'border-white/[0.02] bg-surface-muted'
-                    }`}>
-                    <View className="flex-row items-center gap-5">
-                      <Ionicons
-                        name={opt.icon}
-                        size={22}
-                        color={isActive ? '#00FF85' : '#3f3f46'}
-                      />
-                      <View>
-                        <Text
-                          className={`text-lg font-black tracking-tight ${isActive ? 'text-white' : 'text-zinc-500'}`}>
-                          {opt.label}
-                        </Text>
-                        <Text className="text-xs font-bold text-zinc-700">{opt.description}</Text>
-                      </View>
-                    </View>
-                    {isActive && <Ionicons name="checkmark-circle" size={26} color="#00FF85" />}
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            <Pressable
-              onPress={() => setShowQualityModal(false)}
-              className="h-16 items-center justify-center rounded-[20px] bg-primary shadow-lg shadow-primary/20 active:opacity-90">
-              <Text className="text-lg font-black text-black">Apply Changes</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
-
-      {/* Playlist Modal */}
-      <Modal visible={showPlaylistModal} animationType="slide" transparent>
-        <View className="flex-1 justify-end bg-black/80">
-          <View className="rounded-t-[48px] border-t border-white/[0.03] bg-surface-card px-8 pb-14 pt-10 shadow-2xl">
-            <View className="mb-8 items-center">
-              <View className="mb-6 h-1.5 w-12 rounded-full bg-zinc-800" />
-              <Text className="text-3xl font-black tracking-tighter text-white">
-                Add to Playlist
-              </Text>
-              <Text className="mt-2 text-center text-[15px] font-bold text-zinc-500">
-                Organize your premium collection
-              </Text>
-            </View>
-
-            {playlists.length === 0 ? (
-              <View className="mb-6 items-center rounded-3xl bg-surface-muted/50 py-10">
-                <Ionicons name="folder-open-outline" size={48} color="#27272a" />
-                <Text className="mt-4 text-lg font-bold text-zinc-600">No playlists found</Text>
-                <Text className="mt-1 text-sm font-bold text-zinc-700">
-                  Create one in your library
-                </Text>
-              </View>
-            ) : (
-              <FlatList
-                data={playlists}
-                keyExtractor={(item: any) => item.id}
-                style={{ maxHeight: 350 }}
-                showsVerticalScrollIndicator={false}
-                renderItem={({ item }: { item: any }) => (
-                  <Pressable
-                    onPress={() => addToPlaylistMutation.mutate(item.id)}
-                    disabled={addToPlaylistMutation.isPending}
-                    className="mb-2 flex-row items-center gap-4 rounded-3xl px-3 py-4 active:bg-white/[0.03]">
-                    <View className="h-16 w-16 items-center justify-center rounded-2xl bg-surface-muted shadow-sm shadow-black">
-                      <Ionicons name="musical-notes" size={28} color="#00FF85" />
-                    </View>
-                    <View className="flex-1">
-                      <Text
-                        className="text-[17px] font-black tracking-tight text-white"
-                        numberOfLines={1}>
-                        {capitalize(item.title)}
-                      </Text>
-                      <Text className="mt-1 text-xs font-black uppercase tracking-widest text-zinc-600">
-                        {item.songs?.length || 0} tracks
-                      </Text>
-                    </View>
-                    {addToPlaylistMutation.isPending ? (
-                      <ActivityIndicator color="#00FF85" size="small" />
-                    ) : (
-                      <View className="h-10 w-10 items-center justify-center rounded-full bg-primary/5">
-                        <Ionicons name="add" size={24} color="#00FF85" />
-                      </View>
-                    )}
-                  </Pressable>
+            <View className="flex-row items-center gap-2">
+              {/* FIX #9: Removed pointless ternary on icon name */}
+              <Pressable
+                onPress={toggleRepeat}
+                className="h-14 w-14 items-center justify-center rounded-full active:bg-white/[0.03]">
+                <Ionicons
+                  name="repeat"
+                  size={24}
+                  color={repeatMode !== 'none' ? '#00FF85' : '#3f3f46'}
+                />
+                {repeatMode === 'one' && (
+                  <View className="absolute bottom-2 h-3 w-3 items-center justify-center rounded-full bg-primary">
+                    <Text className="text-[7px] font-black text-black">1</Text>
+                  </View>
                 )}
-              />
-            )}
-
-            <Pressable
-              onPress={() => setShowPlaylistModal(false)}
-              className="mt-6 h-16 items-center justify-center rounded-[20px] bg-white transition-all active:scale-[0.98]">
-              <Text className="text-lg font-black text-black">Dismiss</Text>
-            </Pressable>
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/lyrics')}
+                className="h-14 w-14 items-center justify-center rounded-full bg-primary/10 transition-all active:scale-90">
+                <Ionicons name="text" size={24} color="#00FF85" />
+              </Pressable>
+            </View>
           </View>
         </View>
-      </Modal>
+
+        <Modal visible={showQualityModal} animationType="fade" transparent>
+          <View className="flex-1 items-center justify-center px-8">
+            <Pressable
+              onPress={() => setShowQualityModal(false)}
+              className="absolute inset-0 bg-black/60"
+            />
+            <View className="w-full overflow-hidden rounded-[40px] border border-white/[0.1] bg-black/95 p-10 shadow-2xl">
+              <View className="mb-10 flex-row items-center justify-between">
+                <Text className="text-2xl font-black tracking-tighter text-white">
+                  Audio Quality
+                </Text>
+                <Pressable
+                  onPress={() => setShowQualityModal(false)}
+                  className="h-10 w-10 items-center justify-center rounded-full bg-white/[0.1]">
+                  <Ionicons name="close" size={24} color="#a1a1aa" />
+                </Pressable>
+              </View>
+
+              <View className="mb-10 gap-3">
+                {qualityOptions.map((opt) => {
+                  const isActive = currentQualityType === opt.id;
+                  return (
+                    <Pressable
+                      key={opt.id}
+                      onPress={() => {
+                        setQualityType(opt.id);
+                        setShowQualityModal(false);
+                      }}
+                      className={`flex-row items-center justify-between rounded-2xl border px-6 py-5 ${
+                        isActive
+                          ? 'border-primary/40 bg-primary/10'
+                          : 'border-white/[0.05] bg-white/[0.05]'
+                      }`}>
+                      <View className="flex-row items-center gap-5">
+                        <Ionicons
+                          name={opt.icon}
+                          size={22}
+                          color={isActive ? '#00FF85' : '#3f3f46'}
+                        />
+                        <View>
+                          <Text
+                            className={`text-lg font-black tracking-tight ${isActive ? 'text-white' : 'text-zinc-400'}`}>
+                            {opt.label}
+                          </Text>
+                          <Text className="text-xs font-bold text-zinc-600">{opt.description}</Text>
+                        </View>
+                      </View>
+                      {isActive && <Ionicons name="checkmark-circle" size={26} color="#00FF85" />}
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <Pressable
+                onPress={() => setShowQualityModal(false)}
+                className="h-16 items-center justify-center rounded-[20px] bg-primary shadow-lg shadow-primary/20 active:opacity-90">
+                <Text className="text-lg font-black text-black">Apply Changes</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Playlist Modal */}
+        <Modal visible={showPlaylistModal} animationType="slide" transparent>
+          <View className="flex-1 justify-end">
+            <Pressable
+              onPress={() => setShowPlaylistModal(false)}
+              className="absolute inset-0 bg-black/60"
+            />
+            <View className="overflow-hidden rounded-t-[48px] border-t border-white/[0.1] bg-black/95 px-8 pb-14 pt-10 shadow-2xl">
+              <View className="mb-8 items-center">
+                <View className="mb-6 h-1.5 w-12 rounded-full bg-white/10" />
+                <Text className="text-3xl font-black tracking-tighter text-white">
+                  Add to Playlist
+                </Text>
+                <Text className="mt-2 text-center text-[15px] font-bold text-zinc-400">
+                  Organize your premium collection
+                </Text>
+              </View>
+
+              {playlists.length === 0 ? (
+                <View className="mb-6 items-center rounded-3xl bg-surface-muted/50 py-10">
+                  <Ionicons name="folder-open-outline" size={48} color="#27272a" />
+                  <Text className="mt-4 text-lg font-bold text-zinc-600">No playlists found</Text>
+                  <Text className="mt-1 text-sm font-bold text-zinc-700">
+                    Create one in your library
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={playlists}
+                  keyExtractor={(item: any) => item.id}
+                  style={{ maxHeight: 350 }}
+                  showsVerticalScrollIndicator={false}
+                  renderItem={({ item }: { item: any }) => (
+                    <Pressable
+                      onPress={() => addToPlaylistMutation.mutate(item.id)}
+                      disabled={addToPlaylistMutation.isPending}
+                      className="mb-2 flex-row items-center gap-4 rounded-3xl px-3 py-4 active:bg-white/[0.03]">
+                      <View className="h-16 w-16 items-center justify-center rounded-2xl bg-surface-muted shadow-sm shadow-black">
+                        <Ionicons name="musical-notes" size={28} color="#00FF85" />
+                      </View>
+                      <View className="flex-1">
+                        <Text
+                          className="text-[17px] font-black tracking-tight text-white"
+                          numberOfLines={1}>
+                          {capitalize(item.title)}
+                        </Text>
+                        <Text className="mt-1 text-xs font-black uppercase tracking-widest text-zinc-600">
+                          {item.songs?.length || 0} tracks
+                        </Text>
+                      </View>
+                      {addToPlaylistMutation.isPending ? (
+                        <ActivityIndicator color="#00FF85" size="small" />
+                      ) : (
+                        <View className="h-10 w-10 items-center justify-center rounded-full bg-primary/5">
+                          <Ionicons name="add" size={24} color="#00FF85" />
+                        </View>
+                      )}
+                    </Pressable>
+                  )}
+                />
+              )}
+
+              <Pressable
+                onPress={() => setShowPlaylistModal(false)}
+                className="mt-6 h-16 items-center justify-center rounded-[20px] bg-white transition-all active:scale-[0.98]">
+                <Text className="text-lg font-black text-black">Dismiss</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      </View>
     </View>
   );
 }

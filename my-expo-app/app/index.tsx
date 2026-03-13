@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../lib/auth';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function AuthScreen() {
   const { login, register } = useAuth();
@@ -49,7 +50,13 @@ export default function AuthScreen() {
   };
 
   return (
-    <SafeAreaView className="bg-surface flex-1">
+    <SafeAreaView className="flex-1 bg-black">
+      <LinearGradient
+        colors={['#1a1a1a', '#050505']}
+        className="absolute inset-0"
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 0.5 }}
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1">
@@ -62,8 +69,8 @@ export default function AuthScreen() {
             <View className="mb-6 h-24 w-24 items-center justify-center rounded-[32px] bg-primary/10 shadow-2xl shadow-primary/20">
               <Ionicons name="musical-notes" size={48} color="#00FF85" />
             </View>
-            <Text className="text-5xl font-black tracking-tighter text-white">One Melody</Text>
-            <Text className="mt-3 text-center text-[15px] font-bold text-zinc-500">
+            <Text className="text-6xl font-black tracking-tighter text-white">One Melody</Text>
+            <Text className="mt-4 text-center text-[16px] font-bold text-zinc-400">
               {isLogin
                 ? 'Welcome back. Sign in to continue.'
                 : 'Start your premium musical journey'}
@@ -71,14 +78,14 @@ export default function AuthScreen() {
           </View>
 
           {/* Form Card */}
-          <View className="bg-surface-card rounded-[40px] border border-white/[0.03] p-8 shadow-2xl">
+          <View className="overflow-hidden rounded-[40px] border border-white/[0.08] bg-white/[0.03] p-8 shadow-2xl">
             {/* Name Field (Signup only) */}
             {!isLogin && (
               <View className="mb-5">
                 <Text className="mb-2.5 ml-1 text-xs font-black uppercase tracking-[0.2em] text-zinc-600">
                   Full Name
                 </Text>
-                <View className="bg-surface-muted h-16 flex-row items-center rounded-2xl border border-white/[0.02] px-5">
+                <View className="h-16 flex-row items-center rounded-2xl border border-white/[0.02] bg-surface-muted px-5">
                   <Ionicons name="person-outline" size={20} color="#52525b" />
                   <TextInput
                     className="ml-4 flex-1 text-[16px] font-bold text-white"
@@ -97,7 +104,7 @@ export default function AuthScreen() {
               <Text className="mb-2.5 ml-1 text-xs font-black uppercase tracking-[0.2em] text-zinc-600">
                 Email Address
               </Text>
-              <View className="bg-surface-muted h-16 flex-row items-center rounded-2xl border border-white/[0.02] px-5">
+              <View className="h-16 flex-row items-center rounded-2xl border border-white/[0.02] bg-surface-muted px-5">
                 <Ionicons name="mail-outline" size={20} color="#52525b" />
                 <TextInput
                   className="ml-4 flex-1 text-[16px] font-bold text-white"
@@ -117,7 +124,7 @@ export default function AuthScreen() {
               <Text className="mb-2.5 ml-1 text-xs font-black uppercase tracking-[0.2em] text-zinc-600">
                 Secure Password
               </Text>
-              <View className="bg-surface-muted h-16 flex-row items-center rounded-2xl border border-white/[0.02] px-5">
+              <View className="h-16 flex-row items-center rounded-2xl border border-white/[0.02] bg-surface-muted px-5">
                 <Ionicons name="lock-closed-outline" size={20} color="#52525b" />
                 <TextInput
                   className="ml-4 flex-1 text-[16px] font-bold text-white"
@@ -134,7 +141,7 @@ export default function AuthScreen() {
             <Pressable
               onPress={handleSubmit}
               disabled={isSubmitting}
-              className="active:bg-primary-dark h-16 flex-row items-center justify-center rounded-[20px] bg-primary shadow-xl shadow-primary/20 transition-all active:scale-[0.98]">
+              className="h-16 flex-row items-center justify-center rounded-[20px] bg-primary shadow-xl shadow-primary/20 transition-all active:scale-[0.98] active:bg-primary-dark">
               {isSubmitting ? (
                 <ActivityIndicator color="#000" />
               ) : (

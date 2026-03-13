@@ -69,21 +69,21 @@ export default function SongRow({ song, index, onPress }: SongRowProps) {
         {String(index + 1).padStart(2, '0')}
       </Text>
 
-      <View className="h-14 w-14 overflow-hidden rounded-xl bg-surface-muted shadow-sm">
+      <View className="h-14 w-14 overflow-hidden rounded-2xl bg-white/[0.03] shadow-lg">
         {coverUrl ? (
           <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
         ) : (
-          <View className="h-full w-full items-center justify-center bg-primary/5">
+          <View className="h-full w-full items-center justify-center bg-primary/10">
             <Ionicons name="musical-notes" size={24} color="#00FF85" />
           </View>
         )}
       </View>
 
       <View className="min-w-0 flex-1">
-        <Text className="text-[15px] font-black tracking-tight text-white" numberOfLines={1}>
+        <Text className="text-[16px] font-black tracking-tight text-white" numberOfLines={1}>
           {capitalize(song.title)}
         </Text>
-        <Text className="mt-0.5 text-xs font-bold text-zinc-500" numberOfLines={1}>
+        <Text className="mt-0.5 text-xs font-bold text-zinc-400" numberOfLines={1}>
           {capitalize(song.artistName)}
         </Text>
       </View>

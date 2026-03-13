@@ -90,14 +90,14 @@ export default function LyricsScreen() {
 
   return (
     <View
-      className="bg-surface flex-1"
+      className="flex-1 bg-surface"
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
       <StatusBar style="light" />
       {/* ── Header ── */}
       <View className="flex-row items-center justify-between px-8 pb-8 pt-6">
         <Pressable
           onPress={() => router.back()}
-          className="bg-surface-card h-12 w-12 items-center justify-center rounded-full border border-white/[0.05] shadow-lg">
+          className="h-12 w-12 items-center justify-center rounded-full border border-white/[0.05] bg-surface-card shadow-lg">
           <Ionicons name="chevron-down" size={26} color="#fff" />
         </Pressable>
         <View className="flex-1 items-center px-6">
@@ -175,7 +175,7 @@ export default function LyricsScreen() {
               const ratio = Math.max(0, Math.min(1, x / barWidth));
               seekTo(ratio * duration);
             }}
-            className="shadow-inner h-2 overflow-hidden rounded-full bg-zinc-900">
+            className="shadow-inner h-2 rounded-full bg-zinc-900">
             <View
               className="absolute h-full bg-white/10"
               style={{ width: `${duration > 0 ? (bufferedPosition / duration) * 100 : 0}%` }}
@@ -184,6 +184,12 @@ export default function LyricsScreen() {
               className="h-full rounded-full bg-primary shadow-sm shadow-primary"
               style={{ width: `${progress * 100}%` }}
             />
+            {/* Seekbar Thumb */}
+            <View
+              className="absolute -top-2 h-6 w-6 items-center justify-center"
+              style={{ left: `${progress * 100}%`, marginLeft: -12 }}>
+              <View className="h-4 w-4 rounded-full bg-white shadow-lg shadow-white/20" />
+            </View>
           </Pressable>
           <View className="mt-4 flex-row justify-between">
             <Text className="text-[11px] font-black tracking-widest text-zinc-600">

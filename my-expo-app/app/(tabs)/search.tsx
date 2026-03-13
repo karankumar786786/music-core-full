@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
-  FlatList,
   Image,
   Pressable,
   TextInput,
@@ -17,6 +16,7 @@ import { musicApi } from '../../lib/api';
 import { getCoverImageUrl } from '../../lib/s3';
 import { capitalize } from '../../lib/utils';
 import SongRow from '../../components/SongRow';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function SearchTab() {
   const [query, setQuery] = useState('');
@@ -83,20 +83,26 @@ export default function SearchTab() {
 
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top']}>
+      <LinearGradient
+        colors={['#1a1a1a', '#050505']}
+        className="absolute inset-0"
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 0.5 }}
+      />
       {/* Title */}
-      <View className="px-4 pb-2 pt-4">
-        <Text className="text-2xl font-black tracking-tight text-white">Search</Text>
+      <View className="px-6 pb-2 pt-6">
+        <Text className="text-4xl font-black tracking-tighter text-white">Search</Text>
       </View>
 
       {/* Search Bar */}
-      <View className="px-4 py-3">
-        <View className="h-12 flex-row items-center rounded-2xl border border-white/10 bg-zinc-900 px-4">
-          <Ionicons name="search" size={18} color="#71717a" />
+      <View className="px-6 py-4">
+        <View className="h-14 flex-row items-center rounded-2xl border border-white/[0.08] bg-white/[0.05] px-5 shadow-lg">
+          <Ionicons name="search" size={20} color="#52525b" />
           <TextInput
             ref={inputRef}
-            className="ml-3 flex-1 text-base text-white"
+            className="ml-4 flex-1 text-[17px] font-bold text-white"
             placeholder="Songs, artists, or playlists..."
-            placeholderTextColor="#52525b"
+            placeholderTextColor="#3f3f46"
             value={query}
             onChangeText={handleTextChange}
             returnKeyType="search"
@@ -106,8 +112,9 @@ export default function SearchTab() {
               onPress={() => {
                 setQuery('');
                 setDebouncedQuery('');
-              }}>
-              <Ionicons name="close-circle" size={20} color="#71717a" />
+              }}
+              hitSlop={10}>
+              <Ionicons name="close-circle" size={20} color="#52525b" />
             </Pressable>
           )}
         </View>
@@ -161,7 +168,9 @@ export default function SearchTab() {
         {debouncedQuery && !isLoading && !hasResults && (
           <View className="items-center py-20">
             <Ionicons name="sad-outline" size={48} color="#3f3f46" />
-            <Text className="mt-4 text-base text-zinc-500">No results for "{debouncedQuery}"</Text>
+            <Text className="mt-4 text-base text-zinc-500">
+              No results for &quot;{debouncedQuery}&quot;
+            </Text>
           </View>
         )}
 
