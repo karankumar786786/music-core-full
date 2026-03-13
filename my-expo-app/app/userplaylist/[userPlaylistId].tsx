@@ -10,7 +10,7 @@ import { usePlayer } from '../../lib/player-context';
 
 export default function UserPlaylistDetail() {
   const { userPlaylistId } = useLocalSearchParams<{ userPlaylistId: string }>();
-  const { play } = usePlayer();
+  const { play, playAll } = usePlayer();
   const queryClient = useQueryClient();
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
@@ -45,6 +45,19 @@ export default function UserPlaylistDetail() {
   }
 
   const coverUrl = getCoverImageUrl(playlist.storageKey, 'large') || null;
+
+  const handlePlayAll = () => {
+    if (songs.length === 0) return;
+    const playerSongs = songs.map((s: any) => ({
+      id: s.id,
+      title: s.title,
+      artistName: s.artistName,
+      storageKey: s.storageKey,
+      coverUrl: getCoverImageUrl(s.storageKey, 'small', true) || null,
+    }));
+    playAll(playerSongs);
+    router.push({ pathname: '/player', params: { songId: playerSongs[0].id } });
+  };
 
   const renderHeader = () => (
     <View>
@@ -84,17 +97,7 @@ export default function UserPlaylistDetail() {
         {/* Play All Button */}
         {songs.length > 0 && (
           <Pressable
-            onPress={() => {
-              const first = songs[0];
-              const cUrl = getCoverImageUrl(first.storageKey, 'small', true) || null;
-              play({
-                id: first.id,
-                title: first.title,
-                artistName: first.artistName,
-                storageKey: first.storageKey,
-                coverUrl: cUrl,
-              });
-            }}
+            onPress={handlePlayAll}
             className="mt-6 h-12 w-44 flex-row items-center justify-center rounded-full bg-green-500 active:opacity-80">
             <Ionicons name="play" size={20} color="#000" style={{ marginLeft: 2 }} />
             <Text className="ml-2 text-base font-black text-black">Play All</Text>

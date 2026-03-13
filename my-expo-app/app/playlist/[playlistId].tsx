@@ -21,7 +21,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function PlaylistDetail() {
   const { playlistId } = useLocalSearchParams<{ playlistId: string }>();
-  const { play } = usePlayer();
+  const { playAll } = usePlayer();
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: ['playlist', playlistId],
@@ -77,6 +77,19 @@ export default function PlaylistDetail() {
 
   const coverUrl = getCoverImageUrl(playlist.storageKey, 'large') || null;
   const bannerUrl = getBannerImageUrl(playlist.storageKey, 'large') || null;
+
+  const handlePlayAll = () => {
+    if (songs.length === 0) return;
+    const playerSongs = songs.map((s: any) => ({
+      id: s.id,
+      title: s.title,
+      artistName: s.artistName,
+      storageKey: s.storageKey,
+      coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
+    }));
+    playAll(playerSongs);
+    router.push({ pathname: '/player', params: { songId: playerSongs[0].id } });
+  };
 
   const renderHeader = () => (
     <View>
@@ -141,19 +154,7 @@ export default function PlaylistDetail() {
 
       {/* Play All */}
       <Pressable
-        onPress={() => {
-          if (songs.length > 0) {
-            const first = songs[0];
-            const cUrl = getCoverImageUrl(first.storageKey, 'large', true) || null;
-            play({
-              id: first.id,
-              title: first.title,
-              artistName: first.artistName,
-              storageKey: first.storageKey,
-              coverUrl: cUrl,
-            });
-          }
-        }}
+        onPress={handlePlayAll}
         className="mx-5 mb-4 h-12 flex-row items-center justify-center rounded-full bg-green-500 active:opacity-80">
         <Ionicons name="play" size={20} color="#000" style={{ marginLeft: 2 }} />
         <Text className="ml-2 text-base font-black text-black">Play All</Text>

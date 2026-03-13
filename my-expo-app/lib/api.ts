@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const API_BASE_URL = 'http://10.35.225.107:3000';
+const API_BASE_URL = 'http://192.168.137.219:3000';
 
 export const api = axios.create({
     baseURL: API_BASE_URL,

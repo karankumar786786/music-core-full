@@ -11,6 +11,11 @@ export interface PlayerSong {
     songBaseUrl?: string;
 }
 
+// 'feed'  — queue is from AI feed, safe to overwrite with fresh feed data
+// 'user'  — queue was set intentionally by user (playAll from playlist/artist), never overwrite
+// 'empty' — nothing loaded yet
+type QueueSource = 'feed' | 'user' | 'empty';
+
 interface PlayerState {
     currentSong: PlayerSong | null;
     isPlaying: boolean;
@@ -18,6 +23,7 @@ interface PlayerState {
     lastQueueIndex: number;
     isShuffle: boolean;
     repeatMode: 'none' | 'one' | 'all';
+    queueSource: QueueSource;
 }
 
 export const playerStore = new Store<PlayerState>({
@@ -27,6 +33,7 @@ export const playerStore = new Store<PlayerState>({
     lastQueueIndex: -1,
     isShuffle: false,
     repeatMode: 'none',
+    queueSource: 'empty',
 });
 
 export const playerActions = {
@@ -53,6 +60,14 @@ export const playerActions = {
 
     syncFeedToQueue: (songs: PlayerSong[]) => {
         playerStore.setState((state) => {
+            // Never overwrite a user-intentional queue (playlist / artist playAll)
+            // Feed can only replace 'feed' or 'empty' queues
+            if (state.queueSource === 'user') {
+                // Feed arrived but user is in their own queue — just reset fallback pool
+                // and return state untouched
+                return state;
+            }
+
             let newIdx = -1;
             if (state.currentSong) {
                 newIdx = songs.findIndex((s) => s.id === state.currentSong?.id);
@@ -61,6 +76,7 @@ export const playerActions = {
                 ...state,
                 queue: songs,
                 lastQueueIndex: newIdx,
+                queueSource: 'feed',
             };
         });
         // Feed has arrived — reset fallback pool flags so it is no longer used
@@ -112,6 +128,8 @@ export const playerActions = {
             lastQueueIndex: 0,
             currentSong: songs[0],
             isPlaying: true,
+            // Mark as user queue so feed never overwrites this
+            queueSource: 'user',
         }));
         musicApi.addView(songs[0].id).catch(() => { });
     },
@@ -295,6 +313,8 @@ export const playerActions = {
                 currentSong: nextFallback,
                 isPlaying: true,
                 lastQueueIndex: state.queue.length,
+                // On fallback — allow feed to take over when it arrives
+                queueSource: 'feed',
             }));
             musicApi.addView(nextFallback.id).catch(() => { });
         }

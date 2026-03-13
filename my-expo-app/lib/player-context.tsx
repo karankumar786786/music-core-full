@@ -12,7 +12,6 @@ import { useVideoPlayer, VideoTrack } from 'expo-video';
 import { useStore } from '@tanstack/react-store';
 import { getSongBaseUrl } from './s3';
 import { parseMasterM3U8 } from './hls';
-import { musicApi } from './api';
 import { useAuth } from './auth';
 import { playerStore, playerActions, PlayerSong } from './player-store';
 export { PlayerSong };
@@ -172,10 +171,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const standbyRef = activePlayerIndex === 0 ? p1SongRef : p0SongRef;
 
       // 1. Sync Active Player
-      const needsActiveLoad =
-        activeRef.current.id !== currentSong.id || activeRef.current.quality !== qualityType;
+      const isQualityChange =
+        activeRef.current.id === currentSong.id && activeRef.current.quality !== qualityType;
+      const needsActiveLoad = activeRef.current.id !== currentSong.id || isQualityChange;
 
       if (needsActiveLoad) {
+        const preservedPos = isQualityChange ? activeP.currentTime : 0;
         const streamUrl = await resolveStreamUrl(currentSong, qualityType);
         if (!isCurrent) return;
 
@@ -184,6 +185,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           await activeP.replaceAsync(streamUrl);
           if (!isCurrent) return;
           activeRef.current = { id: currentSong.id, quality: qualityType };
+
+          if (isQualityChange && preservedPos > 0) {
+            try {
+              activeP.seekBy(preservedPos - activeP.currentTime);
+            } catch {
+              activeP.currentTime = preservedPos;
+            }
+          }
 
           if (shouldAutoPlayRef.current || isPlayingStore) {
             lastPlayCommandTimeRef.current = Date.now();
@@ -295,9 +304,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setPosition(currentTime);
         // FIX #5: Use strict null check — newBuffered can be 0 (falsy but valid)
         setBufferedPosition(
-          newBuffered !== undefined && newBuffered !== null
-            ? newBuffered
-            : player.bufferedPosition
+          newBuffered !== undefined && newBuffered !== null ? newBuffered : player.bufferedPosition
         );
         setDuration(player.duration);
       }
