@@ -124,13 +124,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const loadHistory = async () => {
+    const loadHistoryAndFeed = async () => {
       try {
+        // 1. Load History
         const res = await musicApi.getHistory(1, 10);
         const historySongs = res?.data;
+        let initialQueue: PlayerSong[] = [];
+
         if (historySongs && historySongs.length > 0) {
-          // Initialize queue with recent history, using large covers
-          const historyQueue: PlayerSong[] = historySongs.map((h: any) => {
+          initialQueue = historySongs.map((h: any) => {
             const song = h.song || h;
             return {
               id: song.id,
@@ -145,21 +147,40 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           setQueue((prev) => {
             if (prev.length === 0) {
               setLastQueueIndex(0);
-              const firstSong = historyQueue[0];
+              const firstSong = initialQueue[0];
               setCurrentSong(firstSong);
               setPosition(0);
               setDuration(0);
-              return historyQueue;
+              return initialQueue;
             }
             return prev;
           });
         }
+
+        // 2. Load Feed (merged into queue)
+        const currentIds = initialQueue.map((s) => s.id);
+        const feedData = await musicApi.getFeed(currentIds);
+        if (feedData?.data) {
+          const freshFeedSongs: PlayerSong[] = feedData.data.map((s: any) => ({
+            id: s.id,
+            title: s.title,
+            artistName: s.artistName,
+            storageKey: s.storageKey,
+            coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
+          }));
+
+          setQueue((prev) => {
+            const existingIds = new Set(prev.map((s) => s.id));
+            const filtered = freshFeedSongs.filter((s) => !existingIds.has(s.id));
+            return [...prev, ...filtered];
+          });
+        }
       } catch (e) {
-        console.warn('Failed to load history for player:', e);
+        console.warn('Failed to load initial history/feed for player:', e);
       }
     };
 
-    loadHistory();
+    loadHistoryAndFeed();
   }, [isAuthenticated]);
 
   const streamUrlCacheRef = useRef<Record<string, string>>({});
@@ -277,8 +298,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   ]);
 
   // ── Internal: set current song with queue index tracking ──
-  const setCurrentSongWithIndex = useCallback((song: PlayerSong | null) => {
-    if (song) {
+  const setCurrentSongWithIndex = useCallback((song: PlayerSong | null, index?: number) => {
+    if (index !== undefined) {
+      setLastQueueIndex(index);
+    } else if (song) {
+      // Fallback: search in current queue (still useful for external triggers)
       const idx = queueRef.current.findIndex((s) => s.id === song.id);
       if (idx !== -1) setLastQueueIndex(idx);
     }
@@ -288,13 +312,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ── playNext ──
-  const playNext = useCallback(() => {
+  const playNext = useCallback(async () => {
     shouldAutoPlayRef.current = true;
-    const q = queueRef.current;
-    const idx = lastQueueIndexRef.current;
-    const rm = repeatModeRef.current;
-    const shuffle = isShuffleRef.current;
-    const cs = currentSongRef.current;
+    const q = queue;
+    const idx = lastQueueIndex;
+    const rm = repeatMode;
+    const cs = currentSong;
 
     if (q.length === 0) return;
 
@@ -307,7 +330,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     let nextIndex = idx + 1;
 
-    if (shuffle && q.length > 1) {
+    if (isShuffle && q.length > 1) {
       nextIndex = Math.floor(Math.random() * q.length);
       // Avoid replaying the same song
       if (nextIndex === idx && q.length > 1) {
@@ -325,7 +348,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setActivePlayerIndex((prev) => (prev === 0 ? 1 : 0));
       }
 
-      setCurrentSongWithIndex(nextSong);
+      setCurrentSongWithIndex(nextSong, nextIndex);
       setTimeout(() => musicApi.addView(nextSong.id).catch(() => {}), 0);
     } else if (rm === 'all' && q.length > 0) {
       const nextSong = q[0];
@@ -337,24 +360,61 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setActivePlayerIndex((prev) => (prev === 0 ? 1 : 0));
       }
 
-      setCurrentSongWithIndex(nextSong);
+      setCurrentSongWithIndex(nextSong, 0);
       setTimeout(() => musicApi.addView(nextSong.id).catch(() => {}), 0);
+    } else {
+      // Queue exhausted and no repeat all - fallback to general songs
+      try {
+        const fallbackRes = await musicApi.getSongs(1, 10);
+        if (fallbackRes?.data && fallbackRes.data.length > 0) {
+          const fallbackSongs: PlayerSong[] = fallbackRes.data.map((s: any) => ({
+            id: s.id,
+            title: s.title,
+            artistName: s.artistName,
+            storageKey: s.storageKey,
+            coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
+          }));
+
+          // Filter out any that might somehow be in queue already
+          const existingIds = new Set(q.map((s) => s.id));
+          const filtered = fallbackSongs.filter((s) => !existingIds.has(s.id));
+
+          if (filtered.length > 0) {
+            const firstFallback = filtered[0];
+            const newIndex = q.length;
+            setQueue((prev) => [...prev, ...filtered]);
+            setCurrentSongWithIndex(firstFallback, newIndex);
+            setTimeout(() => musicApi.addView(firstFallback.id).catch(() => {}), 0);
+          }
+        }
+      } catch (err) {
+        console.warn('Fallback fetch failed:', err);
+      }
     }
 
     // Auto-fetch more songs when nearing end of queue
-    const remaining = q.length - nextIndex - 1;
+    const remaining = q.length - (nextIndex === -1 ? 0 : nextIndex) - 1;
     if (remaining <= 2) {
       fetchAndAddFeedToQueue();
     }
-  }, [player, setCurrentSongWithIndex, qualityType]);
+  }, [
+    player,
+    queue,
+    lastQueueIndex,
+    isShuffle,
+    repeatMode,
+    currentSong,
+    setCurrentSongWithIndex,
+    qualityType,
+  ]);
 
   // ── playPrevious ──
   const playPrevious = useCallback(() => {
     shouldAutoPlayRef.current = true;
-    const q = queueRef.current;
-    const idx = lastQueueIndexRef.current;
-    const rm = repeatModeRef.current;
-    const pos = positionRef.current;
+    const q = queue;
+    const idx = lastQueueIndex;
+    const rm = repeatMode;
+    const pos = position;
 
     if (q.length === 0) return;
 
@@ -370,18 +430,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     if (prevIndex >= 0) {
       player.pause();
-      setCurrentSongWithIndex(q[prevIndex]);
+      setCurrentSongWithIndex(q[prevIndex], prevIndex);
       setTimeout(() => musicApi.addView(q[prevIndex].id).catch(() => {}), 0);
     } else if (rm === 'all' && q.length > 0) {
       player.pause();
-      setCurrentSongWithIndex(q[q.length - 1]);
-      setTimeout(() => musicApi.addView(q[q.length - 1].id).catch(() => {}), 0);
+      const lastIdx = q.length - 1;
+      setCurrentSongWithIndex(q[lastIdx], lastIdx);
+      setTimeout(() => musicApi.addView(q[lastIdx].id).catch(() => {}), 0);
     } else {
       // Restart current song
       player.currentTime = 0;
       player.play();
     }
-  }, [player, setCurrentSongWithIndex]);
+  }, [player, queue, lastQueueIndex, repeatMode, position, setCurrentSongWithIndex]);
 
   // ── Auto-fetch more feed songs to queue ──
   const fetchAndAddFeedToQueue = useCallback(async () => {
@@ -394,7 +455,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           title: s.title,
           artistName: s.artistName,
           storageKey: s.storageKey,
-          coverUrl: null,
+          coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
         }));
         setQueue((prev) => {
           const existingIds = new Set(prev.map((s) => s.id));
@@ -452,25 +513,31 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [player, playNext]);
 
   // ── Public: play a single song ──
-  const play = useCallback(
-    (song: PlayerSong) => {
-      shouldAutoPlayRef.current = true;
-      // Add to queue if not already there
-      setQueue((prev) => {
-        const exists = prev.some((s) => s.id === song.id);
-        if (!exists) return [...prev, song];
+  const play = useCallback((song: PlayerSong) => {
+    shouldAutoPlayRef.current = true;
+    // Add to queue if not already there
+    setQueue((prev) => {
+      const idx = prev.findIndex((s) => s.id === song.id);
+      if (idx !== -1) {
+        setLastQueueIndex(idx);
         return prev;
-      });
-      setCurrentSongWithIndex(song);
-      // Fire-and-forget: never block playback for a view track
-      setTimeout(() => musicApi.addView(song.id).catch(() => {}), 0);
-      router.push({
-        pathname: '/player',
-        params: { songId: song.id },
-      });
-    },
-    [setCurrentSongWithIndex]
-  );
+      }
+      const newQueue = [...prev, song];
+      setLastQueueIndex(newQueue.length - 1);
+      return newQueue;
+    });
+
+    setCurrentSong(song);
+    setPosition(0);
+    setDuration(0);
+
+    // Fire-and-forget: never block playback for a view track
+    setTimeout(() => musicApi.addView(song.id).catch(() => {}), 0);
+    router.push({
+      pathname: '/player',
+      params: { songId: song.id },
+    });
+  }, []);
 
   // ── Public: play all songs (replaces queue) ──
   const playAll = useCallback((songs: PlayerSong[]) => {

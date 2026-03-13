@@ -66,7 +66,6 @@ export class InteractionService {
         coverUrl: S3UrlUtility.getCoverImageUrl(item.song.storageKey, 'medium', true),
       } : null,
     }));
-
     return { data: dataWithUrls, meta: { page: Number(page), limit: Number(limit), total } };
   }
 

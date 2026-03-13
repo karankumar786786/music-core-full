@@ -113,7 +113,6 @@ export class FeedService {
                 .map((id) => songs.find((s) => s.id === id))
                 .filter(Boolean);
             return { data: orderedSongs };
-
         } catch (error) {
             console.error(
                 'Failed to call Python recommendation engine:',

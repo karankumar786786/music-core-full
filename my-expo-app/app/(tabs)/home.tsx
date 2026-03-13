@@ -102,38 +102,6 @@ export default function Home() {
     return () => clearInterval(timer);
   }, [featuredCount]);
 
-  // Seed the player queue when trending data loads
-  React.useEffect(() => {
-    const songs = trendingData?.data;
-    if (songs?.length > 0) {
-      addToQueue(
-        songs.map((s: any) => ({
-          id: s.id,
-          title: s.title,
-          artistName: s.artistName,
-          storageKey: s.storageKey,
-          coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
-        }))
-      );
-    }
-  }, [trendingData]);
-
-  // Also seed from feed data
-  React.useEffect(() => {
-    const songs = feedData?.data;
-    if (songs?.length > 0) {
-      addToQueue(
-        songs.map((s: any) => ({
-          id: s.id,
-          title: s.title,
-          artistName: s.artistName,
-          storageKey: s.storageKey,
-          coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
-        }))
-      );
-    }
-  }, [feedData]);
-
   const renderFeatured = () => {
     const featured = featuredData?.data || [];
     if (featuredLoading) {
