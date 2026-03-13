@@ -410,9 +410,6 @@ export default function Home() {
                       <Ionicons name="sparkles" size={36} color="#00FF85" />
                     </View>
                   )}
-                  <View className="absolute bottom-0 left-0 right-0 bg-black/60 px-3 py-2">
-                    <Text className="text-xs font-bold text-green-400">For You</Text>
-                  </View>
                 </View>
                 <Text className="text-sm font-bold text-white" numberOfLines={1}>
                   {capitalize(item.title)}
