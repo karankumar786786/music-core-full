@@ -1,12 +1,16 @@
-import { useCallback, useState } from 'react';
 import { View, Text, FlatList, ActivityIndicator, RefreshControl, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { musicApi } from '../../lib/api';
 import SongRow from '../../components/SongRow';
+import { usePlayer } from '../../lib/player-context';
+import { getCoverImageUrl } from '../../lib/s3';
+import { useCallback, useState } from 'react';
 
 export default function Favourites() {
+  const { playAll } = usePlayer();
   const { data, isLoading, isFetching, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
     useInfiniteQuery({
       queryKey: ['favourites', 'paginated'],
@@ -25,7 +29,28 @@ export default function Favourites() {
     setRefreshing(true);
     await refetch();
     setRefreshing(false);
-  }, []);
+  }, [refetch]);
+
+  const handlePlayAll = () => {
+    if (favorites.length === 0) return;
+    const playerSongs = favorites
+      .map((item: any) => {
+        const s = item.song;
+        if (!s) return null;
+        return {
+          id: s.id,
+          title: s.title,
+          artistName: s.artistName,
+          storageKey: s.storageKey,
+          coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
+        };
+      })
+      .filter(Boolean);
+
+    if (playerSongs.length === 0) return;
+    playAll(playerSongs as any);
+    router.push({ pathname: '/player', params: { songId: playerSongs[0]!.id } });
+  };
 
   const renderItem = ({ item, index }: { item: any; index: number }) => {
     const song = item.song;
@@ -63,23 +88,35 @@ export default function Favourites() {
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top']}>
       {/* Header */}
-      <View className="flex-row items-center justify-between px-6 pb-2 pt-6">
-        <View>
-          <Text className="text-3xl font-black tracking-tighter text-white">Favourites</Text>
-          <Text className="mt-1 text-sm font-medium text-zinc-500">
-            {favorites.length} liked songs
-          </Text>
+      <View className="px-6 pb-2 pt-6">
+        <View className="flex-row items-center justify-between">
+          <View>
+            <Text className="text-3xl font-black tracking-tighter text-white">Favourites</Text>
+            <Text className="mt-1 text-sm font-medium text-zinc-500">
+              {favorites.length} liked songs
+            </Text>
+          </View>
+          <View className="flex-row items-center gap-3">
+            {isFetching && !isFetchingNextPage && !isLoading && (
+              <ActivityIndicator color="#22c55e" size="small" />
+            )}
+            {favorites.length > 0 && (
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-green-500">
+                <Ionicons name="heart" size={20} color="#000" />
+              </View>
+            )}
+          </View>
         </View>
-        <View className="flex-row items-center gap-3">
-          {isFetching && !isFetchingNextPage && !isLoading && (
-            <ActivityIndicator color="#22c55e" size="small" />
-          )}
-          {favorites.length > 0 && (
-            <View className="h-10 w-10 items-center justify-center rounded-full bg-green-500">
-              <Ionicons name="heart" size={20} color="#000" />
-            </View>
-          )}
-        </View>
+
+        {/* Play All Button */}
+        {favorites.length > 0 && (
+          <Pressable
+            onPress={handlePlayAll}
+            className="mt-4 h-12 flex-row items-center justify-center rounded-full bg-green-500 active:opacity-80">
+            <Ionicons name="play" size={20} color="#000" style={{ marginLeft: 2 }} />
+            <Text className="ml-2 text-base font-black text-black">Play All</Text>
+          </Pressable>
+        )}
       </View>
 
       <FlatList
