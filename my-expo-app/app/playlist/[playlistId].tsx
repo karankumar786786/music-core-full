@@ -169,36 +169,64 @@ export default function PlaylistDetail() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-black" edges={['top']}>
-      <FlatList
-        data={songs}
-        keyExtractor={(item, index) => item?.id || `song-${index}`}
-        renderItem={({ item, index }) => <SongRow song={item} index={index} />}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={
-          <View className="items-center py-20">
-            <View className="mb-4 h-20 w-20 items-center justify-center rounded-full border border-white/5 bg-zinc-900/60">
-              <Ionicons name="musical-notes" size={32} color="#3f3f46" />
-            </View>
-            <Text className="text-base font-bold text-zinc-400">No tracks yet</Text>
-            <Text className="mt-2 px-12 text-center text-sm text-zinc-600">
-              This playlist is empty
-            </Text>
-          </View>
-        }
-        ListFooterComponent={
-          isFetchingNextPage ? (
-            <View className="items-center py-6">
-              <ActivityIndicator color="#22c55e" />
-            </View>
-          ) : null
-        }
-        onEndReached={() => {
-          if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+    <View className="flex-1 bg-black">
+      {coverUrl || bannerUrl ? (
+        <Image
+          source={{ uri: coverUrl || bannerUrl! }}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100%',
+            height: '100%',
+          }}
+          blurRadius={80}
+          resizeMode="cover"
+        />
+      ) : null}
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)',
         }}
-        onEndReachedThreshold={0.5}
-        contentContainerStyle={{ paddingBottom: 100 }}
       />
-    </SafeAreaView>
+      <SafeAreaView className="flex-1" edges={['top']}>
+        <FlatList
+          data={songs}
+          keyExtractor={(item, index) => item?.id || `song-${index}`}
+          renderItem={({ item, index }) => <SongRow song={item} index={index} />}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={
+            <View className="items-center py-20">
+              <View className="mb-4 h-20 w-20 items-center justify-center rounded-full border border-white/5 bg-zinc-900/60">
+                <Ionicons name="musical-notes" size={32} color="#3f3f46" />
+              </View>
+              <Text className="text-base font-bold text-zinc-400">No tracks yet</Text>
+              <Text className="mt-2 px-12 text-center text-sm text-zinc-600">
+                This playlist is empty
+              </Text>
+            </View>
+          }
+          ListFooterComponent={
+            isFetchingNextPage ? (
+              <View className="items-center py-6">
+                <ActivityIndicator color="#08f808" />
+              </View>
+            ) : null
+          }
+          onEndReached={() => {
+            if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+          }}
+          onEndReachedThreshold={0.5}
+          contentContainerStyle={{ paddingBottom: 100 }}
+        />
+      </SafeAreaView>
+    </View>
   );
 }

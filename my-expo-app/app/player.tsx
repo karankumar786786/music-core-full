@@ -313,9 +313,9 @@ export default function PlayerScreen() {
           {/* Playback Controls */}
           <View className="flex-row items-center justify-between">
             <Pressable
-              onPress={toggleShuffle}
-              className="h-14 w-14 items-center justify-center rounded-full active:bg-white/[0.03]">
-              <Ionicons name="shuffle" size={24} color={isShuffle ? '#08f808' : '#3f3f46'} />
+              onPress={() => router.push('/lyrics')}
+              className="h-14 w-14 items-center justify-center rounded-full bg-primary/10 active:bg-white/[0.03]">
+              <Ionicons name="text" size={24} color="#08f808" />
             </Pressable>
 
             <View className="flex-row items-center gap-10">
@@ -360,11 +360,6 @@ export default function PlayerScreen() {
                     <Text className="text-[7px] font-black text-black">1</Text>
                   </View>
                 )}
-              </Pressable>
-              <Pressable
-                onPress={() => router.push('/lyrics')}
-                className="h-14 w-14 items-center justify-center rounded-full bg-primary/10 transition-all active:scale-90">
-                <Ionicons name="text" size={24} color="#08f808" />
               </Pressable>
             </View>
           </View>

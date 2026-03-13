@@ -145,7 +145,7 @@ export default function Home() {
             const idx = Math.round(e.nativeEvent.contentOffset.x / (SCREEN_WIDTH - 32));
             setFeaturedIndex(idx);
           }}>
-          {featured.map((item: any) => {
+          {featured.map((item: any, idx: number) => {
             const coverUrl =
               item.coverUrl || getCoverImageUrl(item.storageKey, 'large', true) || null;
             return (
@@ -161,7 +161,7 @@ export default function Home() {
                     coverUrl,
                   })
                 }>
-                <View className="h-56 overflow-hidden rounded-[32px] border border-white/[0.08] bg-white/[0.03] shadow-2xl shadow-black/50">
+                <View className="h-72 overflow-hidden rounded-[32px] border border-white/[0.08] bg-white/[0.03] shadow-2xl shadow-black/50">
                   {coverUrl ? (
                     <Image
                       source={{ uri: coverUrl }}
@@ -170,22 +170,32 @@ export default function Home() {
                     />
                   ) : (
                     <View className="h-full w-full items-center justify-center bg-primary/10">
-                      <Ionicons name="musical-notes" size={56} color="#22c55e" />
+                      <Ionicons name="musical-notes" size={56} color="#08f808" />
                     </View>
                   )}
-                  <View className="absolute bottom-0 left-0 right-0 flex-row items-center bg-black/60 px-6 py-5">
-                    <View className="mr-4 flex-1">
-                      <Text
-                        className="text-2xl font-black tracking-tighter text-white"
-                        numberOfLines={1}>
-                        {capitalize(item.title)}
-                      </Text>
-                      <Text className="mt-1 text-sm font-bold text-zinc-300" numberOfLines={1}>
-                        {capitalize(item.artistName)}
-                      </Text>
-                    </View>
-                    <View className="h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/20">
-                      <Ionicons name="play" size={28} color="#000" style={{ marginLeft: 3 }} />
+                  {/* Top badge */}
+                  <View className="absolute left-5 top-5 flex-row items-center gap-2 rounded-full border border-white/10 bg-black/50 px-3 py-1.5">
+                    <View className="h-2 w-2 rounded-full bg-primary" />
+                    <Text className="text-[10px] font-black uppercase tracking-widest text-white/80">
+                      Featured
+                    </Text>
+                  </View>
+                  {/* Bottom info overlay */}
+                  <View className="absolute bottom-0 left-0 right-0 bg-black/70 px-6 py-5">
+                    <View className="flex-row items-center">
+                      <View className="mr-4 flex-1">
+                        <Text
+                          className="text-2xl font-black tracking-tighter text-white"
+                          numberOfLines={1}>
+                          {capitalize(item.title)}
+                        </Text>
+                        <Text className="mt-1 text-sm font-bold text-zinc-300" numberOfLines={1}>
+                          {capitalize(item.artistName)}
+                        </Text>
+                      </View>
+                      <View className="h-14 w-14 items-center justify-center rounded-full bg-primary">
+                        <Ionicons name="play" size={28} color="#000" style={{ marginLeft: 3 }} />
+                      </View>
                     </View>
                   </View>
                 </View>

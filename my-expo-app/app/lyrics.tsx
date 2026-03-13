@@ -32,6 +32,8 @@ export default function LyricsScreen() {
     togglePlayPause,
     seekTo,
     activeTrack,
+    playNext,
+    playPrevious,
   } = usePlayer();
 
   const [lyrics, setLyrics] = useState<LyricCue[]>([]);
@@ -63,13 +65,10 @@ export default function LyricsScreen() {
 
     xhr.onload = () => {
       if (cancelled) return;
-      console.log('[Lyrics] XHR status:', xhr.status);
       if (xhr.status >= 200 && xhr.status < 300 && xhr.responseText) {
         const cues = parseVTT(xhr.responseText);
-        console.log('[Lyrics] Parsed', cues.length, 'cues');
         setLyrics(cues);
       } else {
-        console.warn('[Lyrics] Non-ok status:', xhr.status);
         setLyrics([]);
       }
       setIsFetchingLyrics(false);
@@ -77,14 +76,12 @@ export default function LyricsScreen() {
 
     xhr.onerror = () => {
       if (cancelled) return;
-      console.warn('[Lyrics] XHR error');
       setLyrics([]);
       setIsFetchingLyrics(false);
     };
 
     xhr.ontimeout = () => {
       if (cancelled) return;
-      console.warn('[Lyrics] XHR timeout');
       setLyrics([]);
       setIsFetchingLyrics(false);
     };
@@ -299,7 +296,9 @@ export default function LyricsScreen() {
 
         {/* Controls */}
         <View className="flex-row items-center justify-center gap-12">
-          <Pressable className="h-14 w-14 items-center justify-center rounded-full transition-transform active:scale-90">
+          <Pressable
+            onPress={playPrevious}
+            className="h-14 w-14 items-center justify-center rounded-full transition-transform active:scale-90">
             <Ionicons name="play-skip-back" size={32} color="#fff" />
           </Pressable>
           <Pressable
@@ -316,7 +315,9 @@ export default function LyricsScreen() {
               />
             )}
           </Pressable>
-          <Pressable className="h-14 w-14 items-center justify-center rounded-full transition-transform active:scale-90">
+          <Pressable
+            onPress={playNext}
+            className="h-14 w-14 items-center justify-center rounded-full transition-transform active:scale-90">
             <Ionicons name="play-skip-forward" size={32} color="#fff" />
           </Pressable>
         </View>
