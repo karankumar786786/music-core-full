@@ -81,6 +81,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [qualityType, setQualityType] = useState<'auto' | 'high' | 'med' | 'low'>('auto');
 
   const shouldAutoPlayRef = useRef(false);
+  const isSourceLoadingRef = useRef(false);
 
   // Restore history on mount
   useEffect(() => {
@@ -151,8 +152,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (needsActiveLoad) {
         const streamUrl = await resolveStreamUrl(currentSong, qualityType);
         if (!isCurrent) return;
-        await activeP.replaceAsync(streamUrl);
-        activeRef.current = { id: currentSong.id, quality: qualityType };
+
+        isSourceLoadingRef.current = true;
+        try {
+          await activeP.replaceAsync(streamUrl);
+          activeRef.current = { id: currentSong.id, quality: qualityType };
+
+          if (shouldAutoPlayRef.current || isPlayingStore) {
+            activeP.play();
+          }
+        } finally {
+          if (isCurrent) {
+            isSourceLoadingRef.current = false;
+          }
+        }
       }
 
       // 2. Preload Standby Player
@@ -197,6 +210,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   // Sync Store isPlaying -> Player status
   useEffect(() => {
+    // Only sync if source isn't changing, to avoid fighting with replaceAsync sequence
+    if (isSourceLoadingRef.current) return;
+
     if (isPlayingStore) player.play();
     else player.pause();
   }, [isPlayingStore, player]);
@@ -207,8 +223,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setIsBuffering(status === 'loading')
     );
     const playSub = player.addListener('playingChange', ({ isPlaying: newIsPlaying }) => {
-      // Guard: Only sync back if not loading and value is different
-      if (player.status !== 'loading' && newIsPlaying !== playerStore.state.isPlaying) {
+      // Guard: Only sync back if not loading source and value is different
+      if (
+        !isSourceLoadingRef.current &&
+        player.status !== 'loading' &&
+        newIsPlaying !== playerStore.state.isPlaying
+      ) {
         playerActions.setIsPlaying(newIsPlaying);
       }
     });

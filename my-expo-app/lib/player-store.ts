@@ -123,8 +123,6 @@ export const playerActions = {
     playNext: async () => {
         const { queue, lastQueueIndex, isShuffle, repeatMode, currentSong } = playerStore.state;
 
-        if (queue.length === 0) return;
-
         if (repeatMode === 'one' && currentSong) {
             playerStore.setState(s => ({ ...s, isPlaying: true }));
             return;
@@ -139,14 +137,49 @@ export const playerActions = {
             nextIndex = Math.floor(Math.random() * queue.length);
         }
 
-        if (nextIndex < queue.length) {
+        if (nextIndex >= 0 && nextIndex < queue.length) {
             playerActions.setCurrentSong(queue[nextIndex]);
         } else if (repeatMode === 'all' && queue.length > 0) {
             playerActions.setCurrentSong(queue[0]);
+        } else {
+            // Queue exhausted or empty - fallback to general songs
+            try {
+                const fallbackRes = await musicApi.getSongs(1, 10);
+                if (fallbackRes?.data && fallbackRes.data.length > 0) {
+                    const fallbackSongs: PlayerSong[] = fallbackRes.data.map((s: any) => ({
+                        id: s.id,
+                        title: s.title,
+                        artistName: s.artistName,
+                        storageKey: s.storageKey,
+                        coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
+                    }));
+
+                    // Skip songs already in queue
+                    const existingIds = new Set(queue.map((s) => s.id));
+                    const filtered = fallbackSongs.filter((s) => !existingIds.has(s.id));
+
+                    if (filtered.length > 0) {
+                        const firstFallback = filtered[0];
+                        playerStore.setState((state) => ({
+                            ...state,
+                            queue: [...state.queue, ...filtered],
+                            currentSong: firstFallback,
+                            isPlaying: true,
+                            lastQueueIndex: state.queue.length,
+                        }));
+                        setTimeout(() => musicApi.addView(firstFallback.id).catch(() => { }), 0);
+                    }
+                }
+            } catch (err) {
+                console.warn('Fallback fetch failed in playNext:', err);
+            }
         }
 
-        const remaining = queue.length - nextIndex - 1;
-        if (remaining <= 2) {
+        // Auto-fetch more feed songs if nearing end
+        const finalQueue = playerStore.state.queue;
+        const finalIdx = playerStore.state.lastQueueIndex;
+        const remaining = finalQueue.length - finalIdx - 1;
+        if (finalQueue.length > 0 && remaining <= 2) {
             playerActions.fetchAndAddFeedToQueue();
         }
     },
