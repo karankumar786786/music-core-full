@@ -1,9 +1,24 @@
 import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import MiniPlayer from '../../components/MiniPlayer';
+import { musicApi } from '../../lib/api';
 
 export default function TabLayout() {
+  // Pre-fetch critical tab data to avoid "stuck on loading" states
+  useQuery({
+    queryKey: ['userPlaylists'],
+    queryFn: () => musicApi.getUserPlaylists(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  useQuery({
+    queryKey: ['me'],
+    queryFn: () => musicApi.getProfile(),
+    staleTime: 5 * 60 * 1000,
+  });
+
   return (
     <View className="flex-1 bg-black">
       <Tabs

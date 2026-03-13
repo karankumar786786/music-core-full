@@ -103,7 +103,7 @@ export default function UserPlaylists() {
             {capitalize(item.title)}
           </Text>
           <Text className="mt-1 text-xs font-semibold text-zinc-500">
-            {item.songs?.length || 0} songs · My Playlist
+            {item._count?.songs || 0} songs · My Playlist
           </Text>
         </View>
 

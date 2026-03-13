@@ -141,7 +141,7 @@ export default function PlayerScreen() {
         className="flex-1 items-center justify-center bg-black"
         edges={['top', 'bottom']}>
         <Ionicons name="musical-notes" size={48} color="#3f3f46" />
-        <Text className="mt-4 text-base text-zinc-500">No song selected</Text>
+        <Text className="mt-4 text-base text-white">No song selected</Text>
         <Pressable
           onPress={() => router.back()}
           className="mt-6 rounded-full border border-white/10 bg-zinc-900 px-6 py-3">
@@ -219,7 +219,7 @@ export default function PlayerScreen() {
           </View>
 
           <View className="flex-1 items-center pt-3">
-            <Text className="text-[11px] font-black uppercase tracking-[0.3em] text-zinc-600">
+            <Text className="text-[11px] font-black uppercase tracking-[0.3em] text-white">
               Playing Now
             </Text>
           </View>
@@ -264,14 +264,14 @@ export default function PlayerScreen() {
             <Pressable
               onPress={() => favMutation.mutate(isLiked)}
               disabled={favMutation.isPending}
-              className="h-14 w-14 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.03] shadow-md">
+              className="h-14 w-14 items-center justify-center rounded-full">
               {favMutation.isPending ? (
                 <ActivityIndicator color="#08f808" size="small" />
               ) : (
                 <Ionicons
                   name={isLiked ? 'heart' : 'heart-outline'}
                   size={28}
-                  color={isLiked ? '#ef4444' : '#52525b'}
+                  color={isLiked ? '#ef4444' : '#fff'}
                 />
               )}
             </Pressable>
@@ -306,10 +306,10 @@ export default function PlayerScreen() {
               </View>
             </Pressable>
             <View className="mt-4 flex-row justify-between">
-              <Text className="text-xs font-black tracking-widest text-zinc-600">
+              <Text className="text-xs font-black tracking-widest text-white">
                 {formatTime(position)}
               </Text>
-              <Text className="text-xs font-black tracking-widest text-zinc-600">
+              <Text className="text-xs font-black tracking-widest text-white">
                 {formatTime(duration)}
               </Text>
             </View>
@@ -358,7 +358,7 @@ export default function PlayerScreen() {
                 <Ionicons
                   name="repeat"
                   size={24}
-                  color={repeatMode !== 'none' ? '#08f808' : '#3f3f46'}
+                  color={repeatMode !== 'none' ? '#08f808' : '#fff'}
                 />
                 {repeatMode === 'one' && (
                   <View className="absolute bottom-2 h-3 w-3 items-center justify-center rounded-full bg-primary">

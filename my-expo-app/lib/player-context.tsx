@@ -60,7 +60,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const initPlayer = (p: any) => {
     p.loop = false;
-    p.timeUpdateEventInterval = 0.001; // 50ms for smooth "Spotify-like" movement
+    p.timeUpdateEventInterval = 0.05; // 50ms for smooth "Spotify-like" movement
     p.bufferOptions = { preferredForwardBufferDuration: 20 };
   };
 
@@ -363,6 +363,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (songs.length === 0) return;
     shouldAutoPlayRef.current = true;
     playerActions.playAll(songs);
+    router.push({ pathname: '/player', params: { songId: songs[0].id } });
   }, []);
 
   const stop = useCallback(() => {

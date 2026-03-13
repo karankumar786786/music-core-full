@@ -49,10 +49,8 @@ export class UserplaylistsService {
         skip,
         take: limit,
         include: {
-          songs: {
-            include: {
-              song: true,
-            },
+          _count: {
+            select: { songs: true },
           },
         },
       }),

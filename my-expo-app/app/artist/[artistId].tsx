@@ -92,10 +92,9 @@ export default function ArtistDetail() {
       title: s.title,
       artistName: s.artistName,
       storageKey: s.storageKey,
-      coverUrl: getCoverImageUrl(s.storageKey, 'small', true) || null,
+      coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
     }));
     playAll(playerSongs);
-    router.push({ pathname: '/player', params: { songId: playerSongs[0].id } });
   };
 
   const renderHeader = () => (

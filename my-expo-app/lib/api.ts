@@ -1,22 +1,39 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const API_BASE_URL = 'http://172.20.10.6:3000';
+const API_BASE_URL = 'http://10.35.225.107:3000';
+
+let cachedToken: string | null = null;
 
 export const api = axios.create({
     baseURL: API_BASE_URL,
+    timeout: 15000,
 });
 
 // Request interceptor – attach JWT from SecureStore
 api.interceptors.request.use(
     async (config) => {
-        const token = await SecureStore.getItemAsync('access_token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
+        if (!cachedToken) {
+            cachedToken = await SecureStore.getItemAsync('access_token');
+        }
+        if (cachedToken) {
+            config.headers.Authorization = `Bearer ${cachedToken}`;
         }
         return config;
     },
     (error) => Promise.reject(error),
+);
+
+// Response interceptor to handle token expiration
+api.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        if (error.response?.status === 401) {
+            cachedToken = null;
+            await SecureStore.deleteItemAsync('access_token');
+        }
+        return Promise.reject(error);
+    }
 );
 
 export const musicApi = {
@@ -24,6 +41,7 @@ export const musicApi = {
     login: async (credentials: { email: string; password: string }) => {
         const response = await api.post('/auth/login', credentials);
         if (response.data.access_token) {
+            cachedToken = response.data.access_token;
             await SecureStore.setItemAsync('access_token', response.data.access_token);
         }
         return response.data;
@@ -32,12 +50,14 @@ export const musicApi = {
     register: async (data: { email: string; password: string; name: string }) => {
         const response = await api.post('/auth/register', data);
         if (response.data.access_token) {
+            cachedToken = response.data.access_token;
             await SecureStore.setItemAsync('access_token', response.data.access_token);
         }
         return response.data;
     },
 
     logout: async () => {
+        cachedToken = null;
         await SecureStore.deleteItemAsync('access_token');
     },
 

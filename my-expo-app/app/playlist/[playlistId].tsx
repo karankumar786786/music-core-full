@@ -88,7 +88,6 @@ export default function PlaylistDetail() {
       coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
     }));
     playAll(playerSongs);
-    router.push({ pathname: '/player', params: { songId: playerSongs[0].id } });
   };
 
   const renderHeader = () => (
@@ -153,12 +152,14 @@ export default function PlaylistDetail() {
       </View>
 
       {/* Play All */}
-      <Pressable
-        onPress={handlePlayAll}
-        className="mx-5 mb-4 h-12 flex-row items-center justify-center rounded-full bg-primary active:opacity-80">
-        <Ionicons name="play" size={20} color="#000" style={{ marginLeft: 2 }} />
-        <Text className="ml-2 text-base font-black text-black">Play All</Text>
-      </Pressable>
+      {songs.length > 0 && (
+        <Pressable
+          onPress={handlePlayAll}
+          className="mx-5 mb-4 h-12 flex-row items-center justify-center rounded-full bg-primary active:opacity-80">
+          <Ionicons name="play" size={20} color="#000" style={{ marginLeft: 2 }} />
+          <Text className="ml-2 text-base font-black text-black">Play All</Text>
+        </Pressable>
+      )}
 
       {/* Section Header */}
       <View className="mx-5 mb-2 flex-row items-center justify-between border-b border-white/5 pb-2">
