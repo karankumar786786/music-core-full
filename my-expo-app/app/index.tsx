@@ -3,6 +3,7 @@ import {
   View,
   Text,
   TextInput,
+  Image,
   Pressable,
   KeyboardAvoidingView,
   Platform,
@@ -66,8 +67,12 @@ export default function AuthScreen() {
           className="px-8">
           {/* Logo / Branding */}
           <View className="mb-12 items-center">
-            <View className="mb-6 h-24 w-24 items-center justify-center rounded-[32px] bg-primary/10 shadow-2xl shadow-primary/20">
-              <Ionicons name="musical-notes" size={48} color="#00FF85" />
+            <View className="mb-6 h-28 w-28 items-center justify-center rounded-[36px] bg-white/[0.03] shadow-2xl shadow-primary/20">
+              <Image
+                source={require('../assets/logo.png')}
+                className="h-20 w-20"
+                resizeMode="contain"
+              />
             </View>
             <Text className="text-6xl font-black tracking-tighter text-white">One Melody</Text>
             <Text className="mt-4 text-center text-[16px] font-bold text-zinc-400">

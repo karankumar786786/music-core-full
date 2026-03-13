@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "my-expo-app",
-    "slug": "my-expo-app",
+    "name": "One Melody",
+    "slug": "one-melody",
     "version": "1.0.0",
     "scheme": "my-expo-app",
     "web": {
@@ -14,17 +14,10 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "UIBackgroundModes": [
-          "audio"
-        ]
+        "UIBackgroundModes": ["audio"]
       }
     },
-    "plugins": [
-      "expo-router",
-      "expo-secure-store",
-      "expo-video",
-      "expo-font"
-    ],
+    "plugins": ["expo-router", "expo-secure-store", "expo-video", "expo-font"],
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
