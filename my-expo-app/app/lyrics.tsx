@@ -17,7 +17,7 @@ import { capitalize } from '../lib/utils';
 import { parseVTT, LyricCue } from '../lib/lyrics';
 import { getCoverImageUrl } from '../lib/s3';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function LyricsScreen() {
   const insets = useSafeAreaInsets();
@@ -103,10 +103,11 @@ export default function LyricsScreen() {
       }
     }
     if (found !== activeCueIndex) {
+      console.log(`[Lyrics] Sync | position: ${position.toFixed(2)} | new cue: ${found} | text: ${found !== -1 ? lyrics[found].text : 'None'}`);
       setActiveCueIndex(found);
       if (found !== -1 && cueRefs.current[found] !== undefined && lyricsScrollRef.current) {
         lyricsScrollRef.current.scrollTo({
-          y: Math.max(0, cueRefs.current[found] - SCREEN_WIDTH * 0.4),
+          y: Math.max(0, cueRefs.current[found] - SCREEN_HEIGHT * 0.4),
           animated: true,
         });
       }
