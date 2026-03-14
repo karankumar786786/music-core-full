@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Heart, ListMusic, Loader2, ListPlus } from "lucide-react";
 import { toast } from "sonner";
@@ -58,7 +58,7 @@ export function FavoriteButton({
         isLiked ? "Removed from favourites" : "Added to favourites",
       );
     },
-    onError: (error: any, _variables, context) => {
+    onError: (error: any, _variables) => {
       if (error.response?.status === 401) {
         setIsAuthModalOpen(true);
       } else if (error.response?.status === 409 && !isLiked) {

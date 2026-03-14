@@ -63,7 +63,7 @@ function FavouritesView() {
         {favorites.length > 0 && (
           <Button
             onClick={handlePlayAll}
-            className="rounded-full bg-white text-black hover:bg-zinc-200 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/10 gap-2 px-6 h-12"
+            className="rounded-full bg-primary text-black hover:bg-zinc-200 hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/10 gap-2 px-6 h-12"
           >
             <Play className="h-5 w-5 fill-current" />
             <span className="font-bold tracking-wide">Play All</span>

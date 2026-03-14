@@ -66,8 +66,15 @@ export const playerActions = {
 
     playAll: (songs: Song[]) => {
         if (songs.length === 0) return
-        playerStore.setState(state => ({ ...state, queue: songs }))
-        playerActions.setCurrentSong(songs[0])
+        playerStore.setState(state => ({ 
+            ...state, 
+            queue: songs,
+            currentSong: songs[0],
+            isPlaying: true,
+            currentTime: 0,
+            duration: 0,
+            lastQueueIndex: 0
+        }))
     },
 
     /**
