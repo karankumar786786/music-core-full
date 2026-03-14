@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Heart, ListMusic, Loader2, ListPlus } from "lucide-react";
 import { toast } from "sonner";
@@ -25,18 +25,11 @@ interface FavoriteButtonProps {
 
 export function FavoriteButton({
   songId,
-  isLiked: initialIsLiked,
+  isLiked,
   onToggle,
 }: FavoriteButtonProps) {
   const queryClient = useQueryClient();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isLiked, setIsLiked] = useState(!!initialIsLiked);
-
-  useEffect(() => {
-    if (typeof initialIsLiked === "boolean") {
-      setIsLiked(initialIsLiked);
-    }
-  }, [initialIsLiked]);
 
   const { data: user } = useQuery({
     queryKey: ["me"],
@@ -50,39 +43,50 @@ export function FavoriteButton({
       isLiked
         ? musicApi.removeFavourite(songId)
         : musicApi.addFavourite(songId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["favourites"] });
-      queryClient.invalidateQueries({ queryKey: ["trending"] });
-      queryClient.invalidateQueries({ queryKey: ["songs"] });
-      queryClient.invalidateQueries({ queryKey: ["featured"] });
+    onMutate: async () => {
+      // Optismitically update the UI
+      const previousFavourites = queryClient.getQueryData(["favourites", "paginated"]);
+      const previousCheck = queryClient.getQueryData(["favourite-check", songId]);
 
+      // If we're toggling from PlayerBar or SongRow, we just optimistically fire onToggle
       if (onToggle) onToggle();
 
+      return { previousFavourites, previousCheck };
+    },
+    onSuccess: () => {
       toast.success(
         isLiked ? "Removed from favourites" : "Added to favourites",
       );
     },
-    onError: (error: any) => {
+    onError: (error: any, _variables, context) => {
       if (error.response?.status === 401) {
         setIsAuthModalOpen(true);
-      } else if (error.response?.status === 409) {
+      } else if (error.response?.status === 409 && !isLiked) {
         toast.error("Song already in favourites");
-        // Optionally invalidate to sync state if we thought it wasn't liked
-        queryClient.invalidateQueries({ queryKey: ["favourites"] });
       } else {
-        setIsLiked(!isLiked);
         toast.error("Failed to update favourites");
       }
+      
+      // Rollback on error
+      if (onToggle) onToggle(); // revert optimistic update
+    },
+    onSettled: () => {
+      // Invalidate to ensure everything is perfectly in sync
+      queryClient.invalidateQueries({ queryKey: ["favourites"] });
+      queryClient.invalidateQueries({ queryKey: ["favourite-check", songId] });
+      queryClient.invalidateQueries({ queryKey: ["trending"] });
+      queryClient.invalidateQueries({ queryKey: ["songs"] });
+      queryClient.invalidateQueries({ queryKey: ["featured"] });
     },
   });
 
   const handleToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     if (!user) {
       setIsAuthModalOpen(true);
       return;
     }
-    setIsLiked((prev) => !prev);
     toggleMutation.mutate();
   };
 

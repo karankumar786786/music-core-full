@@ -13,9 +13,10 @@ interface SongRowProps {
   song: any;
   index: number;
   showFavorite?: boolean;
+  onToggleFavorite?: () => void;
 }
 
-export function SongRow({ song, index, showFavorite = true }: SongRowProps) {
+export function SongRow({ song, index, showFavorite = true, onToggleFavorite }: SongRowProps) {
   return (
     <div
       className="group flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 transition-all duration-300 cursor-pointer border border-transparent hover:border-white/5 active:scale-[0.98]"
@@ -59,7 +60,7 @@ export function SongRow({ song, index, showFavorite = true }: SongRowProps) {
 
       <div className="shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
         {showFavorite && (
-          <FavoriteButton songId={song.id} isLiked={song.isLiked || false} />
+          <FavoriteButton songId={song.id} isLiked={song.isLiked || false} onToggle={onToggleFavorite} />
         )}
         <PlaylistButton songId={song.id} />
         <Button
