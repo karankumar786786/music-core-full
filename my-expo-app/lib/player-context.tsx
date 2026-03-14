@@ -52,7 +52,6 @@ interface PlayerProgressContextType {
   duration: number;
 }
 
-// Legacy combined type (state + actions, no progress)
 type PlayerContextType = PlayerStateContextType & PlayerActionsContextType;
 
 // ─── Contexts ─────────────────────────────────────────────────────────────────
@@ -65,13 +64,20 @@ const PlayerContext = createContext<PlayerContextType | null>(null);
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
-  // Granular store selectors — only re-renders when that specific field changes
+  // ── Store subscriptions ───────────────────────────────────────────────────
+  // Only subscribe to fields that this component genuinely needs to react to.
+  // Critically: we do NOT subscribe to `queue` here — queue changes on every
+  // playAll (N songs added at once) which would cause the syncPlayback effect
+  // to re-fire N times, creating the infinite render loop.
+  // Queue is read imperatively inside effects via playerStore.state.queue.
   const currentSong = useStore(playerStore, (s) => s.currentSong);
-  const queue = useStore(playerStore, (s) => s.queue);
   const lastQueueIndex = useStore(playerStore, (s) => s.lastQueueIndex);
   const isShuffle = useStore(playerStore, (s) => s.isShuffle);
   const repeatMode = useStore(playerStore, (s) => s.repeatMode);
   const isPlayingStore = useStore(playerStore, (s) => s.isPlaying);
+  // queue is only needed for the stateValue/legacyValue memos (UI display).
+  // It does NOT appear in any effect dependency array.
+  const queue = useStore(playerStore, (s) => s.queue);
 
   const { isAuthenticated } = useAuth();
 
@@ -95,6 +101,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [availableTracks, setAvailableTracks] = useState<VideoTrack[]>([]);
   const [qualityType, setQualityType] = useState<'auto' | 'high' | 'med' | 'low'>('auto');
 
+  // shouldAutoPlayRef: set to true by play/playAll/playNext/playPrevious actions
+  // in the context. syncPlayback reads this to decide whether to call player.play()
+  // after loading. This decouples "user intent to play" from isPlayingStore so
+  // we never start the old stream while the new one is loading.
   const shouldAutoPlayRef = useRef(false);
   const isSourceLoadingRef = useRef(false);
   const lastPlayCommandTimeRef = useRef<number>(0);
@@ -173,9 +183,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     quality: null,
   });
 
-  // Swap to standby player if it already preloaded the new song
+  // Swap to standby player if it already has the new song preloaded.
+  // Guard: never swap while a load is in-flight — that would abandon
+  // the active replaceAsync and leave the player in an inconsistent state.
   useEffect(() => {
     if (!currentSong) return;
+    if (isSourceLoadingRef.current) return;
+
     const standbyIdx = activePlayerIndex === 0 ? 1 : 0;
     const standbyRef = standbyIdx === 0 ? p0SongRef : p1SongRef;
 
@@ -189,7 +203,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentSong, qualityType, activePlayerIndex]);
 
-  // ── Sync Playback & Preload ───────────────────────────────────────────────
+  // ── Sync Playback ─────────────────────────────────────────────────────────
+  // Responsible ONLY for loading + playing the active stream.
+  // Does NOT preload standby — that lives in its own effect below so these
+  // two concerns never share a dependency array and can't trigger each other.
 
   useEffect(() => {
     let isCurrent = true;
@@ -202,26 +219,26 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       }
 
       const activeP = activePlayerIndex === 0 ? p0 : p1;
-      const standbyP = activePlayerIndex === 0 ? p1 : p0;
       const activeRef = activePlayerIndex === 0 ? p0SongRef : p1SongRef;
-      const standbyRef = activePlayerIndex === 0 ? p1SongRef : p0SongRef;
 
       const isQualityChange =
         activeRef.current.id === currentSong.id && activeRef.current.quality !== qualityType;
       const needsActiveLoad = activeRef.current.id !== currentSong.id || isQualityChange;
 
       if (needsActiveLoad) {
-        // Capture position and playing state before async gap
-        const preservedPos = isQualityChange ? activeP.currentTime : 0;
         const wasPlaying = shouldAutoPlayRef.current || isPlayingStore;
 
+        // Resolve URL first (async), THEN snapshot position.
+        // This way preservedPos is captured as late as possible — right before
+        // we touch the player — minimising drift caused by the network round-trip.
         const streamUrl = await resolveStreamUrl(currentSong, qualityType);
         if (!isCurrent) return;
+
+        const preservedPos = isQualityChange ? activeP.currentTime : 0;
 
         isSourceLoadingRef.current = true;
 
         try {
-          // Pause before replacing to avoid audio glitch during stream swap
           if (isQualityChange) activeP.pause();
 
           await activeP.replaceAsync(streamUrl);
@@ -229,68 +246,48 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
           activeRef.current = { id: currentSong.id, quality: qualityType };
 
-          // For quality changes: seek to preserved position BEFORE playing
-          // Order matters: seek → wait → play (not play → seek)
           if (isQualityChange && preservedPos > 0) {
+            // Update UI immediately so seekbar doesn't snap to 0
+            setPosition(preservedPos);
+            lastSeekTimeRef.current = Date.now();
+
             try {
-              // Direct assignment is most reliable right after replaceAsync
               activeP.currentTime = preservedPos;
             } catch {
-              try {
-                activeP.seekBy(preservedPos - activeP.currentTime);
-              } catch {}
+              try { activeP.seekBy(preservedPos - activeP.currentTime); } catch {}
             }
-            // Small yield — lets expo-video register the seek before play is called
-            await new Promise<void>((resolve) => setTimeout(resolve, 80));
+
+            // 120 ms lets expo-video commit the seek on both iOS + Android
+            // before play() fires, eliminating the 1-2s audible skip.
+            await new Promise<void>((resolve) => setTimeout(resolve, 120));
             if (!isCurrent) return;
           }
 
           if (wasPlaying) {
             lastPlayCommandTimeRef.current = Date.now();
+            // Sync store to true now that the stream is actually ready.
+            // This is the single moment isPlaying flips to true — not in the store
+            // actions, not before replaceAsync — only here, when we're about to play.
+            playerActions.setIsPlaying(true);
             activeP.play();
           }
         } catch (err) {
           console.error('[PlayerContext] replaceAsync FAILED:', err);
         } finally {
-          if (isCurrent) {
-            isSourceLoadingRef.current = false;
-          }
+          if (isCurrent) isSourceLoadingRef.current = false;
         }
       } else {
+        // Stream already loaded for this song — just honour play/pause state
         if (shouldAutoPlayRef.current || isPlayingStore) {
           lastPlayCommandTimeRef.current = Date.now();
           activeP.play();
+        } else {
+          activeP.pause();
         }
       }
 
-      // ── Preload Standby Player ──────────────────────────────────────────
-
-      standbyP.pause();
-      let nextIdx = lastQueueIndex + 1;
-      if (isShuffle) {
-        nextIdx = (lastQueueIndex + 1) % queue.length;
-      } else if (nextIdx >= queue.length && repeatMode === 'all') {
-        nextIdx = 0;
-      }
-
-      const nextSong = nextIdx >= 0 && nextIdx < queue.length ? queue[nextIdx] : null;
-
-      if (nextSong) {
-        const needsStandbyLoad =
-          standbyRef.current.id !== nextSong.id || standbyRef.current.quality !== qualityType;
-        if (needsStandbyLoad) {
-          const streamUrl = await resolveStreamUrl(nextSong, qualityType);
-          if (!isCurrent) return;
-
-          standbyReadyRef.current = false;
-          await standbyP.replaceAsync(streamUrl);
-          if (!isCurrent) return;
-
-          standbyRef.current = { id: nextSong.id, quality: qualityType };
-          standbyP.pause();
-          standbyReadyRef.current = true;
-        }
-      }
+      // Reset autoplay intent after acting on it
+      shouldAutoPlayRef.current = false;
     };
 
     syncPlayback();
@@ -298,8 +295,74 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       isCurrent = false;
     };
   }, [
+    // Intentionally excludes `queue` — queue changes must NOT re-trigger
+    // the active stream load. Standby preloading handles queue in its own effect.
     currentSong,
-    queue,
+    lastQueueIndex,
+    isShuffle,
+    repeatMode,
+    qualityType,
+    activePlayerIndex,
+    isPlayingStore,
+    p0,
+    p1,
+    resolveStreamUrl,
+  ]);
+
+  // ── Standby Preload ───────────────────────────────────────────────────────
+  // Completely isolated from syncPlayback so queue updates (playAll, feed sync)
+  // only re-run preloading, never the active stream load.
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    const preloadStandby = async () => {
+      if (!currentSong) return;
+
+      const standbyP = activePlayerIndex === 0 ? p1 : p0;
+      const standbyRef = activePlayerIndex === 0 ? p1SongRef : p0SongRef;
+
+      // Read queue imperatively — not as a dep — to get the latest snapshot
+      const { queue: currentQueue } = playerStore.state;
+
+      let nextIdx = lastQueueIndex + 1;
+      if (isShuffle) {
+        nextIdx = (lastQueueIndex + 1) % Math.max(currentQueue.length, 1);
+      } else if (nextIdx >= currentQueue.length && repeatMode === 'all') {
+        nextIdx = 0;
+      }
+
+      const nextSong =
+        nextIdx >= 0 && nextIdx < currentQueue.length ? currentQueue[nextIdx] : null;
+
+      if (!nextSong) return;
+
+      const needsStandbyLoad =
+        standbyRef.current.id !== nextSong.id || standbyRef.current.quality !== qualityType;
+
+      if (!needsStandbyLoad) return;
+
+      const streamUrl = await resolveStreamUrl(nextSong, qualityType);
+      if (!isCurrent) return;
+
+      standbyReadyRef.current = false;
+      try {
+        await standbyP.replaceAsync(streamUrl);
+        if (!isCurrent) return;
+        standbyRef.current = { id: nextSong.id, quality: qualityType };
+        standbyP.pause();
+        standbyReadyRef.current = true;
+      } catch {
+        // Non-critical — standby failure just means no instant track swap
+      }
+    };
+
+    preloadStandby();
+    return () => {
+      isCurrent = false;
+    };
+  }, [
+    currentSong,
     lastQueueIndex,
     isShuffle,
     repeatMode,
@@ -308,9 +371,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     p0,
     p1,
     resolveStreamUrl,
+    // queue intentionally excluded — read imperatively inside the effect
   ]);
 
   // ── Sync Store isPlaying → Player ─────────────────────────────────────────
+  // Fires when the user taps play/pause (togglePlayPause).
+  // Guarded by isSourceLoadingRef so it never plays the old stream
+  // while a new one is being loaded by syncPlayback.
 
   useEffect(() => {
     if (isSourceLoadingRef.current) return;
@@ -430,12 +497,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const result = playerActions.playPrevious(positionRef.current);
     if (result === 'restart') {
       seekTo(0);
+      playerActions.setIsPlaying(true);
+      player.play();
     }
-  }, [seekTo]);
+  }, [seekTo, player]);
 
   // ── Context Values ────────────────────────────────────────────────────────
 
-  // Actions: re-created only when player instance swaps (almost never)
   const actionsValue = useMemo<PlayerActionsContextType>(
     () => ({
       play,
@@ -457,7 +525,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     [play, playAll, seekTo, stop, playPrevious]
   );
 
-  // State: re-created on song/playback changes — NOT on position ticks
   const stateValue = useMemo<PlayerStateContextType>(
     () => ({
       currentSong,
@@ -486,13 +553,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     ]
   );
 
-  // Progress: updates every 50ms — isolated so only seekbar re-renders
   const progressValue = useMemo<PlayerProgressContextType>(
     () => ({ position, bufferedPosition, duration }),
     [position, bufferedPosition, duration]
   );
 
-  // Legacy: merges state + actions for backwards compat (no progress)
   const legacyValue = useMemo<PlayerContextType>(
     () => ({ ...stateValue, ...actionsValue }),
     [stateValue, actionsValue]
@@ -513,44 +578,24 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
-/**
- * Stable action functions only.
- * NEVER re-renders due to playback state changes.
- * Use in: SearchTab, SongRow, any component that only triggers playback.
- */
 export const usePlayerActions = () => {
   const ctx = useContext(PlayerActionsContext);
   if (!ctx) throw new Error('usePlayerActions must be used within a PlayerProvider');
   return ctx;
 };
 
-/**
- * Playback state only (currentSong, isPlaying, isBuffering, queue, etc.)
- * Re-renders on song/playback changes — NOT on position ticks.
- * Use in: MiniPlayer, Player screen header, queue list.
- */
 export const usePlayerState = () => {
   const ctx = useContext(PlayerStateContext);
   if (!ctx) throw new Error('usePlayerState must be used within a PlayerProvider');
   return ctx;
 };
 
-/**
- * Position, bufferedPosition, duration only.
- * Re-renders every 50ms during playback.
- * Use in: ONLY the seekbar/progress bar component.
- */
 export const usePlayerProgress = () => {
   const ctx = useContext(PlayerProgressContext);
   if (!ctx) throw new Error('usePlayerProgress must be used within a PlayerProvider');
   return ctx;
 };
 
-/**
- * Legacy hook — state + actions merged, no progress.
- * Existing components using usePlayer() continue to work.
- * Prefer usePlayerActions() or usePlayerState() for new components.
- */
 export const usePlayer = () => {
   const ctx = useContext(PlayerContext);
   if (!ctx) throw new Error('usePlayer must be used within a PlayerProvider');
