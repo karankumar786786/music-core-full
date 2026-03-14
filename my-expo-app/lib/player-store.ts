@@ -2,6 +2,10 @@ import { Store } from '@tanstack/react-store';
 import { musicApi } from './api';
 import { getCoverImageUrl } from './s3';
 
+let _storeDbgSeq = 0;
+const SDBG = (label: string, ...args: any[]) =>
+  console.log(`[🎵 STORE #${++_storeDbgSeq}] ${label}`, ...args);
+
 export interface PlayerSong {
     id: string;
     title: string;
@@ -35,6 +39,7 @@ export const playerStore = new Store<PlayerState>({
 
 export const playerActions = {
     setCurrentSong: (song: PlayerSong | null) => {
+        SDBG('setCurrentSong', { song: song?.title ?? null, currentSong: playerStore.state.currentSong?.title ?? null });
         playerStore.setState((state) => {
             let newLastQueueIndex = state.lastQueueIndex;
             if (song) {
@@ -43,15 +48,14 @@ export const playerActions = {
             }
 
             if (state.currentSong?.id === song?.id && song !== null) {
-                // Same song — don't flip isPlaying here; let syncPlayback decide
+                SDBG('setCurrentSong: same song, only updating index', { newLastQueueIndex });
                 return { ...state, lastQueueIndex: newLastQueueIndex };
             }
 
+            SDBG('setCurrentSong: new song', { title: song?.title, newLastQueueIndex, isPlaying: false });
             return {
                 ...state,
                 currentSong: song,
-                // Never set isPlaying:true here — stream isn't loaded yet.
-                // shouldAutoPlayRef in the context drives autoplay once ready.
                 isPlaying: false,
                 lastQueueIndex: newLastQueueIndex,
             };
@@ -79,14 +83,15 @@ export const playerActions = {
     },
 
     playSong: (song: PlayerSong) => {
+        SDBG('playSong', { title: song.title, id: song.id });
         playerStore.setState((state) => {
             const existingIdx = state.queue.findIndex((s) => s.id === song.id);
 
             if (existingIdx !== -1) {
+                SDBG('playSong: found in queue at idx', existingIdx);
                 return {
                     ...state,
                     currentSong: song,
-                    // Never set isPlaying:true — stream not loaded yet
                     isPlaying: false,
                     lastQueueIndex: existingIdx,
                 };
@@ -98,12 +103,12 @@ export const playerActions = {
                 song,
                 ...state.queue.slice(insertAt),
             ];
+            SDBG('playSong: inserted at idx', insertAt, 'queueLen:', newQueue.length);
 
             return {
                 ...state,
                 queue: newQueue,
                 currentSong: song,
-                // Never set isPlaying:true — stream not loaded yet
                 isPlaying: false,
                 lastQueueIndex: insertAt,
             };
@@ -112,16 +117,13 @@ export const playerActions = {
     },
 
     playAll: (songs: PlayerSong[]) => {
-        console.log('[PlayerStore] playAll called with', songs.length, 'songs');
+        SDBG('playAll', { count: songs.length, first: songs[0]?.title });
         if (songs.length === 0) return;
         playerStore.setState((state) => ({
             ...state,
             queue: songs,
             lastQueueIndex: 0,
             currentSong: songs[0],
-            // Never set isPlaying:true — stream not loaded yet.
-            // shouldAutoPlayRef in context is already true (set before this call),
-            // so syncPlayback will call player.play() once replaceAsync resolves.
             isPlaying: false,
             queueSource: 'user',
         }));
@@ -164,6 +166,7 @@ export const playerActions = {
     setIsPlaying: (isPlaying: boolean) => {
         playerStore.setState((state) => {
             if (state.isPlaying === isPlaying) return state;
+            SDBG('setIsPlaying', { from: state.isPlaying, to: isPlaying, song: state.currentSong?.title });
             return { ...state, isPlaying };
         });
     },
@@ -212,9 +215,10 @@ export const playerActions = {
 
     playNext: async () => {
         const { queue, lastQueueIndex, isShuffle, repeatMode, currentSong } = playerStore.state;
+        SDBG('playNext', { currentSong: currentSong?.title, lastQueueIndex, queueLen: queue.length, repeatMode, isShuffle });
 
         if (repeatMode === 'one' && currentSong) {
-            // Signal context to restart — don't touch isPlaying
+            SDBG('playNext: repeat-one, restarting');
             playerStore.setState((s) => ({ ...s, isPlaying: false }));
             return;
         }
@@ -232,15 +236,20 @@ export const playerActions = {
             nextIndex = 0;
         }
 
+        SDBG('playNext: computed nextIndex', { nextIndex, queueLen: queue.length });
+
         if (nextIndex >= 0 && nextIndex < queue.length) {
             const nextSong = queue[nextIndex];
+            SDBG('playNext: playing', { title: nextSong.title, nextIndex });
             playerActions.setCurrentSong(nextSong);
             musicApi.addView(nextSong.id).catch(() => {});
         } else if (repeatMode === 'all' && queue.length > 0) {
             const nextSong = queue[0];
+            SDBG('playNext: repeat-all wrap to 0', { title: nextSong.title });
             playerActions.setCurrentSong(nextSong);
             musicApi.addView(nextSong.id).catch(() => {});
         } else {
+            SDBG('playNext: falling back to playNextFromFallback');
             await playerActions.playNextFromFallback();
         }
 
@@ -248,6 +257,7 @@ export const playerActions = {
         const finalIdx = playerStore.state.lastQueueIndex;
         const remaining = finalQueue.length - finalIdx - 1;
         if (finalQueue.length > 0 && remaining <= 2) {
+            SDBG('playNext: low remaining songs, fetching feed', { remaining });
             playerActions.fetchAndAddFeedToQueue();
         }
     },
