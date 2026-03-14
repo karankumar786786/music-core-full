@@ -12,7 +12,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import { usePlayer } from '../lib/player-context';
+import { usePlayer, usePlayerProgress } from '../lib/player-context';
 import { capitalize } from '../lib/utils';
 import { parseVTT, LyricCue } from '../lib/lyrics';
 import { getCoverImageUrl } from '../lib/s3';
@@ -25,9 +25,6 @@ export default function LyricsScreen() {
     currentSong,
     isPlaying,
     isBuffering,
-    duration,
-    position,
-    bufferedPosition,
     baseUrl,
     togglePlayPause,
     seekTo,
@@ -35,6 +32,7 @@ export default function LyricsScreen() {
     playNext,
     playPrevious,
   } = usePlayer();
+  const { position, duration, bufferedPosition } = usePlayerProgress();
 
   const [lyrics, setLyrics] = useState<LyricCue[]>([]);
   const [isFetchingLyrics, setIsFetchingLyrics] = useState(false);

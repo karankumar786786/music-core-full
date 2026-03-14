@@ -16,7 +16,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { usePlayer } from '../lib/player-context';
+import { usePlayer, usePlayerProgress } from '../lib/player-context';
 import { getCoverImageUrl } from '../lib/s3';
 import { capitalize } from '../lib/utils';
 import { musicApi } from '../lib/api';
@@ -36,9 +36,6 @@ export default function PlayerScreen() {
     currentSong,
     isPlaying,
     isBuffering,
-    duration,
-    position,
-    bufferedPosition,
     togglePlayPause,
     seekTo,
     currentQualityType,
@@ -48,6 +45,7 @@ export default function PlayerScreen() {
     toggleRepeat,
     repeatMode,
   } = usePlayer();
+  const { position, duration, bufferedPosition } = usePlayerProgress();
   const { user } = useAuth();
 
   const [isLiked, setIsLiked] = useState(false);

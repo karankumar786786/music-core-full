@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,11 @@ import {
   TextInput,
   ActivityIndicator,
   ScrollView,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { musicApi } from '../../lib/api';
 import { getCoverImageUrl } from '../../lib/s3';
@@ -24,12 +25,25 @@ export default function SearchTab() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [isDebouncing, setIsDebouncing] = useState(false);
   const inputRef = useRef<TextInput>(null);
-  const { play } = usePlayer();
+  const { play, playAll } = usePlayer();
   const queryClient = useQueryClient();
+
+  // Handle screen focus/blur (dismiss keyboard on navigate away)
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[SearchTab] Screen focused');
+      return () => {
+        console.log('[SearchTab] Screen blurred - dismissing keyboard');
+        Keyboard.dismiss();
+        inputRef.current?.blur();
+      };
+    }, [])
+  );
 
   useEffect(() => {
     // If query is empty, clear debounced query immediately
     if (!query.trim()) {
+      console.log('[SearchTab] Clearing debounced query (empty input)');
       setDebouncedQuery('');
       setIsDebouncing(false);
       return;
@@ -39,6 +53,7 @@ export default function SearchTab() {
     setIsDebouncing(true);
 
     const handler = setTimeout(() => {
+      console.log('[SearchTab] Debounce finished, setting query:', query.trim());
       setDebouncedQuery(query.trim());
       setIsDebouncing(false);
     }, 500);
@@ -50,19 +65,30 @@ export default function SearchTab() {
     setQuery(text);
   };
 
-  const trimmedQuery = query.trim();
-
   // Search query
   const {
     data,
     isLoading: isInitialLoading,
     isFetching,
+    isError,
+    error,
   } = useQuery({
     queryKey: ['search', debouncedQuery],
-    queryFn: () => musicApi.search(debouncedQuery),
+    queryFn: () => {
+      console.log('[SearchTab] Executing search API for:', debouncedQuery);
+      return musicApi.search(debouncedQuery);
+    },
     enabled: debouncedQuery.length > 0,
     staleTime: 30000,
+    // KEY FIX: keep previous data visible while re-fetching so results
+    // don't disappear between searches
+    placeholderData: (previousData: any) => previousData,
+    retry: 1,
   });
+
+  if (isError) console.error('[SearchTab] Search query error:', error);
+  if (data)
+    console.log('[SearchTab] Search results received:', data.data?.songs?.length || 0, 'songs');
 
   const isPending = isFetching || isDebouncing;
 
@@ -88,27 +114,207 @@ export default function SearchTab() {
     },
   });
 
-  // Save history when debounced query changes (and is meaningful)
-  // Replaced with on-tap save to match web frontend
-
   const results = data?.data;
-  const hasSongs = results?.songs?.length > 0;
-  const hasArtists = results?.artists?.length > 0;
-  const hasPlaylists = results?.playlists?.length > 0;
+  const hasSongs = (results?.songs?.length ?? 0) > 0;
+  const hasArtists = (results?.artists?.length ?? 0) > 0;
+  const hasPlaylists = (results?.playlists?.length ?? 0) > 0;
   const hasResults = hasSongs || hasArtists || hasPlaylists;
 
   const searchHistory = historyData || [];
-  // Hide history immediately when user starts typing (matching web)
+  // Hide history immediately when user starts typing
   const showHistory = !query && searchHistory.length > 0;
 
-  const handleSaveHistory = (searchString: string) => {
-    const exists = searchHistory.some(
-      (item: any) => item.searchString.toLowerCase() === searchString.toLowerCase()
-    );
-    if (!exists) {
-      saveHistoryMutation.mutate(searchString);
+  const handleSaveHistory = useCallback(
+    (searchString: string) => {
+      console.log('[SearchTab] Attempting to save history:', searchString);
+      const exists = searchHistory.some(
+        (item: any) => item.searchString.toLowerCase() === searchString.toLowerCase()
+      );
+      if (!exists) {
+        console.log('[SearchTab] Saving new history item');
+        saveHistoryMutation.mutate(searchString);
+      } else {
+        console.log('[SearchTab] History item already exists, skipping');
+      }
+    },
+    [searchHistory, saveHistoryMutation]
+  );
+
+  const handlePlayAll = useCallback(() => {
+    console.log('[SearchTab] handlePlayAll called');
+    if (!results?.songs || results.songs.length === 0) {
+      console.log('[SearchTab] No songs to play all');
+      return;
     }
-  };
+    const playerSongs = results.songs.map((song: any) => ({
+      id: song.id,
+      title: song.title,
+      artistName: song.artistName,
+      storageKey: song.storageKey,
+      coverUrl: getCoverImageUrl(song.storageKey, 'large', true) || null,
+    }));
+    playAll(playerSongs);
+  }, [results?.songs, playAll]);
+
+  const MemoizedResults = useMemo(() => {
+    if (debouncedQuery.trim().length === 0 || !hasResults) return null;
+
+    return (
+      <View className="gap-10 pb-20">
+        {/* Songs */}
+        {hasSongs && (
+          <View>
+            <View className="mb-4 flex-row items-center justify-between px-6">
+              <Text className="text-2xl font-black tracking-tight text-white">Songs</Text>
+              <Pressable
+                onPress={handlePlayAll}
+                className="flex-row items-center gap-1.5 rounded-full bg-primary/10 px-4 py-2 active:bg-primary/20">
+                <Ionicons name="play" size={14} color="#22c55e" />
+                <Text className="text-[12px] font-black uppercase tracking-widest text-primary">
+                  Play All
+                </Text>
+              </Pressable>
+            </View>
+            <View className="px-2">
+              {results.songs.map((song: any, index: number) => (
+                <SongRow
+                  key={song.id}
+                  song={song}
+                  index={index}
+                  onPress={() => {
+                    handleSaveHistory(song.title);
+                    Keyboard.dismiss();
+                    play({
+                      id: song.id,
+                      title: song.title,
+                      artistName: song.artistName,
+                      storageKey: song.storageKey,
+                      coverUrl: getCoverImageUrl(song.storageKey, 'large', true) || null,
+                    });
+                  }}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Artists */}
+        {hasArtists && (
+          <View>
+            <Text className="mb-4 px-6 text-2xl font-black tracking-tight text-white">Artists</Text>
+            <View className="px-2">
+              {results.artists.map((artist: any) => {
+                const avatarUrl = getCoverImageUrl(artist.storageKey, 'small') || null;
+                return (
+                  <Pressable
+                    key={artist.id}
+                    onPress={() => {
+                      handleSaveHistory(artist.artistName);
+                      Keyboard.dismiss();
+                      router.push(`/artist/${artist.id}`);
+                    }}
+                    className="flex-row items-center gap-4 rounded-3xl px-4 py-3 active:bg-white/10">
+                    <View className="h-16 w-16 overflow-hidden rounded-full border border-white/10 bg-zinc-900 shadow-2xl">
+                      {avatarUrl ? (
+                        <Image
+                          source={{ uri: avatarUrl }}
+                          className="h-full w-full"
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View className="h-full w-full items-center justify-center bg-zinc-800">
+                          <Text className="text-xl font-black text-white/20">
+                            {artist.artistName?.[0]?.toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <View className="flex-1">
+                      <Text
+                        className="text-[17px] font-black tracking-tight text-white"
+                        numberOfLines={1}>
+                        {capitalize(artist.artistName)}
+                      </Text>
+                      <Text className="mt-0.5 text-[11px] font-black uppercase tracking-[0.15em] text-zinc-500">
+                        Artist
+                      </Text>
+                    </View>
+                    <View className="h-10 w-10 items-center justify-center rounded-full bg-white/5">
+                      <Ionicons name="chevron-forward" size={18} color="#52525b" />
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Playlists */}
+        {hasPlaylists && (
+          <View>
+            <Text className="mb-4 px-6 text-2xl font-black tracking-tight text-white">
+              Playlists
+            </Text>
+            <View className="px-2">
+              {results.playlists.map((playlist: any) => {
+                const coverUrl = getCoverImageUrl(playlist.storageKey, 'small') || null;
+                return (
+                  <Pressable
+                    key={playlist.id}
+                    onPress={() => {
+                      handleSaveHistory(playlist.title);
+                      Keyboard.dismiss();
+                      router.push(`/playlist/${playlist.id}`);
+                    }}
+                    className="flex-row items-center gap-4 rounded-3xl px-4 py-3 active:bg-white/10">
+                    <View className="h-16 w-16 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl">
+                      {coverUrl ? (
+                        <Image
+                          source={{ uri: coverUrl }}
+                          className="h-full w-full"
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View className="h-full w-full items-center justify-center bg-zinc-800">
+                          <Ionicons name="musical-notes-outline" size={24} color="#3f3f46" />
+                        </View>
+                      )}
+                    </View>
+                    <View className="flex-1">
+                      <Text
+                        className="text-[17px] font-black tracking-tight text-white"
+                        numberOfLines={1}>
+                        {capitalize(playlist.title)}
+                      </Text>
+                      <Text
+                        className="mt-0.5 text-[13px] font-medium text-zinc-500"
+                        numberOfLines={1}>
+                        {playlist.description || 'Curated Playlist'}
+                      </Text>
+                    </View>
+                    <View className="h-10 w-10 items-center justify-center rounded-full bg-white/5">
+                      <Ionicons name="chevron-forward" size={18} color="#52525b" />
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  }, [
+    debouncedQuery,
+    hasResults,
+    hasSongs,
+    hasArtists,
+    hasPlaylists,
+    results,
+    data, // FIX: track data directly so memo updates when query response arrives
+    handlePlayAll,
+    handleSaveHistory,
+    play,
+  ]);
 
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top']}>
@@ -138,6 +344,9 @@ export default function SearchTab() {
             onChangeText={handleTextChange}
             returnKeyType="search"
             selectionColor="#22c55e"
+            autoCorrect={false}
+            autoCapitalize="none"
+            spellCheck={false}
             onSubmitEditing={() => {
               const trimmed = query.trim();
               if (trimmed.length > 0) {
@@ -166,6 +375,7 @@ export default function SearchTab() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 100 }}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}>
         {/* Search History (when no query) */}
         {showHistory && (
@@ -189,7 +399,7 @@ export default function SearchTab() {
                   onPress={() => {
                     const text = item.searchString;
                     setQuery(text);
-                    // Instant update for history clicks
+                    // Instant update for history clicks — no debounce delay
                     setDebouncedQuery(text);
                     setIsDebouncing(false);
                   }}
@@ -224,7 +434,7 @@ export default function SearchTab() {
           </View>
         )}
 
-        {/* Initial Loading (no data yet) */}
+        {/* Initial Loading (no data yet, first ever search) */}
         {debouncedQuery.trim().length > 0 && isInitialLoading && !hasResults && (
           <View className="items-center py-20">
             <ActivityIndicator color="#22c55e" size="large" />
@@ -234,152 +444,35 @@ export default function SearchTab() {
           </View>
         )}
 
-        {/* No results (only show when not loading to avoid flickering) */}
-        {debouncedQuery.trim().length > 0 && !isPending && !hasResults && (
+        {/* No results — only show when not loading/debouncing to avoid flicker */}
+        {debouncedQuery.trim().length > 0 &&
+          !isPending &&
+          !isInitialLoading &&
+          !hasResults &&
+          !isError && (
+            <View className="items-center py-20">
+              <Ionicons name="sad-outline" size={48} color="#3f3f46" />
+              <Text className="mt-4 text-base text-zinc-500">
+                No results for &quot;{debouncedQuery}&quot;
+              </Text>
+            </View>
+          )}
+
+        {/* Error State */}
+        {debouncedQuery.trim().length > 0 && isError && (
           <View className="items-center py-20">
-            <Ionicons name="sad-outline" size={48} color="#3f3f46" />
-            <Text className="mt-4 text-base text-zinc-500">
-              No results for &quot;{debouncedQuery}&quot;
-            </Text>
+            <Ionicons name="warning-outline" size={48} color="#ef4444" />
+            <Text className="mt-4 text-base text-zinc-400">Something went wrong.</Text>
+            <Pressable
+              onPress={() => queryClient.invalidateQueries({ queryKey: ['search'] })}
+              className="mt-4 rounded-full bg-white/10 px-6 py-2">
+              <Text className="font-bold text-white">Try Again</Text>
+            </Pressable>
           </View>
         )}
 
-        {/* Results - Keep visible during re-fetches */}
-        {debouncedQuery.trim().length > 0 && hasResults && (
-          <View className="gap-10 pb-20">
-            {/* Songs */}
-            {hasSongs && (
-              <View>
-                <View className="mb-4 flex-row items-center justify-between px-6">
-                  <Text className="text-2xl font-black tracking-tight text-white">Songs</Text>
-                </View>
-                <View className="px-2">
-                  {results.songs.map((song: any, index: number) => (
-                    <SongRow
-                      key={song.id}
-                      song={song}
-                      index={index}
-                      onPress={() => {
-                        handleSaveHistory(song.title);
-                        play({
-                          id: song.id,
-                          title: song.title,
-                          artistName: song.artistName,
-                          storageKey: song.storageKey,
-                          coverUrl: getCoverImageUrl(song.storageKey, 'large', true) || null,
-                        });
-                      }}
-                    />
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Artists */}
-            {hasArtists && (
-              <View>
-                <Text className="mb-4 px-6 text-2xl font-black tracking-tight text-white">
-                  Artists
-                </Text>
-                <View className="px-2">
-                  {results.artists.map((artist: any) => {
-                    const avatarUrl = getCoverImageUrl(artist.storageKey, 'small') || null;
-                    return (
-                      <Pressable
-                        key={artist.id}
-                        onPress={() => {
-                          handleSaveHistory(artist.artistName);
-                          router.push(`/artist/${artist.id}`);
-                        }}
-                        className="flex-row items-center gap-4 rounded-3xl px-4 py-3 active:bg-white/10">
-                        <View className="h-16 w-16 overflow-hidden rounded-full border border-white/10 bg-zinc-900 shadow-2xl">
-                          {avatarUrl ? (
-                            <Image
-                              source={{ uri: avatarUrl }}
-                              className="h-full w-full"
-                              resizeMode="cover"
-                            />
-                          ) : (
-                            <View className="h-full w-full items-center justify-center bg-zinc-800">
-                              <Text className="text-xl font-black text-white/20">
-                                {artist.artistName?.[0]?.toUpperCase()}
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                        <View className="flex-1">
-                          <Text
-                            className="text-[17px] font-black tracking-tight text-white"
-                            numberOfLines={1}>
-                            {capitalize(artist.artistName)}
-                          </Text>
-                          <Text className="mt-0.5 text-[11px] font-black uppercase tracking-[0.15em] text-zinc-500">
-                            Artist
-                          </Text>
-                        </View>
-                        <View className="h-10 w-10 items-center justify-center rounded-full bg-white/5">
-                          <Ionicons name="chevron-forward" size={18} color="#52525b" />
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-
-            {/* Playlists */}
-            {hasPlaylists && (
-              <View>
-                <Text className="mb-4 px-6 text-2xl font-black tracking-tight text-white">
-                  Playlists
-                </Text>
-                <View className="px-2">
-                  {results.playlists.map((playlist: any) => {
-                    const coverUrl = getCoverImageUrl(playlist.storageKey, 'small') || null;
-                    return (
-                      <Pressable
-                        key={playlist.id}
-                        onPress={() => {
-                          handleSaveHistory(playlist.title);
-                          router.push(`/playlist/${playlist.id}`);
-                        }}
-                        className="flex-row items-center gap-4 rounded-3xl px-4 py-3 active:bg-white/10">
-                        <View className="h-16 w-16 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 shadow-2xl">
-                          {coverUrl ? (
-                            <Image
-                              source={{ uri: coverUrl }}
-                              className="h-full w-full"
-                              resizeMode="cover"
-                            />
-                          ) : (
-                            <View className="h-full w-full items-center justify-center bg-zinc-800">
-                              <Ionicons name="musical-notes-outline" size={24} color="#3f3f46" />
-                            </View>
-                          )}
-                        </View>
-                        <View className="flex-1">
-                          <Text
-                            className="text-[17px] font-black tracking-tight text-white"
-                            numberOfLines={1}>
-                            {capitalize(playlist.title)}
-                          </Text>
-                          <Text
-                            className="mt-0.5 text-[13px] font-medium text-zinc-500"
-                            numberOfLines={1}>
-                            {playlist.description || 'Curated Playlist'}
-                          </Text>
-                        </View>
-                        <View className="h-10 w-10 items-center justify-center rounded-full bg-white/5">
-                          <Ionicons name="chevron-forward" size={18} color="#52525b" />
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-          </View>
-        )}
+        {/* Results — kept visible during re-fetches via placeholderData */}
+        {MemoizedResults}
       </ScrollView>
     </SafeAreaView>
   );

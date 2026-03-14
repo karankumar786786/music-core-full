@@ -2,12 +2,12 @@ import React from 'react';
 import { View, Text, Image, Pressable, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { usePlayer } from '../lib/player-context';
+import { usePlayer, usePlayerProgress } from '../lib/player-context';
 import { capitalize } from '../lib/utils';
 
 export default function MiniPlayer() {
-  const { currentSong, isPlaying, isBuffering, position, duration, togglePlayPause, playNext } =
-    usePlayer();
+  const { currentSong, isPlaying, isBuffering, togglePlayPause, playNext } = usePlayer();
+  const { position, duration } = usePlayerProgress();
 
   if (!currentSong) return null;
 

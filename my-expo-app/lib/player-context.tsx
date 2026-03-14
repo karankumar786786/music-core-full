@@ -21,9 +21,6 @@ interface PlayerContextType {
   isPlaying: boolean;
   setIsPlaying: (playing: boolean) => void;
   isBuffering: boolean;
-  duration: number;
-  position: number;
-  bufferedPosition: number;
   baseUrl: string;
   activeTrack: VideoTrack | null;
   availableTracks: VideoTrack[];
@@ -44,7 +41,14 @@ interface PlayerContextType {
   toggleRepeat: () => void;
 }
 
+interface PlayerProgressContextType {
+  position: number;
+  bufferedPosition: number;
+  duration: number;
+}
+
 const PlayerContext = createContext<PlayerContextType | null>(null);
+const PlayerProgressContext = createContext<PlayerProgressContextType | null>(null);
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const state = useStore(playerStore, (s) => s);
@@ -354,17 +358,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [player]);
 
   const play = useCallback((song: PlayerSong) => {
+    console.log('[PlayerContext] play called for:', song.title);
     shouldAutoPlayRef.current = true;
     playerActions.playSong(song);
+    // Use push for modal-like behavior if not on player screen
     router.push({ pathname: '/player', params: { songId: song.id } });
   }, []);
 
   const playAll = useCallback((songs: PlayerSong[]) => {
     console.log('[PlayerContext] playAll triggered with', songs.length, 'songs');
-    if (songs.length === 0) {
-      console.warn('[PlayerContext] playAll called with empty songs array');
-      return;
-    }
+    if (songs.length === 0) return;
     shouldAutoPlayRef.current = true;
     playerActions.playAll(songs);
     router.push({ pathname: '/player', params: { songId: songs[0].id } });
@@ -409,9 +412,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       isPlaying: isPlayingStore,
       setIsPlaying: (p: boolean) => playerActions.setIsPlaying(p),
       isBuffering,
-      duration,
-      position,
-      bufferedPosition,
       baseUrl: currentSong
         ? getSongBaseUrl(currentSong.storageKey) || currentSong.songBaseUrl || ''
         : '',
@@ -440,9 +440,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       currentSong,
       isPlayingStore,
       isBuffering,
-      duration,
-      position,
-      bufferedPosition,
       activeTrack,
       availableTracks,
       qualityType,
@@ -457,11 +454,38 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     ]
   );
 
-  return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
+  const progressValue = useMemo(
+    () => ({
+      position,
+      bufferedPosition,
+      duration,
+    }),
+    [position, bufferedPosition, duration]
+  );
+
+  return (
+    <PlayerContext.Provider value={value}>
+      <PlayerProgressContext.Provider value={progressValue}>
+        {children}
+      </PlayerProgressContext.Provider>
+    </PlayerContext.Provider>
+  );
 }
 
 export const usePlayer = () => {
   const context = useContext(PlayerContext);
   if (!context) throw new Error('usePlayer must be used within a PlayerProvider');
+  return context;
+};
+
+export const usePlayerProgress = () => {
+  const context = useContext(PlayerProgressContext);
+  if (!context) throw new Error('usePlayerProgress must be used within a PlayerProvider');
+  return context;
+};
+
+export const usePlayerProgress = () => {
+  const context = useContext(PlayerProgressContext);
+  if (!context) throw new Error('usePlayerProgress must be used within a PlayerProvider');
   return context;
 };

@@ -16,15 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 setupOnlineManager();
 
 // Routes that authenticated users can access
-const PROTECTED_ROUTES = [
-  '(tabs)',
-  'artist',
-  'playlist',
-  'search',
-  'player',
-  'userplaylist',
-  'history',
-];
+const PROTECTED_ROUTES = ['(tabs)', 'artist', 'playlist', 'player', 'userplaylist', 'history'];
 
 function AuthGate() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -34,17 +26,33 @@ function AuthGate() {
   useAppStateFocusManager();
 
   useEffect(() => {
+    console.log(
+      '[AuthGate] useEffect | isAuthenticated:',
+      isAuthenticated,
+      'isLoading:',
+      isLoading,
+      'segments:',
+      segments
+    );
     if (isLoading) return;
 
     const firstSegment = segments[0];
     const inProtectedRoute = PROTECTED_ROUTES.includes(firstSegment);
+    console.log(
+      '[AuthGate] Current route segment:',
+      firstSegment,
+      '| isProtected:',
+      inProtectedRoute
+    );
 
     if (isAuthenticated && !inProtectedRoute) {
+      console.log('[AuthGate] Authenticated but in guest route, redirecting to home');
       router.replace('/(tabs)/home');
     } else if (!isAuthenticated && inProtectedRoute) {
+      console.log('[AuthGate] Not authenticated and in protected route, redirecting to login');
       router.replace('/');
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading, segments]);
 
   if (isLoading) {
     return (
@@ -82,7 +90,6 @@ function AuthGate() {
           name="userplaylist/[userPlaylistId]"
           options={{ animation: 'slide_from_right' }}
         />
-        <Stack.Screen name="search/index" options={{ animation: 'none' }} />
         <Stack.Screen name="history" options={{ animation: 'slide_from_right' }} />
         <Stack.Screen
           name="lyrics"

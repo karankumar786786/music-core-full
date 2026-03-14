@@ -49,6 +49,7 @@ export default function SongRow({ song, index, onPress }: SongRowProps) {
   });
 
   const openPlayer = () => {
+    console.log('[SongRow] openPlayer called for:', song.title);
     // Generate a high-quality cover for the full-screen player
     const largeCoverUrl = song.coverUrl || getCoverImageUrl(song.storageKey, 'large', true) || null;
     play({
@@ -58,7 +59,10 @@ export default function SongRow({ song, index, onPress }: SongRowProps) {
       storageKey: song.storageKey,
       coverUrl: largeCoverUrl,
     });
-    if (onPress) onPress();
+    if (onPress) {
+      console.log('[SongRow] calling custom onPress handler');
+      onPress();
+    }
   };
 
   return (
