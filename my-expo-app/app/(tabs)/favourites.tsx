@@ -15,8 +15,9 @@ import { musicApi } from '../../lib/api';
 import SongRow from '../../components/SongRow';
 import { usePlayer } from '../../lib/player-context';
 import { getCoverImageUrl } from '../../lib/s3';
-import { useCallback, useMemo, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useMemo, useState } from 'react';
 
 export default function Favourites() {
   const { playAll } = usePlayer();
@@ -30,6 +31,18 @@ export default function Favourites() {
         return (lastPage.meta?.page ?? 0) + 1;
       },
     });
+
+  const queryClient = useQueryClient();
+
+  const removeFavMutation = useMutation({
+    mutationFn: (songId: string) => musicApi.removeFavourite(songId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['favourites'] });
+    },
+    onError: () => {
+      Alert.alert('Error', 'Failed to remove from favourites');
+    },
+  });
 
   const favorites = data?.pages?.flatMap((page) => page.data || []) || [];
 
@@ -98,7 +111,34 @@ export default function Favourites() {
   const renderItem = ({ item, index }: { item: any; index: number }) => {
     const song = item.song;
     if (!song) return null;
-    return <SongRow song={{ ...song, isLiked: true }} index={index} />;
+
+    return (
+      <SongRow
+        song={{ ...song, isLiked: true }}
+        index={index}
+        renderRightAction={() => (
+          <Pressable
+            onPress={() => {
+              Alert.alert('Remove Favourite', 'Are you sure you want to remove this song?', [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Remove',
+                  style: 'destructive',
+                  onPress: () => removeFavMutation.mutate(song.id),
+                },
+              ]);
+            }}
+            disabled={removeFavMutation.isPending}
+            className="h-10 w-10 items-center justify-center rounded-full active:bg-white/10">
+            {removeFavMutation.isPending && removeFavMutation.variables === song.id ? (
+              <ActivityIndicator color="#ef4444" size="small" />
+            ) : (
+              <Ionicons name="trash-outline" size={20} color="#ef4444" />
+            )}
+          </Pressable>
+        )}
+      />
+    );
   };
 
   // Full-screen loading state

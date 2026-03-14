@@ -8,7 +8,7 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,10 +18,13 @@ import { capitalize } from '../../lib/utils';
 import SongRow from '../../components/SongRow';
 import { usePlayer } from '../../lib/player-context';
 import { useMemo, useCallback } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function PlaylistDetail() {
+  const insets = useSafeAreaInsets();
   const { playlistId } = useLocalSearchParams<{ playlistId: string }>();
   const { playAll } = usePlayer();
 
@@ -60,82 +63,98 @@ export default function PlaylistDetail() {
     if (!playlist) return null;
     return (
       <View>
-        {/* Back button (overlays banner) */}
-        <View className="absolute left-4 top-2 z-10">
-          <Pressable
-            onPress={() => router.back()}
-            className="h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/60">
-            <Ionicons name="arrow-back" size={20} color="#fff" />
-          </Pressable>
-        </View>
-
-        {/* Banner */}
-        <View className="h-56 w-full overflow-hidden bg-zinc-900">
+        {/* Hero Section */}
+        <View className="h-[440px] w-full bg-zinc-900">
           {bannerUrl ? (
-            <Image source={{ uri: bannerUrl }} className="h-full w-full" resizeMode="cover" />
+            <Image 
+              source={{ uri: bannerUrl }} 
+              className="h-full w-full" 
+              resizeMode="cover" 
+            />
           ) : coverUrl ? (
-            <Image
-              source={{ uri: coverUrl }}
-              className="h-full w-full"
-              resizeMode="cover"
-              blurRadius={20}
-              style={{ opacity: 0.5 }}
+            <Image 
+              source={{ uri: coverUrl }} 
+              className="h-full w-full" 
+              resizeMode="cover" 
+              blurRadius={10}
             />
           ) : (
-            <View className="h-full w-full bg-primary/10" />
+            <View className="h-full w-full bg-zinc-900" />
           )}
-          <View className="absolute inset-0 bg-black/40" />
-        </View>
+          
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.8)', 'black']}
+            className="absolute inset-0"
+          />
 
-        {/* Cover + Info overlay */}
-        <View className="mx-5 -mt-20 mb-6">
-          <View className="rounded-3xl border border-white/10 bg-zinc-950/90 p-5">
-            <View className="flex-row items-center gap-4">
-              {/* Cover image */}
-              <View className="h-24 w-24 overflow-hidden rounded-2xl border-2 border-primary/30 bg-zinc-800 shadow-lg">
+          {/* Info Overlay */}
+          <View className="absolute bottom-0 left-0 right-0 px-6 pb-8">
+            <View className="flex-row items-end gap-5">
+              {/* Cover restoration */}
+              <View className="h-32 w-32 overflow-hidden rounded-3xl border-2 border-primary/30 bg-zinc-800 shadow-2xl">
                 {coverUrl ? (
                   <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
                 ) : (
                   <View className="h-full w-full items-center justify-center bg-primary/10">
-                    <Ionicons name="albums" size={36} color="#22c55e" />
+                    <Ionicons name="albums" size={40} color="#22c55e" />
                   </View>
                 )}
               </View>
-              <View className="flex-1">
-                <Text className="mb-1 text-xs font-bold uppercase tracking-widest text-primary">
-                  Playlist
+
+              <View className="flex-1 pb-1">
+                <Text className="text-[10px] font-black uppercase tracking-[2px] text-primary/90">
+                  Curated Playlist
                 </Text>
-                <Text className="text-2xl font-black tracking-tight text-white" numberOfLines={2}>
+                <Text 
+                  className="mt-1 text-4xl font-black tracking-tighter text-white uppercase"
+                  numberOfLines={2}
+                  style={{ lineHeight: 40 }}
+                >
                   {capitalize(playlist.title)}
-                </Text>
-                <Text className="mt-1 text-sm font-semibold text-zinc-400">
-                  {totalTracks} tracks
                 </Text>
               </View>
             </View>
-            {/* description checking if playlist exists */}
-            {playlist.description && (
-              <View className="mt-4 border-t border-white/5 pt-4">
-                <Text className="text-sm leading-5 text-zinc-400">{playlist.description}</Text>
-              </View>
-            )}
+            
+            <View className="mt-6 flex-row items-center gap-3">
+               <View className="rounded-full bg-white/10 px-3 py-1.5">
+                 <Text className="text-[10px] font-black uppercase tracking-widest text-zinc-300">
+                   {totalTracks} Tracks
+                 </Text>
+               </View>
+               {playlist.description && (
+                  <Text className="flex-1 text-xs font-bold text-zinc-400" numberOfLines={2}>
+                    {playlist.description}
+                  </Text>
+               )}
+            </View>
           </View>
         </View>
 
-        {/* Play All */}
-        {songs.length > 0 && (
+        {/* Action Controls */}
+        <View className="flex-row items-center gap-4 px-6 py-6">
           <Pressable
             onPress={handlePlayAll}
-            className="mx-5 mb-4 h-12 flex-row items-center justify-center rounded-full bg-primary active:opacity-80">
-            <Ionicons name="play" size={20} color="#000" style={{ marginLeft: 2 }} />
-            <Text className="ml-2 text-base font-black text-black">Play All</Text>
+            className="h-16 w-16 items-center justify-center rounded-full bg-primary shadow-2xl shadow-primary/40 active:scale-95"
+          >
+            <Ionicons name="play" size={32} color="#000" style={{ marginLeft: 4 }} />
           </Pressable>
-        )}
+          
+          <Pressable className="h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] active:bg-white/10">
+            <Ionicons name="heart-outline" size={24} color="#fff" />
+          </Pressable>
 
-        {/* Section Header */}
-        <View className="mx-5 mb-2 flex-row items-center justify-between border-b border-white/5 pb-2">
-          <Text className="text-lg font-black tracking-tight text-white">Tracks</Text>
-          <Text className="text-xs font-bold text-zinc-600">{totalTracks} total</Text>
+          <Pressable className="h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] active:bg-white/10">
+            <Ionicons name="download-outline" size={24} color="#fff" />
+          </Pressable>
+
+          <Pressable className="h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] active:bg-white/10 ml-auto">
+            <Ionicons name="ellipsis-horizontal" size={24} color="#fff" />
+          </Pressable>
+        </View>
+
+        {/* Tracks Header */}
+        <View className="px-6 pb-2">
+           <Text className="text-xl font-black tracking-tight text-white">Tracks</Text>
         </View>
       </View>
     );
@@ -143,20 +162,13 @@ export default function PlaylistDetail() {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-black" edges={['top']}>
-        <View className="flex-row items-center gap-3 px-5 pb-4 pt-2">
-          <View className="h-10 w-10 rounded-full bg-zinc-900" />
-          <View className="h-5 w-32 rounded bg-zinc-900" />
-        </View>
-        <View className="h-56 w-full bg-zinc-900" />
-        <View className="mx-5 -mt-16 items-center">
-          <View className="h-32 w-32 rounded-2xl bg-zinc-800" />
-          <View className="mt-4 h-6 w-40 rounded bg-zinc-900" />
-        </View>
-        <View className="gap-3 px-4 pt-8">
-          {[1, 2, 3, 4].map((i) => (
-            <View key={i} className="flex-row items-center gap-3 px-4 py-3">
-              <View className="h-4 w-7 rounded bg-zinc-900" />
+      <View className="flex-1 bg-black">
+        <StatusBar style="light" />
+        <View className="h-[400px] w-full bg-zinc-900/50" />
+        <View className="mt-8 gap-4 px-6">
+          <View className="h-8 w-48 rounded-lg bg-zinc-900" />
+          {[1, 2, 3, 4, 5].map((i) => (
+            <View key={i} className="flex-row items-center gap-4 py-2">
               <View className="h-14 w-14 rounded-xl bg-zinc-900" />
               <View className="flex-1 gap-2">
                 <View className="h-4 w-3/4 rounded bg-zinc-900" />
@@ -165,20 +177,15 @@ export default function PlaylistDetail() {
             </View>
           ))}
         </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!playlist) {
-    return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-black">
-        <Text className="text-base text-zinc-500">Playlist not found</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
     <View className="flex-1 bg-black">
+      <StatusBar style="light" />
+      
+      {/* Background Ambience */}
       {coverUrl || bannerUrl ? (
         <Image
           source={{ uri: coverUrl || bannerUrl! }}
@@ -188,54 +195,44 @@ export default function PlaylistDetail() {
             left: 0,
             right: 0,
             bottom: 0,
-            width: '100%',
-            height: '100%',
+            opacity: 0.2,
           }}
-          blurRadius={80}
-          resizeMode="cover"
+          blurRadius={100}
         />
       ) : null}
-      <View
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.6)',
-        }}
-      />
-      <SafeAreaView className="flex-1" edges={['top']}>
-        <FlatList
-          data={songs}
-          keyExtractor={(item, index) => item?.id || `song-${index}`}
-          renderItem={({ item, index }) => <SongRow song={item} index={index} />}
-          ListHeaderComponent={MemoizedHeader}
-          ListEmptyComponent={
-            <View className="items-center py-20">
-              <View className="mb-4 h-20 w-20 items-center justify-center rounded-full border border-white/5 bg-zinc-900/60">
-                <Ionicons name="musical-notes" size={32} color="#3f3f46" />
-              </View>
-              <Text className="text-base font-bold text-zinc-400">No tracks yet</Text>
-              <Text className="mt-2 px-12 text-center text-sm text-zinc-600">
-                This playlist is empty
-              </Text>
+
+      {/* Floating Back Button */}
+      <View 
+        className="absolute left-6 z-50 h-10 w-10 overflow-hidden rounded-full"
+        style={{ top: insets.top + 10 }}
+      >
+        <Pressable
+          onPress={() => router.back()}
+          className="h-full w-full items-center justify-center bg-black/40"
+        >
+          <Ionicons name="chevron-back" size={24} color="#fff" />
+        </Pressable>
+      </View>
+
+      <FlatList
+        data={songs}
+        keyExtractor={(item, index) => item?.id || `song-${index}`}
+        renderItem={({ item, index }) => <SongRow song={item} index={index} />}
+        ListHeaderComponent={MemoizedHeader}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <View className="items-center py-8">
+              <ActivityIndicator color="#00FF85" />
             </View>
-          }
-          ListFooterComponent={
-            isFetchingNextPage ? (
-              <View className="items-center py-6">
-                <ActivityIndicator color="#08f808" />
-              </View>
-            ) : null
-          }
-          onEndReached={() => {
-            if (hasNextPage && !isFetchingNextPage) fetchNextPage();
-          }}
-          onEndReachedThreshold={0.5}
-          contentContainerStyle={{ paddingBottom: 100 }}
-        />
-      </SafeAreaView>
+          ) : <View className="h-24" />
+        }
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+        }}
+        onEndReachedThreshold={0.5}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+      />
     </View>
   );
 }

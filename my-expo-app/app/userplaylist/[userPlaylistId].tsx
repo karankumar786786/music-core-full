@@ -1,5 +1,5 @@
 import { View, Text, FlatList, Image, Pressable, ActivityIndicator, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,11 +7,15 @@ import { musicApi } from '../../lib/api';
 import { getCoverImageUrl } from '../../lib/s3';
 import { capitalize } from '../../lib/utils';
 import { usePlayer } from '../../lib/player-context';
+import SongRow from '../../components/SongRow';
 import { useMemo, useCallback } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 
 export default function UserPlaylistDetail() {
+  const insets = useSafeAreaInsets();
   const { userPlaylistId } = useLocalSearchParams<{ userPlaylistId: string }>();
-  const { play, playAll } = usePlayer();
+  const { playAll } = usePlayer();
   const queryClient = useQueryClient();
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
@@ -31,6 +35,22 @@ export default function UserPlaylistDetail() {
 
   const coverUrl = playlist ? getCoverImageUrl(playlist.storageKey, 'large') || null : null;
 
+  const removeMutation = useMutation({
+    mutationFn: (songId: string) => musicApi.removeSongFromUserPlaylist(userPlaylistId!, songId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userPlaylist', userPlaylistId] });
+      queryClient.invalidateQueries({ queryKey: ['userPlaylists'] });
+    },
+    onError: () => Alert.alert('Error', 'Failed to remove song'),
+  });
+
+  const handleRemove = (song: any) => {
+    Alert.alert('Remove Song', `Remove "${song.title}" from this playlist?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove', style: 'destructive', onPress: () => removeMutation.mutate(song.id) },
+    ]);
+  };
+
   const handlePlayAll = useCallback(() => {
     if (songs.length === 0) return;
     const playerSongs = songs.map((s: any) => ({
@@ -47,182 +67,180 @@ export default function UserPlaylistDetail() {
     if (!playlist) return null;
     return (
       <View>
-        {/* Back + Title */}
-        <View className="flex-row items-center gap-4 px-6 py-4 pt-12">
-          <Pressable
-            onPress={() => router.back()}
-            className="h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/60">
-            <Ionicons name="arrow-back" size={20} color="#fff" />
-          </Pressable>
-          <View className="flex-1">
-            <Text className="text-sm font-bold uppercase tracking-widest text-primary">
-              Playlist
-            </Text>
-            <Text className="text-3xl font-black tracking-tight text-white" numberOfLines={1}>
-              {capitalize(playlist.title)}
-            </Text>
-          </View>
-        </View>
+        {/* Hero Section */}
+        <View className="h-[400px] w-full bg-zinc-900">
+          {coverUrl ? (
+            <Image 
+              source={{ uri: coverUrl }} 
+              className="h-full w-full" 
+              resizeMode="cover" 
+            />
+          ) : (
+            <View className="h-full w-full items-center justify-center bg-zinc-900">
+              <Ionicons name="musical-notes" size={80} color="rgba(255,255,255,0.05)" />
+            </View>
+          )}
+          
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.8)', 'black']}
+            className="absolute inset-0"
+          />
 
-        {/* Cover + Basic Info */}
-        <View className="px-6 pb-6">
-          <View className="flex-row items-end gap-6">
-            <View className="h-40 w-40 overflow-hidden rounded-3xl border-2 border-primary/30 bg-zinc-800 shadow-2xl">
-              {coverUrl ? (
-                <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
-              ) : (
-                <View className="h-full w-full items-center justify-center bg-primary/10">
-                  <Ionicons name="musical-notes" size={60} color="#22c55e" />
-                </View>
-              )}
+          {/* Info Overlay */}
+          <View className="absolute bottom-0 left-0 right-0 px-6 pb-8">
+            <View className="flex-row items-end gap-5">
+              {/* Cover restoration */}
+              <View className="h-28 w-28 overflow-hidden rounded-3xl border-2 border-primary/30 bg-zinc-800 shadow-2xl">
+                {coverUrl ? (
+                  <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
+                ) : (
+                  <View className="h-full w-full items-center justify-center bg-primary/10">
+                    <Ionicons name="musical-notes" size={40} color="#22c55e" />
+                  </View>
+                )}
+              </View>
+
+              <View className="flex-1 pb-1">
+                <Text className="text-[10px] font-black uppercase tracking-[2px] text-primary/90">
+                  Personal Playlist
+                </Text>
+                <Text 
+                  className="mt-1 text-3xl font-black tracking-tighter text-white uppercase"
+                  numberOfLines={2}
+                  style={{ lineHeight: 32 }}
+                >
+                  {capitalize(playlist.title)}
+                </Text>
+              </View>
+            </View>
+            
+            <View className="mt-6 flex-row items-center gap-3">
+               <View className="rounded-full bg-white/10 px-3 py-1.5">
+                 <Text className="text-[10px] font-black uppercase tracking-widest text-zinc-300">
+                   {songs.length} Tracks
+                 </Text>
+               </View>
             </View>
           </View>
-
-          {/* Play All Button */}
-          {songs.length > 0 && (
-            <Pressable
-              onPress={handlePlayAll}
-              className="mt-8 h-14 flex-row items-center justify-center rounded-2xl bg-primary shadow-xl shadow-primary/20 active:opacity-90">
-              <Ionicons name="play" size={22} color="#000" style={{ marginLeft: 2 }} />
-              <Text className="ml-2 text-lg font-black text-black">Play All</Text>
-            </Pressable>
-          )}
         </View>
 
-        {/* Tracks info Header */}
-        <View className="px-6 pb-4">
-          <View className="flex-row items-center justify-between border-b border-white/5 pb-2">
-            <Text className="text-lg font-black tracking-tight text-white">Tracks</Text>
-            <Text className="text-xs font-bold text-zinc-600">{songs.length} total</Text>
-          </View>
+        {/* Action Controls */}
+        <View className="flex-row items-center gap-4 px-6 py-6">
+          <Pressable
+            onPress={handlePlayAll}
+            className="h-16 w-16 items-center justify-center rounded-full bg-primary shadow-2xl shadow-primary/40 active:scale-95"
+          >
+            <Ionicons name="play" size={32} color="#000" style={{ marginLeft: 4 }} />
+          </Pressable>
+          
+          <Pressable className="h-14 flex-1 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] active:bg-white/10">
+             <Text className="font-black tracking-widest text-white uppercase text-xs">Add Songs</Text>
+          </Pressable>
+
+          <Pressable className="h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] active:bg-white/10">
+            <Ionicons name="ellipsis-horizontal" size={24} color="#fff" />
+          </Pressable>
+        </View>
+
+        {/* Tracks Header */}
+        <View className="px-6 pb-2">
+           <Text className="text-xl font-black tracking-tight text-white">Tracks</Text>
         </View>
       </View>
     );
-  }, [playlist, songs, coverUrl, handlePlayAll]);
+  }, [playlist, songs.length, coverUrl, handlePlayAll]);
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-black">
-        <ActivityIndicator color="#22c55e" size="large" />
-      </SafeAreaView>
+      <View className="flex-1 bg-black">
+        <StatusBar style="light" />
+        <View className="h-[360px] w-full bg-zinc-900/50" />
+        <View className="mt-8 gap-4 px-6">
+          <View className="h-8 w-48 rounded-lg bg-zinc-900" />
+          {[1, 2, 3, 4, 5].map((i) => (
+            <View key={i} className="flex-row items-center gap-4 py-2">
+              <View className="h-14 w-14 rounded-xl bg-zinc-900" />
+              <View className="flex-1 gap-2">
+                <View className="h-4 w-3/4 rounded bg-zinc-900" />
+                <View className="h-3 w-1/2 rounded bg-zinc-900" />
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-black" edges={['top']}>
+    <View className="flex-1 bg-black">
+      <StatusBar style="light" />
+      
+      {/* Background Ambience */}
+      {coverUrl ? (
+        <Image
+          source={{ uri: coverUrl }}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            opacity: 0.2,
+          }}
+          blurRadius={100}
+        />
+      ) : null}
+
+      {/* Floating Back Button */}
+      <View 
+        className="absolute left-6 z-50 h-10 w-10 overflow-hidden rounded-full"
+        style={{ top: insets.top + 10 }}
+      >
+        <Pressable
+          onPress={() => router.back()}
+          className="h-full w-full items-center justify-center bg-black/40"
+        >
+          <Ionicons name="chevron-back" size={24} color="#fff" />
+        </Pressable>
+      </View>
+
       <FlatList
         data={songs}
         keyExtractor={(item, index) => item?.id || `song-${index}`}
         renderItem={({ item, index }) => (
-          <PlaylistSongRow song={item} index={index} playlistId={userPlaylistId!} />
+          <SongRow 
+            song={item} 
+            index={index} 
+            renderRightAction={() => (
+              <Pressable
+                onPress={() => handleRemove(item)}
+                disabled={removeMutation.isPending}
+                className="h-10 w-10 items-center justify-center rounded-full active:bg-red-500/10"
+              >
+                {removeMutation.isPending && removeMutation.variables === item.id ? (
+                  <ActivityIndicator color="#ef4444" size="small" />
+                ) : (
+                  <Ionicons name="trash-outline" size={20} color="#71717a" />
+                )}
+              </Pressable>
+            )}
+          />
         )}
         ListHeaderComponent={MemoizedHeader}
-        ListEmptyComponent={
-          <View className="items-center py-20">
-            <View className="mb-4 h-20 w-20 items-center justify-center rounded-full border border-white/5 bg-zinc-900/60">
-              <Ionicons name="musical-notes" size={32} color="#3f3f46" />
-            </View>
-            <Text className="text-base font-bold text-zinc-400">No songs yet</Text>
-            <Text className="mt-2 px-12 text-center text-sm text-zinc-600">
-              Add songs from the home page to fill your playlist
-            </Text>
-          </View>
-        }
         ListFooterComponent={
           isFetchingNextPage ? (
-            <View className="items-center py-6">
-              <ActivityIndicator color="#22c55e" />
+            <View className="items-center py-8">
+              <ActivityIndicator color="#00FF85" />
             </View>
-          ) : null
+          ) : <View className="h-24" />
         }
         onEndReached={() => {
           if (hasNextPage && !isFetchingNextPage) fetchNextPage();
         }}
         onEndReachedThreshold={0.5}
         contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
       />
-    </SafeAreaView>
-  );
-}
-
-function PlaylistSongRow({
-  song,
-  index,
-  playlistId,
-}: {
-  song: any;
-  index: number;
-  playlistId: string;
-}) {
-  const queryClient = useQueryClient();
-  const { play } = usePlayer();
-  const coverUrl = getCoverImageUrl(song.storageKey, 'small', true) || null;
-
-  const removeMutation = useMutation({
-    mutationFn: () => musicApi.removeSongFromUserPlaylist(playlistId, song.id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['userPlaylist', playlistId] });
-      queryClient.invalidateQueries({ queryKey: ['userPlaylists'] });
-    },
-    onError: () => Alert.alert('Error', 'Failed to remove song'),
-  });
-
-  const handleRemove = () => {
-    Alert.alert('Remove Song', `Remove "${song.title}" from this playlist?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => removeMutation.mutate() },
-    ]);
-  };
-
-  return (
-    <Pressable
-      onPress={() =>
-        play({
-          id: song.id,
-          title: song.title,
-          artistName: song.artistName,
-          storageKey: song.storageKey,
-          coverUrl,
-        })
-      }
-      className="flex-row items-center gap-4 rounded-[20px] px-4 py-3.5 active:bg-white/[0.04]">
-      <Text className="w-6 text-center text-xs font-black text-zinc-700">
-        {String(index + 1).padStart(2, '0')}
-      </Text>
-
-      <View className="h-14 w-14 overflow-hidden rounded-xl bg-zinc-900 shadow-sm">
-        {coverUrl ? (
-          <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
-        ) : (
-          <View className="h-full w-full items-center justify-center bg-primary/5">
-            <Ionicons name="musical-notes" size={24} color="#08f808" />
-          </View>
-        )}
-      </View>
-
-      <View className="min-w-0 flex-1">
-        <Text className="text-[15px] font-black tracking-tight text-white" numberOfLines={1}>
-          {capitalize(song.title)}
-        </Text>
-        <Text className="mt-0.5 text-xs font-bold text-zinc-500" numberOfLines={1}>
-          {capitalize(song.artistName)}
-        </Text>
-      </View>
-
-      <Pressable
-        onPress={(e) => {
-          e.stopPropagation();
-          handleRemove();
-        }}
-        disabled={removeMutation.isPending}
-        className="h-10 w-10 items-center justify-center rounded-full active:bg-red-500/10"
-        hitSlop={8}>
-        {removeMutation.isPending ? (
-          <ActivityIndicator color="#ef4444" size="small" />
-        ) : (
-          <Ionicons name="trash-outline" size={18} color="#71717a" />
-        )}
-      </Pressable>
-    </Pressable>
+    </View>
   );
 }

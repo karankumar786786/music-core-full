@@ -8,7 +8,7 @@ import {
   Dimensions,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,10 +18,13 @@ import { capitalize } from '../../lib/utils';
 import { usePlayer } from '../../lib/player-context';
 import SongRow from '../../components/SongRow';
 import { useMemo, useCallback } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function ArtistDetail() {
+  const insets = useSafeAreaInsets();
   const { artistId } = useLocalSearchParams<{ artistId: string }>();
   const { playAll } = usePlayer();
 
@@ -70,77 +73,99 @@ export default function ArtistDetail() {
     if (!artist) return null;
     return (
       <View>
-        {/* Hero Banner - Full width */}
-        <View className="h-64 w-full overflow-hidden bg-zinc-900">
+        {/* Hero Section */}
+        <View className="h-[460px] w-full bg-zinc-900">
           {bannerUrl ? (
-            <Image source={{ uri: bannerUrl }} className="h-full w-full" resizeMode="cover" />
+            <Image 
+              source={{ uri: bannerUrl }} 
+              className="h-full w-full" 
+              resizeMode="cover" 
+            />
           ) : avatarUrl ? (
-            <Image
-              source={{ uri: avatarUrl }}
-              className="h-full w-full"
-              resizeMode="cover"
-              blurRadius={20}
-              style={{ opacity: 0.5 }}
+            <Image 
+              source={{ uri: avatarUrl }} 
+              className="h-full w-full" 
+              resizeMode="cover" 
+              blurRadius={10}
             />
           ) : (
-            <View className="h-full w-full bg-primary/10" />
+            <View className="h-full w-full bg-zinc-900" />
           )}
-          {/* Dark gradient overlay */}
-          <View className="absolute inset-0 bg-black/40" />
-        </View>
+          
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.8)', 'black']}
+            className="absolute inset-0"
+          />
 
-        {/* Artist info card overlapping banner */}
-        <View className="mx-5 -mt-20 mb-6">
-          <View className="rounded-3xl border border-white/10 bg-zinc-950/90 p-5">
-            <View className="flex-row items-center gap-4">
-              {/* Avatar */}
-              <View className="h-24 w-24 overflow-hidden rounded-2xl border-2 border-primary/30 bg-zinc-800">
+          {/* Artist Identity Overlay */}
+          <View className="absolute bottom-0 left-0 right-0 px-6 pb-8">
+            <View className="flex-row items-end gap-5">
+              {/* Avatar restoration */}
+              <View className="h-32 w-32 overflow-hidden rounded-3xl border-2 border-primary/30 bg-zinc-800 shadow-2xl">
                 {avatarUrl ? (
                   <Image source={{ uri: avatarUrl }} className="h-full w-full" resizeMode="cover" />
                 ) : (
                   <View className="h-full w-full items-center justify-center bg-primary/10">
-                    <Text className="text-3xl font-black text-primary">
+                    <Text className="text-4xl font-black text-primary">
                       {artist.artistName?.[0]?.toUpperCase()}
                     </Text>
                   </View>
                 )}
               </View>
-              <View className="flex-1">
-                <Text className="mb-1 text-xs font-bold uppercase tracking-widest text-primary">
-                  Artist
-                </Text>
-                <Text className="text-2xl font-black tracking-tight text-white" numberOfLines={2}>
+
+              <View className="flex-1 pb-1">
+                <View className="flex-row items-center gap-1.5">
+                  <Ionicons name="checkmark-circle" size={14} color="#00FF85" />
+                  <Text className="text-[10px] font-black uppercase tracking-[2px] text-primary/90">
+                    Verified Artist
+                  </Text>
+                </View>
+                <Text 
+                  className="mt-1 text-4xl font-black tracking-tighter text-white uppercase"
+                  numberOfLines={2}
+                  style={{ lineHeight: 40 }}
+                >
                   {capitalize(artist.artistName)}
-                </Text>
-                <Text className="mt-1 text-sm font-semibold text-zinc-400">
-                  {totalTracks} tracks
                 </Text>
               </View>
             </View>
 
-            {/* Bio */}
-            {artist.bio && (
-              <View className="mt-4 border-t border-white/5 pt-4">
-                <Text className="text-sm leading-5 text-zinc-400">{artist.bio}</Text>
+            <View className="mt-6 flex-row items-center gap-3">
+              <View className="rounded-full bg-white/10 px-3 py-1.5">
+                <Text className="text-[10px] font-black uppercase tracking-widest text-zinc-300">
+                  {totalTracks} Tracks
+                </Text>
               </View>
-            )}
+              {artist.bio && (
+                 <Text className="flex-1 text-xs font-bold text-zinc-400" numberOfLines={2}>
+                   {artist.bio}
+                 </Text>
+              )}
+            </View>
           </View>
         </View>
 
-        {/* Play All */}
-        {songs.length > 0 && (
+        {/* Action Controls */}
+        <View className="flex-row items-center gap-4 px-6 py-6">
           <Pressable
             onPress={handlePlayAll}
-            className="mx-5 mb-4 h-12 flex-row items-center justify-center rounded-full bg-primary active:opacity-80">
-            <Ionicons name="play" size={20} color="#000" style={{ marginLeft: 2 }} />
-            <Text className="ml-2 text-base font-black text-black">Play All</Text>
+            className="h-16 w-16 items-center justify-center rounded-full bg-primary shadow-2xl shadow-primary/40 active:scale-95"
+          >
+            <Ionicons name="play" size={32} color="#000" style={{ marginLeft: 4 }} />
           </Pressable>
-        )}
+          
+          <Pressable className="h-14 flex-1 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] active:bg-white/10">
+             <Text className="font-black tracking-widest text-white uppercase text-xs">Follow</Text>
+          </Pressable>
 
-        {/* Section Header */}
-        <View className="mx-5 mb-2 flex-row items-center justify-between pb-2">
-          <Text className="text-lg font-black tracking-tight text-white">Popular Tracks</Text>
-          <Text className="text-xs font-bold text-zinc-600">{totalTracks} total</Text>
+          <Pressable className="h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] active:bg-white/10">
+            <Ionicons name="share-outline" size={20} color="#fff" />
+          </Pressable>
+        </View>
+
+        {/* Tracks List Header */}
+        <View className="px-6 pb-2">
+          <Text className="text-xl font-black tracking-tight text-white">Popular Releases</Text>
         </View>
       </View>
     );
@@ -148,17 +173,13 @@ export default function ArtistDetail() {
 
   if (isArtistLoading || isSongsLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-black" edges={['top']}>
-        {/* Skeleton header */}
-        <View className="flex-row items-center gap-3 px-5 pb-4 pt-2">
-          <View className="h-10 w-10 rounded-full bg-zinc-900" />
-          <View className="h-5 w-32 rounded bg-zinc-900" />
-        </View>
-        <View className="mx-5 mb-6 h-60 rounded-3xl bg-zinc-900" />
-        <View className="mt-2 gap-3 px-5">
-          {[1, 2, 3, 4].map((i) => (
-            <View key={i} className="flex-row items-center gap-3 px-4 py-3">
-              <View className="h-4 w-7 rounded bg-zinc-900" />
+      <View className="flex-1 bg-black">
+        <StatusBar style="light" />
+        <View className="h-[420px] w-full bg-zinc-900/50" />
+        <View className="mt-8 gap-4 px-6">
+          <View className="h-8 w-48 rounded-lg bg-zinc-900" />
+          {[1, 2, 3, 4, 5].map((i) => (
+            <View key={i} className="flex-row items-center gap-4 py-2">
               <View className="h-14 w-14 rounded-xl bg-zinc-900" />
               <View className="flex-1 gap-2">
                 <View className="h-4 w-3/4 rounded bg-zinc-900" />
@@ -167,20 +188,15 @@ export default function ArtistDetail() {
             </View>
           ))}
         </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!artist) {
-    return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-black">
-        <Text className="text-base text-zinc-500">Artist not found</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
     <View className="flex-1 bg-black">
+      <StatusBar style="light" />
+      
+      {/* Background Blur */}
       {avatarUrl || bannerUrl ? (
         <Image
           source={{ uri: bannerUrl || avatarUrl! }}
@@ -190,51 +206,44 @@ export default function ArtistDetail() {
             left: 0,
             right: 0,
             bottom: 0,
-            width: '100%',
-            height: '100%',
+            opacity: 0.2,
           }}
-          blurRadius={80}
-          resizeMode="cover"
+          blurRadius={100}
         />
       ) : null}
-      <View
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.6)',
-        }}
-      />
-      <SafeAreaView className="flex-1" edges={['top']}>
-        <FlatList
-          data={songs}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item, index }) => <SongRow song={item} index={index} />}
-          ListHeaderComponent={MemoizedHeader}
-          ListEmptyComponent={
-            <View className="items-center py-20">
-              <View className="mb-4 h-20 w-20 items-center justify-center rounded-full border border-white/5 bg-zinc-900/60">
-                <Ionicons name="musical-notes" size={32} color="#3f3f46" />
-              </View>
-              <Text className="text-base font-bold text-zinc-400">No tracks found</Text>
+
+      {/* Floating Back Button */}
+      <View 
+        className="absolute left-6 z-50 h-10 w-10 overflow-hidden rounded-full"
+        style={{ top: insets.top + 10 }}
+      >
+        <Pressable
+          onPress={() => router.back()}
+          className="h-full w-full items-center justify-center bg-black/40"
+        >
+          <Ionicons name="chevron-back" size={24} color="#fff" />
+        </Pressable>
+      </View>
+
+      <FlatList
+        data={songs}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item, index }) => <SongRow song={item} index={index} />}
+        ListHeaderComponent={MemoizedHeader}
+        ListFooterComponent={
+          isFetchingNextPage ? (
+            <View className="items-center py-8">
+              <ActivityIndicator color="#00FF85" />
             </View>
-          }
-          ListFooterComponent={
-            isFetchingNextPage ? (
-              <View className="items-center py-6">
-                <ActivityIndicator color="#08f808" />
-              </View>
-            ) : null
-          }
-          onEndReached={() => {
-            if (hasNextPage && !isFetchingNextPage) fetchNextPage();
-          }}
-          onEndReachedThreshold={0.5}
-          contentContainerStyle={{ paddingBottom: 100 }}
-        />
-      </SafeAreaView>
+          ) : <View className="h-20" />
+        }
+        onEndReached={() => {
+          if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+        }}
+        onEndReachedThreshold={0.5}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+      />
     </View>
   );
 }
