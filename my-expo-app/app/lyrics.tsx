@@ -127,9 +127,10 @@ export default function LyricsScreen() {
 
   if (!currentSong) {
     return (
-      <View
-        className="flex-1 items-center justify-center bg-black"
-        style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
+      <View className="flex-1 bg-black">
+        <View
+          className="flex-1 items-center justify-center"
+          style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
         <StatusBar style="light" />
         <Ionicons name="musical-notes" size={48} color="#27272a" />
         <Text className="mt-4 font-bold text-zinc-500">No song playing</Text>
@@ -139,13 +140,12 @@ export default function LyricsScreen() {
           <Text className="font-bold text-white">Go Back</Text>
         </Pressable>
       </View>
+    </View>
     );
   }
 
   return (
-    <View
-      className="flex-1 bg-black"
-      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
+    <View className="flex-1 bg-black">
       {coverImage ? (
         <Image
           source={{ uri: coverImage }}
@@ -172,7 +172,10 @@ export default function LyricsScreen() {
           backgroundColor: 'rgba(0,0,0,0.55)',
         }}
       />
-      <StatusBar style="light" />
+      <View
+        className="flex-1"
+        style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}>
+        <StatusBar style="light" />
       {/* ── Header ── */}
       <View className="flex-row items-center justify-between px-8 pb-8 pt-6">
         <Pressable
@@ -318,6 +321,7 @@ export default function LyricsScreen() {
             className="h-14 w-14 items-center justify-center rounded-full transition-transform active:scale-90">
             <Ionicons name="play-skip-forward" size={32} color="#fff" />
           </Pressable>
+        </View>
         </View>
       </View>
     </View>

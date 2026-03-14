@@ -16,7 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 setupOnlineManager();
 
 // Routes that authenticated users can access
-const PROTECTED_ROUTES = ['(tabs)', 'artist', 'playlist', 'player', 'userplaylist', 'history'];
+const PROTECTED_ROUTES = ['(tabs)', 'artist', 'playlist', 'player', 'userplaylist', 'history', 'lyrics'];
 
 function AuthGate() {
   const { isAuthenticated, isLoading } = useAuth();
