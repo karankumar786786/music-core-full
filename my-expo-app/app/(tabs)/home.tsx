@@ -17,20 +17,18 @@ import { router } from 'expo-router';
 import { musicApi } from '../../lib/api';
 import { getCoverImageUrl } from '../../lib/s3';
 import { capitalize } from '../../lib/utils';
-import { usePlayer } from '../../lib/player-context';
+import { usePlayerActions } from '../../lib/player-context';
 import { playerActions, PlayerSong } from '../../lib/player-store';
 import SongRow from '../../components/SongRow';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// ─── Skeleton placeholder ────────────────────────────────────────────────────
 const Skeleton = ({ className }: { className: string }) => (
-  <View className={`animate-pulse bg-white/[0.06] ${className}`} />
+  <View className={`bg-white/[0.06] ${className}`} />
 );
 
 export default function Home() {
-  // ── Data fetching ──────────────────────────────────────────────────────────
   const {
     data: featuredData,
     isLoading: featuredLoading,
@@ -102,9 +100,9 @@ export default function Home() {
     setRefreshing(false);
   }, [refetchFeatured]);
 
-  const { play } = usePlayer();
+  const { play } = usePlayerActions();
 
-  // Auto-sliding featured carousel
+  // ── Featured carousel ──────────────────────────────────────────────────────
   const featuredScrollRef = useRef<ScrollView>(null);
   const [featuredIndex, setFeaturedIndex] = React.useState(0);
   const featured = (featuredData?.data || []).slice(0, 8);
@@ -116,7 +114,7 @@ export default function Home() {
       setFeaturedIndex((prev) => {
         const next = (prev + 1) % featuredCount;
         featuredScrollRef.current?.scrollTo({
-          x: next * (SCREEN_WIDTH - 32),
+          x: next * SCREEN_WIDTH,
           animated: true,
         });
         return next;
@@ -125,39 +123,21 @@ export default function Home() {
     return () => clearInterval(timer);
   }, [featuredCount]);
 
-  // ── Section label helper ───────────────────────────────────────────────────
-  const SectionLabel = ({
-    title,
-    icon,
-    accent,
-  }: {
-    title: string;
-    icon?: string;
-    accent?: boolean;
-  }) => (
+  // ── Section label ──────────────────────────────────────────────────────────
+  const SectionLabel = ({ title, icon }: { title: string; icon?: string }) => (
     <View className="mb-5 flex-row items-center gap-2.5 px-6">
-      {/* Coloured left-bar accent */}
       <View className="h-5 w-1 rounded-full bg-primary" />
       {icon && <Ionicons name={icon as any} size={20} color="#08f808" />}
       <Text className="text-2xl font-black tracking-tighter text-white">{title}</Text>
     </View>
   );
 
-  // ── Featured carousel ──────────────────────────────────────────────────────
-  const CARD_WIDTH = SCREEN_WIDTH - 48; // side peek visible
-  const CARD_MARGIN = 12;
-
+  // ── Featured ───────────────────────────────────────────────────────────────
   const renderFeatured = () => {
     if (featuredLoading) {
       return (
         <View className="mb-10 px-6">
-          <Skeleton className="h-80 rounded-[36px]" />
-          {/* Skeleton filmstrip */}
-          <View className="mt-4 flex-row items-center gap-2 px-1">
-            {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className={`rounded-xl ${i === 0 ? 'h-12 w-12' : 'h-10 w-10'}`} />
-            ))}
-          </View>
+          <Skeleton className="h-[420px] rounded-[40px]" />
         </View>
       );
     }
@@ -165,29 +145,26 @@ export default function Home() {
 
     return (
       <View className="mb-10">
-        {/* ── Carousel ── */}
         <ScrollView
           ref={featuredScrollRef}
           horizontal
           decelerationRate="fast"
-          snapToInterval={CARD_WIDTH + CARD_MARGIN * 2}
-          snapToAlignment="center"
+          snapToInterval={SCREEN_WIDTH}
+          snapToAlignment="start"
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 24 }}
           scrollEventThrottle={16}
           onScroll={(e) => {
-            const idx = Math.round(e.nativeEvent.contentOffset.x / (CARD_WIDTH + CARD_MARGIN * 2));
+            const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
             setFeaturedIndex(Math.max(0, Math.min(idx, featuredCount - 1)));
           }}>
           {featured.map((item: any, idx: number) => {
             const coverUrl =
               item.coverUrl || getCoverImageUrl(item.storageKey, 'large', true) || null;
-            const indexLabel = String(idx + 1).padStart(2, '0');
 
             return (
               <Pressable
                 key={item.id}
-                style={{ width: CARD_WIDTH, marginHorizontal: CARD_MARGIN }}
+                style={{ width: SCREEN_WIDTH, paddingHorizontal: 20 }}
                 onPress={() =>
                   play({
                     id: item.id,
@@ -197,81 +174,78 @@ export default function Home() {
                     coverUrl,
                   })
                 }>
-                {/* ── Outer card shell ── */}
                 <View
                   style={{
-                    height: 320,
-                    borderRadius: 36,
+                    height: 420,
+                    borderRadius: 40,
                     overflow: 'hidden',
                     borderWidth: 1,
-                    borderColor: 'rgba(255,255,255,0.08)',
+                    borderColor: 'rgba(255,255,255,0.07)',
                     shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 20 },
-                    shadowOpacity: 0.7,
-                    shadowRadius: 32,
-                    elevation: 20,
+                    shadowOffset: { width: 0, height: 24 },
+                    shadowOpacity: 0.8,
+                    shadowRadius: 40,
+                    elevation: 24,
                     backgroundColor: '#111',
                   }}>
-                  {/* ── Full bleed artwork ── */}
+                  {/* Full bleed artwork */}
                   {coverUrl ? (
                     <Image
                       source={{ uri: coverUrl }}
-                      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+                      style={{ position: 'absolute', width: '100%', height: '100%' }}
                       resizeMode="cover"
                     />
                   ) : (
                     <View
                       style={{
                         position: 'absolute',
-                        inset: 0,
+                        width: '100%',
+                        height: '100%',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: 'rgba(8,248,8,0.06)',
+                        backgroundColor: 'rgba(8,248,8,0.04)',
                       }}>
-                      <Ionicons name="musical-notes" size={72} color="#08f808" />
+                      <Ionicons name="musical-notes" size={80} color="#08f808" />
                     </View>
                   )}
 
-                  {/* ── Deep cinematic scrim: dark top + heavy dark bottom ── */}
+                  {/* Cinematic gradient */}
                   <LinearGradient
                     colors={[
-                      'rgba(0,0,0,0.55)',
+                      'rgba(0,0,0,0.45)',
                       'transparent',
                       'transparent',
-                      'rgba(0,0,0,0.72)',
-                      'rgba(0,0,0,0.95)',
+                      'rgba(0,0,0,0.65)',
+                      'rgba(0,0,0,0.96)',
                     ]}
-                    locations={[0, 0.18, 0.45, 0.75, 1]}
-                    style={{ position: 'absolute', inset: 0 }}
+                    locations={[0, 0.15, 0.45, 0.72, 1]}
+                    style={{ position: 'absolute', width: '100%', height: '100%' }}
                   />
 
-                  {/* ── Top row: badge left, index right ── */}
+                  {/* Top row */}
                   <View
                     style={{
                       position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
+                      top: 22,
+                      left: 22,
+                      right: 22,
                       flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      paddingHorizontal: 20,
-                      paddingTop: 20,
                     }}>
-                    {/* Glassmorphic "Featured" chip */}
+                    {/* Featured chip */}
                     <View
                       style={{
                         flexDirection: 'row',
                         alignItems: 'center',
                         gap: 6,
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
+                        paddingHorizontal: 13,
+                        paddingVertical: 7,
                         borderRadius: 99,
-                        backgroundColor: 'rgba(8,248,8,0.15)',
+                        backgroundColor: 'rgba(8,248,8,0)',
                         borderWidth: 1,
-                        borderColor: 'rgba(8,248,8,0.3)',
+                        borderColor: 'rgba(8,248,8,0.28)',
                       }}>
-                      {/* Live dot */}
                       <View
                         style={{
                           width: 6,
@@ -281,7 +255,7 @@ export default function Home() {
                           shadowColor: '#08f808',
                           shadowOffset: { width: 0, height: 0 },
                           shadowOpacity: 1,
-                          shadowRadius: 4,
+                          shadowRadius: 5,
                         }}
                       />
                       <Text
@@ -289,131 +263,71 @@ export default function Home() {
                           fontSize: 10,
                           fontWeight: '900',
                           letterSpacing: 1.5,
-                          color: '#08f808',
+                          color: '#fff',
                           textTransform: 'uppercase',
                         }}>
                         Featured
                       </Text>
                     </View>
-
-                    {/* Large typographic index number */}
-                    <Text
-                      style={{
-                        fontSize: 48,
-                        fontWeight: '900',
-                        color: 'rgba(255,255,255,0.12)',
-                        letterSpacing: -2,
-                        lineHeight: 48,
-                      }}>
-                      {indexLabel}
-                    </Text>
                   </View>
 
-                  {/* ── Bottom info area ── */}
+                  {/* Bottom info */}
                   <View
                     style={{
                       position: 'absolute',
                       bottom: 0,
                       left: 0,
                       right: 0,
-                      paddingHorizontal: 22,
-                      paddingBottom: 22,
-                      paddingTop: 16,
+                      paddingHorizontal: 24,
+                      paddingBottom: 26,
+                      paddingTop: 20,
                     }}>
-                    {/* Decorative waveform bars */}
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'flex-end',
-                        gap: 3,
-                        marginBottom: 12,
-                        height: 18,
-                      }}>
-                      {[10, 16, 8, 18, 12, 6, 14, 10, 18, 8, 14, 6, 16, 10, 12].map((h, i) => (
-                        <View
-                          key={i}
-                          style={{
-                            width: 3,
-                            height: h,
-                            borderRadius: 2,
-                            backgroundColor: i < 6 ? 'rgba(8,248,8,0.7)' : 'rgba(255,255,255,0.2)',
-                          }}
-                        />
-                      ))}
-                    </View>
 
-                    {/* Title + artist */}
-                    <View className="flex-row items-end justify-between gap-3">
+                    {/* Title + play btn */}
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 12 }}>
                       <View style={{ flex: 1 }}>
                         <Text
                           style={{
-                            fontSize: 26,
+                            fontSize: 28,
                             fontWeight: '900',
-                            letterSpacing: -0.8,
+                            letterSpacing: -1,
                             color: '#fff',
-                            lineHeight: 30,
+                            lineHeight: 32,
                           }}
                           numberOfLines={1}>
                           {capitalize(item.title)}
                         </Text>
-                        <View className="mt-2 flex-row items-center gap-2">
-                          {/* Mini avatar ring */}
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 8,
+                            marginTop: 8,
+                          }}>
                           <View
                             style={{
-                              width: 20,
-                              height: 20,
-                              borderRadius: 10,
+                              width: 22,
+                              height: 22,
+                              borderRadius: 11,
                               overflow: 'hidden',
                               borderWidth: 1.5,
-                              borderColor: 'rgba(8,248,8,0.5)',
+                              borderColor: 'rgba(8,248,8,0.45)',
                               backgroundColor: 'rgba(8,248,8,0.1)',
                               alignItems: 'center',
                               justifyContent: 'center',
                             }}>
-                            <Ionicons name="person" size={11} color="#08f808" />
+                            <Ionicons name="person" size={12} color="#08f808" />
                           </View>
                           <Text
                             style={{
-                              fontSize: 13,
+                              fontSize: 14,
                               fontWeight: '600',
-                              color: 'rgba(255,255,255,0.55)',
+                              color: 'rgba(255,255,255,0.5)',
                               letterSpacing: 0.2,
                             }}
                             numberOfLines={1}>
                             {capitalize(item.artistName)}
                           </Text>
-                        </View>
-                      </View>
-
-                      {/* Play button — layered rings */}
-                      <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                        {/* Outer faint ring */}
-                        <View
-                          style={{
-                            position: 'absolute',
-                            width: 68,
-                            height: 68,
-                            borderRadius: 34,
-                            borderWidth: 1,
-                            borderColor: 'rgba(8,248,8,0.2)',
-                          }}
-                        />
-                        {/* Button */}
-                        <View
-                          style={{
-                            width: 56,
-                            height: 56,
-                            borderRadius: 28,
-                            backgroundColor: '#08f808',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            shadowColor: '#08f808',
-                            shadowOffset: { width: 0, height: 0 },
-                            shadowOpacity: 0.65,
-                            shadowRadius: 18,
-                            elevation: 14,
-                          }}>
-                          <Ionicons name="play" size={24} color="#000" style={{ marginLeft: 3 }} />
                         </View>
                       </View>
                     </View>
@@ -424,86 +338,28 @@ export default function Home() {
           })}
         </ScrollView>
 
-        {/* ── Filmstrip + dots row ── */}
+        {/* Progress dots only */}
         {featured.length > 1 && (
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingHorizontal: 28,
+              justifyContent: 'center',
+              gap: 6,
               marginTop: 16,
             }}>
-            {/* Mini cover filmstrip (next 3 upcoming) */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              {featured.slice(0, 4).map((item: any, i: number) => {
-                const thumbUrl =
-                  item.coverUrl || getCoverImageUrl(item.storageKey, 'small', true) || null;
-                const isActive = i === featuredIndex;
-                return (
-                  <View
-                    key={item.id}
-                    style={{
-                      width: isActive ? 44 : 34,
-                      height: isActive ? 44 : 34,
-                      borderRadius: isActive ? 12 : 8,
-                      overflow: 'hidden',
-                      borderWidth: isActive ? 2 : 1,
-                      borderColor: isActive ? '#08f808' : 'rgba(255,255,255,0.1)',
-                      opacity: isActive ? 1 : 0.45,
-                      backgroundColor: '#1a1a1a',
-                      shadowColor: isActive ? '#08f808' : 'transparent',
-                      shadowOffset: { width: 0, height: 0 },
-                      shadowOpacity: 0.5,
-                      shadowRadius: 6,
-                    }}>
-                    {thumbUrl ? (
-                      <Image
-                        source={{ uri: thumbUrl }}
-                        style={{ width: '100%', height: '100%' }}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View
-                        style={{
-                          flex: 1,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: 'rgba(8,248,8,0.08)',
-                        }}>
-                        <Ionicons name="musical-notes" size={14} color="#08f808" />
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-
-            {/* Compact dot progress */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-              <Text
+            {featured.map((_: any, i: number) => (
+              <View
+                key={i}
                 style={{
-                  fontSize: 11,
-                  fontWeight: '700',
-                  color: 'rgba(255,255,255,0.3)',
-                  marginRight: 6,
-                  letterSpacing: 0.5,
-                }}>
-                {String(featuredIndex + 1).padStart(2, '0')} /{' '}
-                {String(featuredCount).padStart(2, '0')}
-              </Text>
-              {featured.map((_: any, i: number) => (
-                <View
-                  key={i}
-                  style={{
-                    height: 3,
-                    width: i === featuredIndex ? 20 : 4,
-                    borderRadius: 99,
-                    backgroundColor: i === featuredIndex ? '#08f808' : 'rgba(255,255,255,0.12)',
-                  }}
-                />
-              ))}
-            </View>
+                  height: 3,
+                  width: i === featuredIndex ? 24 : 5,
+                  borderRadius: 99,
+                  backgroundColor:
+                    i === featuredIndex ? '#08f808' : 'rgba(255,255,255,0.15)',
+                }}
+              />
+            ))}
           </View>
         )}
       </View>
@@ -549,7 +405,6 @@ export default function Home() {
                 key={item.id}
                 className="w-28 items-center active:opacity-70"
                 onPress={() => router.push(`/artist/${item.id}`)}>
-                {/* Avatar with gradient ring */}
                 <View
                   className="mb-3 h-28 w-28 overflow-hidden rounded-full"
                   style={{
@@ -578,7 +433,6 @@ export default function Home() {
                   numberOfLines={1}>
                   {capitalize(item.artistName || item.name)}
                 </Text>
-                {/* Artist pill badge */}
                 <View className="mt-1.5 rounded-full bg-white/[0.06] px-2.5 py-0.5">
                   <Text className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                     Artist
@@ -656,13 +510,14 @@ export default function Home() {
                       <Ionicons name="musical-notes" size={36} color="#3f3f46" />
                     </View>
                   )}
-                  {/* Subtle bottom gradient for readability */}
                   <LinearGradient
                     colors={['transparent', 'rgba(0,0,0,0.5)']}
                     className="absolute bottom-0 left-0 right-0 h-1/2"
                   />
                 </View>
-                <Text className="text-[13px] font-bold leading-tight text-white" numberOfLines={1}>
+                <Text
+                  className="text-[13px] font-bold leading-tight text-white"
+                  numberOfLines={1}>
                   {capitalize(item.title)}
                 </Text>
               </Pressable>
@@ -746,17 +601,17 @@ export default function Home() {
                       <Ionicons name="flame" size={40} color="#f97316" />
                     </View>
                   )}
-                  {/* Gradient scrim */}
                   <LinearGradient
                     colors={['transparent', 'rgba(0,0,0,0.55)']}
                     className="absolute inset-0"
                   />
-                  {/* Rank badge */}
                   <View className="absolute right-3 top-3 h-7 w-7 items-center justify-center rounded-full bg-black/60">
                     <Text className="text-[11px] font-black text-white/70">#{index + 1}</Text>
                   </View>
                 </View>
-                <Text className="text-[13px] font-bold leading-tight text-white" numberOfLines={1}>
+                <Text
+                  className="text-[13px] font-bold leading-tight text-white"
+                  numberOfLines={1}>
                   {capitalize(item.title)}
                 </Text>
                 <Text className="mt-0.5 text-xs font-medium text-zinc-500" numberOfLines={1}>
@@ -799,7 +654,6 @@ export default function Home() {
 
     return (
       <View className="mb-8">
-        {/* Custom section header with sparkle icon */}
         <View className="mb-5 flex-row items-center gap-2.5 px-6">
           <View className="h-5 w-1 rounded-full bg-primary" />
           <Ionicons name="sparkles" size={20} color="#08f808" />
@@ -854,7 +708,9 @@ export default function Home() {
                     className="absolute bottom-0 left-0 right-0 h-1/2"
                   />
                 </View>
-                <Text className="text-[13px] font-bold leading-tight text-white" numberOfLines={1}>
+                <Text
+                  className="text-[13px] font-bold leading-tight text-white"
+                  numberOfLines={1}>
                   {capitalize(item.title)}
                 </Text>
                 <Text className="mt-0.5 text-xs font-medium text-zinc-500" numberOfLines={1}>
@@ -900,7 +756,6 @@ export default function Home() {
         {renderTrending}
         {renderDiscoverForYou}
 
-        {/* "All Songs" divider */}
         <View className="mb-4 flex-row items-center gap-2.5 px-6 pb-4">
           <View className="h-5 w-1 rounded-full bg-white/20" />
           <Text className="text-2xl font-black tracking-tighter text-white">All Songs</Text>
@@ -910,10 +765,8 @@ export default function Home() {
     [renderFeatured, renderArtists, renderPlaylists, renderTrending, renderDiscoverForYou]
   );
 
-  // ── Main List ──────────────────────────────────────────────────────────────
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top']}>
-      {/* Full-screen gradient */}
       <LinearGradient
         colors={['#181818', '#0a0a0a', '#000000']}
         locations={[0, 0.45, 1]}

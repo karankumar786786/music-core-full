@@ -26,23 +26,18 @@ export default function SearchTab() {
   const [isDebouncing, setIsDebouncing] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
-  // usePlayerActions — stable forever, never causes re-renders from player state
-  const { play, playAll } = usePlayerActions();
+  const { play } = usePlayerActions();
   const queryClient = useQueryClient();
 
-  // Dismiss keyboard when navigating away
   useFocusEffect(
     useCallback(() => {
-      console.log('[SearchTab] Screen focused');
       return () => {
-        console.log('[SearchTab] Screen blurred - dismissing keyboard');
         Keyboard.dismiss();
         inputRef.current?.blur();
       };
     }, [])
   );
 
-  // Debounce search input
   useEffect(() => {
     if (!query.trim()) {
       setDebouncedQuery('');
@@ -57,7 +52,6 @@ export default function SearchTab() {
     return () => clearTimeout(handler);
   }, [query]);
 
-  // Search query
   const {
     data,
     isLoading: isInitialLoading,
@@ -66,23 +60,15 @@ export default function SearchTab() {
     error,
   } = useQuery({
     queryKey: ['search', debouncedQuery],
-    queryFn: () => {
-      console.log('[SearchTab] Executing search API for:', debouncedQuery);
-      return musicApi.search(debouncedQuery);
-    },
+    queryFn: () => musicApi.search(debouncedQuery),
     enabled: debouncedQuery.length > 0,
     staleTime: 30000,
     placeholderData: (previousData: any) => previousData,
     retry: 1,
   });
 
-  if (isError) console.error('[SearchTab] Search query error:', error);
-  if (data)
-    console.log('[SearchTab] Search results received:', data.data?.songs?.length || 0, 'songs');
-
   const isPending = isFetching || isDebouncing;
 
-  // Search history
   const { data: historyData } = useQuery({
     queryKey: ['searchHistory'],
     queryFn: () => musicApi.getSearchHistory(),
@@ -95,14 +81,6 @@ export default function SearchTab() {
     },
   });
 
-  const clearHistoryMutation = useMutation({
-    mutationFn: () => musicApi.clearSearchHistory(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['searchHistory'] });
-    },
-  });
-
-  // Extract stable mutate ref — useMutation returns new object every render
   const saveHistoryMutate = saveHistoryMutation.mutate;
 
   const results = data?.data;
@@ -116,32 +94,15 @@ export default function SearchTab() {
 
   const handleSaveHistory = useCallback(
     (searchString: string) => {
-      console.log('[SearchTab] Attempting to save history:', searchString);
       const exists = searchHistory.some(
         (item: any) => item.searchString.toLowerCase() === searchString.toLowerCase()
       );
       if (!exists) {
-        console.log('[SearchTab] Saving new history item');
         saveHistoryMutate(searchString);
-      } else {
-        console.log('[SearchTab] History item already exists, skipping');
       }
     },
-    [searchHistory, saveHistoryMutate] // saveHistoryMutate is stable
+    [searchHistory, saveHistoryMutate]
   );
-
-  const handlePlayAll = useCallback(() => {
-    console.log('[SearchTab] handlePlayAll called');
-    if (!results?.songs || results.songs.length === 0) return;
-    const playerSongs = results.songs.map((song: any) => ({
-      id: song.id,
-      title: song.title,
-      artistName: song.artistName,
-      storageKey: song.storageKey,
-      coverUrl: getCoverImageUrl(song.storageKey, 'large', true) || null,
-    }));
-    playAll(playerSongs);
-  }, [results?.songs, playAll]);
 
   const MemoizedResults = useMemo(() => {
     if (debouncedQuery.trim().length === 0 || !hasResults) return null;
@@ -151,16 +112,8 @@ export default function SearchTab() {
         {/* Songs */}
         {hasSongs && (
           <View>
-            <View className="mb-4 flex-row items-center justify-between px-6">
+            <View className="mb-4 px-6">
               <Text className="text-2xl font-black tracking-tight text-white">Songs</Text>
-              <Pressable
-                onPress={handlePlayAll}
-                className="flex-row items-center gap-1.5 rounded-full bg-primary/10 px-4 py-2 active:bg-primary/20">
-                <Ionicons name="play" size={14} color="#22c55e" />
-                <Text className="text-[12px] font-black uppercase tracking-widest text-primary">
-                  Play All
-                </Text>
-              </Pressable>
             </View>
             <View className="px-2">
               {results.songs.map((song: any, index: number) => (
@@ -300,9 +253,8 @@ export default function SearchTab() {
     hasPlaylists,
     results,
     data,
-    handlePlayAll,
     handleSaveHistory,
-    play, // stable from usePlayerActions — never triggers re-render
+    play,
   ]);
 
   return (
@@ -314,8 +266,22 @@ export default function SearchTab() {
         end={{ x: 0, y: 0.5 }}
       />
 
-      {/* Title */}
-      <View className="px-6 pb-2 pt-6">
+      {/* Title + back button */}
+      <View className="flex-row items-center gap-3 px-6 pb-2 pt-6">
+        <Pressable
+          onPress={() => router.back()}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: 'rgba(255,255,255,0.06)',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.08)',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+          <Ionicons name="chevron-back" size={22} color="#fff" />
+        </Pressable>
         <Text className="text-4xl font-black tracking-tighter text-white">Search</Text>
       </View>
 
@@ -371,13 +337,6 @@ export default function SearchTab() {
               <Text className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
                 Recent Searches
               </Text>
-              <Pressable
-                onPress={() => clearHistoryMutation.mutate()}
-                className="rounded-full bg-white/5 px-3 py-1.5 active:bg-white/10">
-                <Text className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                  Clear All
-                </Text>
-              </Pressable>
             </View>
             <View className="gap-1">
               {searchHistory.slice(0, 10).map((item: any, index: number) => (
