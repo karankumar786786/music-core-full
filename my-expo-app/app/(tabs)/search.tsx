@@ -18,17 +18,16 @@ import { getCoverImageUrl } from '../../lib/s3';
 import { capitalize } from '../../lib/utils';
 import SongRow from '../../components/SongRow';
 import { LinearGradient } from 'expo-linear-gradient';
-import { usePlayer } from '../../lib/player-context';
+import { usePlayerActions } from '../../lib/player-context'; // ← changed from usePlayer
 
 export default function SearchTab() {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [isDebouncing, setIsDebouncing] = useState(false);
   const inputRef = useRef<TextInput>(null);
-  const { play, playAll } = usePlayer();
+  const { play, playAll } = usePlayerActions(); // ← changed from usePlayer
   const queryClient = useQueryClient();
 
-  // Handle screen focus/blur (dismiss keyboard on navigate away)
   useFocusEffect(
     useCallback(() => {
       console.log('[SearchTab] Screen focused');
@@ -41,7 +40,6 @@ export default function SearchTab() {
   );
 
   useEffect(() => {
-    // If query is empty, clear debounced query immediately
     if (!query.trim()) {
       console.log('[SearchTab] Clearing debounced query (empty input)');
       setDebouncedQuery('');
@@ -49,7 +47,6 @@ export default function SearchTab() {
       return;
     }
 
-    // Set debouncing state for instant UI feedback
     setIsDebouncing(true);
 
     const handler = setTimeout(() => {
@@ -65,7 +62,6 @@ export default function SearchTab() {
     setQuery(text);
   };
 
-  // Search query
   const {
     data,
     isLoading: isInitialLoading,
@@ -80,8 +76,6 @@ export default function SearchTab() {
     },
     enabled: debouncedQuery.length > 0,
     staleTime: 30000,
-    // KEY FIX: keep previous data visible while re-fetching so results
-    // don't disappear between searches
     placeholderData: (previousData: any) => previousData,
     retry: 1,
   });
@@ -92,13 +86,11 @@ export default function SearchTab() {
 
   const isPending = isFetching || isDebouncing;
 
-  // Search history
   const { data: historyData } = useQuery({
     queryKey: ['searchHistory'],
     queryFn: () => musicApi.getSearchHistory(),
   });
 
-  // Save search history when a search is performed
   const saveHistoryMutation = useMutation({
     mutationFn: (searchString: string) => musicApi.addSearchHistory({ searchString }),
     onSuccess: () => {
@@ -106,7 +98,6 @@ export default function SearchTab() {
     },
   });
 
-  // Clear search history
   const clearHistoryMutation = useMutation({
     mutationFn: () => musicApi.clearSearchHistory(),
     onSuccess: () => {
@@ -121,7 +112,6 @@ export default function SearchTab() {
   const hasResults = hasSongs || hasArtists || hasPlaylists;
 
   const searchHistory = historyData || [];
-  // Hide history immediately when user starts typing
   const showHistory = !query && searchHistory.length > 0;
 
   const handleSaveHistory = useCallback(
@@ -201,7 +191,9 @@ export default function SearchTab() {
         {/* Artists */}
         {hasArtists && (
           <View>
-            <Text className="mb-4 px-6 text-2xl font-black tracking-tight text-white">Artists</Text>
+            <Text className="mb-4 px-6 text-2xl font-black tracking-tight text-white">
+              Artists
+            </Text>
             <View className="px-2">
               {results.artists.map((artist: any) => {
                 const avatarUrl = getCoverImageUrl(artist.storageKey, 'small') || null;
@@ -310,10 +302,11 @@ export default function SearchTab() {
     hasArtists,
     hasPlaylists,
     results,
-    data, // FIX: track data directly so memo updates when query response arrives
+    data,
     handlePlayAll,
     handleSaveHistory,
     play,
+    // ↑ play is now from usePlayerActions — stable forever, won't cause re-renders
   ]);
 
   return (
@@ -324,12 +317,10 @@ export default function SearchTab() {
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 0.5 }}
       />
-      {/* Title */}
       <View className="px-6 pb-2 pt-6">
         <Text className="text-4xl font-black tracking-tighter text-white">Search</Text>
       </View>
 
-      {/* Search Bar */}
       <View className="px-6 py-4">
         <View
           style={{ overflow: 'hidden' }}
@@ -377,7 +368,7 @@ export default function SearchTab() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}>
-        {/* Search History (when no query) */}
+        {/* Search History */}
         {showHistory && (
           <View className="px-6 pb-4">
             <View className="mb-4 flex-row items-center justify-between">
@@ -399,7 +390,6 @@ export default function SearchTab() {
                   onPress={() => {
                     const text = item.searchString;
                     setQuery(text);
-                    // Instant update for history clicks — no debounce delay
                     setDebouncedQuery(text);
                     setIsDebouncing(false);
                   }}
@@ -424,7 +414,7 @@ export default function SearchTab() {
           </View>
         )}
 
-        {/* Empty state (no query, no history) */}
+        {/* Empty state */}
         {!query && !showHistory && (
           <View className="items-center py-20">
             <Ionicons name="search" size={48} color="#3f3f46" />
@@ -434,7 +424,7 @@ export default function SearchTab() {
           </View>
         )}
 
-        {/* Initial Loading (no data yet, first ever search) */}
+        {/* Initial Loading */}
         {debouncedQuery.trim().length > 0 && isInitialLoading && !hasResults && (
           <View className="items-center py-20">
             <ActivityIndicator color="#22c55e" size="large" />
@@ -444,7 +434,7 @@ export default function SearchTab() {
           </View>
         )}
 
-        {/* No results — only show when not loading/debouncing to avoid flicker */}
+        {/* No results */}
         {debouncedQuery.trim().length > 0 &&
           !isPending &&
           !isInitialLoading &&
@@ -471,7 +461,7 @@ export default function SearchTab() {
           </View>
         )}
 
-        {/* Results — kept visible during re-fetches via placeholderData */}
+        {/* Results */}
         {MemoizedResults}
       </ScrollView>
     </SafeAreaView>
