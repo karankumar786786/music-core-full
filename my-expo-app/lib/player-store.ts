@@ -262,19 +262,28 @@ export const playerActions = {
         }
     },
 
-    _fallbackPool: [] as PlayerSong[],
-    _fallbackPoolFetched: false,
-    _fallbackPoolFetching: false,
+    _fallbackPage: 1,
+    _fallbackFetching: false,
 
     playNextFromFallback: async () => {
         const actions = playerActions as any;
-        const existingIds = new Set(playerStore.state.queue.map((s) => s.id));
+        if (actions._fallbackFetching) {
+            SDBG('playNextFromFallback: already fetching, skipping');
+            return;
+        }
 
-        if (!actions._fallbackPoolFetched && !actions._fallbackPoolFetching) {
-            actions._fallbackPoolFetching = true;
-            try {
-                const res = await musicApi.getSongs(1, 10);
-                if (res?.data) {
+        actions._fallbackFetching = true;
+
+        try {
+            const existingIds = new Set(playerStore.state.queue.map((s) => s.id));
+            let nextSong: PlayerSong | undefined;
+            
+            // Try fetching up to 3 pages to find a non-duplicate
+            for (let i = 0; i < 3; i++) {
+                SDBG(`playNextFromFallback: fetching page ${actions._fallbackPage}`);
+                const res = await musicApi.getSongs(actions._fallbackPage, 5);
+                
+                if (res?.data && res.data.length > 0) {
                     const mapped: PlayerSong[] = res.data.map((s: any) => ({
                         id: s.id,
                         title: s.title,
@@ -282,34 +291,40 @@ export const playerActions = {
                         storageKey: s.storageKey,
                         coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
                     }));
-                    actions._fallbackPool = mapped
-                        .filter((s: PlayerSong) => !existingIds.has(s.id))
-                        .slice(0, 2);
+
+                    nextSong = mapped.find((s) => !existingIds.has(s.id));
+                    
+                    if (nextSong) {
+                        break;
+                    } else {
+                        SDBG('playNextFromFallback: all duplicates, advancing page');
+                        actions._fallbackPage++;
+                    }
+                } else {
+                    SDBG('playNextFromFallback: no more songs from API');
+                    break;
                 }
-            } catch (err) {
-                console.warn('Fallback pool fetch failed:', err);
-            } finally {
-                actions._fallbackPoolFetched = true;
-                actions._fallbackPoolFetching = false;
             }
-        }
 
-        const pool: PlayerSong[] = actions._fallbackPool;
-        const nextFallback = pool.find((s) => !existingIds.has(s.id));
-
-        if (nextFallback) {
-            actions._fallbackPool = pool.filter((s: PlayerSong) => s.id !== nextFallback.id);
-
-            playerStore.setState((state) => ({
-                ...state,
-                queue: [...state.queue, nextFallback],
-                currentSong: nextFallback,
-                // Never set isPlaying:true — stream not loaded yet
-                isPlaying: false,
-                lastQueueIndex: state.queue.length,
-                queueSource: 'feed',
-            }));
-            musicApi.addView(nextFallback.id).catch(() => {});
+            if (nextSong) {
+                SDBG('playNextFromFallback: playing', { title: nextSong.title });
+                playerStore.setState((state) => ({
+                    ...state,
+                    queue: [...state.queue, nextSong!],
+                    currentSong: nextSong!,
+                    isPlaying: false,
+                    lastQueueIndex: state.queue.length,
+                    queueSource: 'feed',
+                }));
+                musicApi.addView(nextSong.id).catch(() => {});
+                actions._fallbackPage++; // Advance for the next call
+            } else {
+                SDBG('playNextFromFallback: failed to find a unique song');
+            }
+        } catch (err) {
+            console.warn('Fallback fetch failed:', err);
+        } finally {
+            actions._fallbackFetching = false;
         }
     },
 
@@ -333,18 +348,8 @@ export const playerActions = {
                     if (freshFeedSongs.length === 0) return state;
 
                     const played = state.queue.slice(0, state.lastQueueIndex + 1);
-                    const actions = playerActions as any;
-                    const fallbackIds = new Set(
-                        (actions._fallbackPool as PlayerSong[]).map((s: PlayerSong) => s.id)
-                    );
-                    const keptAhead = state.queue
-                        .slice(state.lastQueueIndex + 1)
-                        .filter((s) => !fallbackIds.has(s.id));
-
+                    const keptAhead = state.queue.slice(state.lastQueueIndex + 1);
                     const merged = [...played, ...keptAhead, ...freshFeedSongs];
-
-                    actions._fallbackPool = [];
-                    actions._fallbackPoolFetched = true;
 
                     return { ...state, queue: merged };
                 });
