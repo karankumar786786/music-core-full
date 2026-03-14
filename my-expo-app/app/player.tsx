@@ -52,6 +52,7 @@ export default function PlayerScreen() {
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showQualityModal, setShowQualityModal] = useState(false);
   const [pendingQuality, setPendingQuality] = useState(currentQualityType);
+  const [pendingPlaylistId, setPendingPlaylistId] = useState<string | null>(null);
 
   // Sync pending quality with actual quality when opening modal
   useEffect(() => {
@@ -62,7 +63,7 @@ export default function PlayerScreen() {
 
   const progressBarWidthRef = useRef(SCREEN_WIDTH - 80);
 
-  // FIX #11: Derive stable songId from currentSong first, fall back to param
+  // Derive stable songId from currentSong first, fall back to param
   const effectiveSongId = currentSong?.id ?? songId ?? '';
 
   const coverImage =
@@ -88,7 +89,6 @@ export default function PlayerScreen() {
   });
 
   const favMutation = useMutation({
-    // FIX #11: Use effectiveSongId — always acts on the correct current song
     mutationFn: (wasLiked: boolean) =>
       wasLiked ? musicApi.removeFavourite(effectiveSongId) : musicApi.addFavourite(effectiveSongId),
     onMutate: () => {
@@ -111,14 +111,18 @@ export default function PlayerScreen() {
   });
 
   const addToPlaylistMutation = useMutation({
-    // FIX #11: Use effectiveSongId here too
-    mutationFn: (playlistId: string) => musicApi.addSongToUserPlaylist(playlistId, effectiveSongId),
+    mutationFn: (playlistId: string) => {
+      setPendingPlaylistId(playlistId);
+      return musicApi.addSongToUserPlaylist(playlistId, effectiveSongId);
+    },
     onSuccess: () => {
+      setPendingPlaylistId(null);
       setShowPlaylistModal(false);
       Alert.alert('Added!', 'Song added to playlist');
       queryClient.invalidateQueries({ queryKey: ['userPlaylists'] });
     },
     onError: (error: any) => {
+      setPendingPlaylistId(null);
       Alert.alert('Error', error?.response?.data?.message || 'Failed to add song');
     },
   });
@@ -277,7 +281,6 @@ export default function PlayerScreen() {
 
           {/* Progress Bar */}
           <View className="mb-10">
-            {/* FIX #10: Measure actual rendered width via onLayout */}
             <Pressable
               onLayout={(e: LayoutChangeEvent) => {
                 progressBarWidthRef.current = e.nativeEvent.layout.width;
@@ -349,7 +352,6 @@ export default function PlayerScreen() {
             </View>
 
             <View className="flex-row items-center gap-2">
-              {/* FIX #9: Removed pointless ternary on icon name */}
               <Pressable
                 onPress={toggleRepeat}
                 className="h-14 w-14 items-center justify-center rounded-full active:bg-white/[0.03]">
@@ -368,6 +370,7 @@ export default function PlayerScreen() {
           </View>
         </View>
 
+        {/* Quality Modal */}
         <Modal visible={showQualityModal} animationType="fade" transparent>
           <View className="flex-1 items-center justify-center px-8">
             <Pressable
@@ -465,7 +468,7 @@ export default function PlayerScreen() {
                   renderItem={({ item }: { item: any }) => (
                     <Pressable
                       onPress={() => addToPlaylistMutation.mutate(item.id)}
-                      disabled={addToPlaylistMutation.isPending}
+                      disabled={pendingPlaylistId === item.id}
                       className="mb-2 flex-row items-center gap-4 rounded-3xl px-3 py-4 active:bg-white/[0.03]">
                       <View className="h-16 w-16 items-center justify-center rounded-2xl bg-surface-muted shadow-sm shadow-black">
                         <Ionicons name="musical-notes" size={28} color="#08f808" />
@@ -476,11 +479,8 @@ export default function PlayerScreen() {
                           numberOfLines={1}>
                           {capitalize(item.title)}
                         </Text>
-                        <Text className="mt-1 text-xs font-black uppercase tracking-widest text-zinc-600">
-                          {item.songs?.length || 0} tracks
-                        </Text>
                       </View>
-                      {addToPlaylistMutation.isPending ? (
+                      {pendingPlaylistId === item.id ? (
                         <ActivityIndicator color="#08f808" size="small" />
                       ) : (
                         <View className="h-10 w-10 items-center justify-center rounded-full bg-primary/5">
