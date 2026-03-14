@@ -3,6 +3,7 @@
     "name": "One Melody",
     "slug": "one-melody",
     "version": "1.0.0",
+    "orientation": "portrait",
     "scheme": "my-expo-app",
     "web": {
       "favicon": "./assets/favicon.png",
