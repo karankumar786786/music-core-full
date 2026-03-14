@@ -272,7 +272,7 @@ export default function LyricsScreen() {
             }}
             className="shadow-inner h-2 rounded-full bg-zinc-900">
             <View
-              className="absolute h-full bg-white/10"
+              className="absolute h-full bg-white rounded-md"
               style={{ width: `${duration > 0 ? (bufferedPosition / duration) * 100 : 0}%` }}
             />
             <View
@@ -287,10 +287,10 @@ export default function LyricsScreen() {
             </View>
           </Pressable>
           <View className="mt-4 flex-row justify-between">
-            <Text className="text-[11px] font-black tracking-widest text-zinc-600">
+            <Text className="text-[11px] font-black tracking-widest text-white">
               {formatTime(position)}
             </Text>
-            <Text className="text-[11px] font-black tracking-widest text-zinc-600">
+            <Text className="text-[11px] font-black tracking-widest text-white">
               {formatTime(duration)}
             </Text>
           </View>

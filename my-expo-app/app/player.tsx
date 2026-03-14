@@ -289,7 +289,7 @@ export default function PlayerScreen() {
               }}
               className="shadow-inner h-2.5 rounded-full bg-zinc-900">
               <View
-                className="absolute h-full rounded-full bg-white/60"
+                className="absolute h-full rounded-md bg-white"
                 style={{ width: `${duration > 0 ? (bufferedPosition / duration) * 100 : 0}%` }}
               />
               <View
@@ -298,7 +298,7 @@ export default function PlayerScreen() {
               />
               {/* Seekbar Thumb */}
               <View
-                className="absolute -top-1.5 h-6 w-6 items-center justify-center"
+                className="absolute -top-[6px] h-6 w-6 items-center justify-center"
                 style={{ left: `${progress * 100}%`, marginLeft: -12 }}>
                 <View className="h-4 w-4 rounded-full bg-white" />
               </View>
