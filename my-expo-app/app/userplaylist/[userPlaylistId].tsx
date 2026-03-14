@@ -7,6 +7,7 @@ import { musicApi } from '../../lib/api';
 import { getCoverImageUrl } from '../../lib/s3';
 import { capitalize } from '../../lib/utils';
 import { usePlayer } from '../../lib/player-context';
+import { useMemo, useCallback } from 'react';
 
 export default function UserPlaylistDetail() {
   const { userPlaylistId } = useLocalSearchParams<{ userPlaylistId: string }>();
@@ -28,25 +29,9 @@ export default function UserPlaylistDetail() {
   const allSongsData = data?.pages?.flatMap((page) => page.songs?.data || []) || [];
   const songs = allSongsData.map((item: any) => item.song || item).filter(Boolean);
 
-  if (isLoading) {
-    return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-black">
-        <ActivityIndicator color="#22c55e" size="large" />
-      </SafeAreaView>
-    );
-  }
+  const coverUrl = playlist ? getCoverImageUrl(playlist.storageKey, 'large') || null : null;
 
-  if (!playlist) {
-    return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-black">
-        <Text className="text-base text-zinc-500">Playlist not found</Text>
-      </SafeAreaView>
-    );
-  }
-
-  const coverUrl = getCoverImageUrl(playlist.storageKey, 'large') || null;
-
-  const handlePlayAll = () => {
+  const handlePlayAll = useCallback(() => {
     if (songs.length === 0) return;
     const playerSongs = songs.map((s: any) => ({
       id: s.id,
@@ -56,58 +41,72 @@ export default function UserPlaylistDetail() {
       coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
     }));
     playAll(playerSongs);
-  };
+  }, [songs, playAll]);
 
-  const renderHeader = () => (
-    <View>
-      {/* Back + Title */}
-      <View className="flex-row items-center gap-3 px-5 pb-4 pt-2">
-        <Pressable
-          onPress={() => router.back()}
-          className="h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-zinc-900/80">
-          <Ionicons name="arrow-back" size={20} color="#a1a1aa" />
-        </Pressable>
-        <View className="flex-1">
-          <Text className="text-lg font-black tracking-tight text-white" numberOfLines={1}>
-            {capitalize(playlist.title)}
-          </Text>
-          <Text className="text-xs font-semibold text-zinc-500">My Playlist</Text>
+  const MemoizedHeader = useMemo(() => {
+    if (!playlist) return null;
+    return (
+      <View>
+        {/* Back + Title */}
+        <View className="flex-row items-center gap-4 px-6 py-4 pt-12">
+          <Pressable
+            onPress={() => router.back()}
+            className="h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/60">
+            <Ionicons name="arrow-back" size={20} color="#fff" />
+          </Pressable>
+          <View className="flex-1">
+            <Text className="text-sm font-bold uppercase tracking-widest text-primary">
+              Playlist
+            </Text>
+            <Text className="text-3xl font-black tracking-tight text-white" numberOfLines={1}>
+              {capitalize(playlist.title)}
+            </Text>
+          </View>
         </View>
-      </View>
 
-      {/* Cover Art Hero */}
-      <View className="mx-5 mb-6 items-center">
-        <View className="mb-4 h-48 w-48 overflow-hidden rounded-3xl border border-white/5 bg-zinc-900">
-          {coverUrl ? (
-            <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
-          ) : (
-            <View className="h-full w-full items-center justify-center bg-primary/5">
-              <Ionicons name="musical-notes" size={60} color="#22c55e" />
+        {/* Cover + Basic Info */}
+        <View className="px-6 pb-6">
+          <View className="flex-row items-end gap-6">
+            <View className="h-40 w-40 overflow-hidden rounded-3xl border-2 border-primary/30 bg-zinc-800 shadow-2xl">
+              {coverUrl ? (
+                <Image source={{ uri: coverUrl }} className="h-full w-full" resizeMode="cover" />
+              ) : (
+                <View className="h-full w-full items-center justify-center bg-primary/10">
+                  <Ionicons name="musical-notes" size={60} color="#22c55e" />
+                </View>
+              )}
             </View>
+          </View>
+
+          {/* Play All Button */}
+          {songs.length > 0 && (
+            <Pressable
+              onPress={handlePlayAll}
+              className="mt-8 h-14 flex-row items-center justify-center rounded-2xl bg-primary shadow-xl shadow-primary/20 active:opacity-90">
+              <Ionicons name="play" size={22} color="#000" style={{ marginLeft: 2 }} />
+              <Text className="ml-2 text-lg font-black text-black">Play All</Text>
+            </Pressable>
           )}
         </View>
-        <Text
-          className="text-center text-2xl font-black tracking-tight text-white"
-          numberOfLines={2}>
-          {capitalize(playlist.title)}
-        </Text>
-        <Text className="mt-1 text-sm font-semibold text-zinc-500">{songs.length} tracks</Text>
 
-        {/* Play All Button */}
-        {songs.length > 0 && (
-          <Pressable
-            onPress={handlePlayAll}
-            className="mt-6 h-12 w-44 flex-row items-center justify-center rounded-full bg-primary active:opacity-80">
-            <Ionicons name="play" size={20} color="#000" style={{ marginLeft: 2 }} />
-            <Text className="ml-2 text-base font-black text-black">Play All</Text>
-          </Pressable>
-        )}
+        {/* Tracks info Header */}
+        <View className="px-6 pb-4">
+          <View className="flex-row items-center justify-between border-b border-white/5 pb-2">
+            <Text className="text-lg font-black tracking-tight text-white">Tracks</Text>
+            <Text className="text-xs font-bold text-zinc-600">{songs.length} total</Text>
+          </View>
+        </View>
       </View>
+    );
+  }, [playlist, songs, coverUrl, handlePlayAll]);
 
-      {/* Divider */}
-      <View className="mx-5 mb-3 border-b border-white/5" />
-    </View>
-  );
+  if (isLoading) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center bg-black">
+        <ActivityIndicator color="#22c55e" size="large" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top']}>
@@ -117,7 +116,7 @@ export default function UserPlaylistDetail() {
         renderItem={({ item, index }) => (
           <PlaylistSongRow song={item} index={index} playlistId={userPlaylistId!} />
         )}
-        ListHeaderComponent={renderHeader}
+        ListHeaderComponent={MemoizedHeader}
         ListEmptyComponent={
           <View className="items-center py-20">
             <View className="mb-4 h-20 w-20 items-center justify-center rounded-full border border-white/5 bg-zinc-900/60">

@@ -121,6 +121,7 @@ export const playerActions = {
     },
 
     playAll: (songs: PlayerSong[]) => {
+        console.log('[PlayerStore] playAll called with', songs.length, 'songs');
         if (songs.length === 0) return;
         playerStore.setState((state) => ({
             ...state,

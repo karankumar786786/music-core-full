@@ -79,7 +79,6 @@ export default function Home() {
 
   const allSongs = songsData?.pages?.flatMap((page) => page.data || []) || [];
 
-  // Sync feed/trending to player global store
   useEffect(() => {
     const feedSongs = feedData?.data || [];
     const trendSongs = trendingData?.data || [];
@@ -177,9 +176,7 @@ export default function Home() {
           contentContainerStyle={{ paddingHorizontal: 24 }}
           scrollEventThrottle={16}
           onScroll={(e) => {
-            const idx = Math.round(
-              e.nativeEvent.contentOffset.x / (CARD_WIDTH + CARD_MARGIN * 2)
-            );
+            const idx = Math.round(e.nativeEvent.contentOffset.x / (CARD_WIDTH + CARD_MARGIN * 2));
             setFeaturedIndex(Math.max(0, Math.min(idx, featuredCount - 1)));
           }}>
           {featured.map((item: any, idx: number) => {
@@ -215,7 +212,6 @@ export default function Home() {
                     elevation: 20,
                     backgroundColor: '#111',
                   }}>
-
                   {/* ── Full bleed artwork ── */}
                   {coverUrl ? (
                     <Image
@@ -340,8 +336,7 @@ export default function Home() {
                             width: 3,
                             height: h,
                             borderRadius: 2,
-                            backgroundColor:
-                              i < 6 ? 'rgba(8,248,8,0.7)' : 'rgba(255,255,255,0.2)',
+                            backgroundColor: i < 6 ? 'rgba(8,248,8,0.7)' : 'rgba(255,255,255,0.2)',
                           }}
                         />
                       ))}
@@ -441,49 +436,47 @@ export default function Home() {
             }}>
             {/* Mini cover filmstrip (next 3 upcoming) */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              {featured
-                .slice(0, 4)
-                .map((item: any, i: number) => {
-                  const thumbUrl =
-                    item.coverUrl || getCoverImageUrl(item.storageKey, 'small', true) || null;
-                  const isActive = i === featuredIndex;
-                  return (
-                    <View
-                      key={item.id}
-                      style={{
-                        width: isActive ? 44 : 34,
-                        height: isActive ? 44 : 34,
-                        borderRadius: isActive ? 12 : 8,
-                        overflow: 'hidden',
-                        borderWidth: isActive ? 2 : 1,
-                        borderColor: isActive ? '#08f808' : 'rgba(255,255,255,0.1)',
-                        opacity: isActive ? 1 : 0.45,
-                        backgroundColor: '#1a1a1a',
-                        shadowColor: isActive ? '#08f808' : 'transparent',
-                        shadowOffset: { width: 0, height: 0 },
-                        shadowOpacity: 0.5,
-                        shadowRadius: 6,
-                      }}>
-                      {thumbUrl ? (
-                        <Image
-                          source={{ uri: thumbUrl }}
-                          style={{ width: '100%', height: '100%' }}
-                          resizeMode="cover"
-                        />
-                      ) : (
-                        <View
-                          style={{
-                            flex: 1,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: 'rgba(8,248,8,0.08)',
-                          }}>
-                          <Ionicons name="musical-notes" size={14} color="#08f808" />
-                        </View>
-                      )}
-                    </View>
-                  );
-                })}
+              {featured.slice(0, 4).map((item: any, i: number) => {
+                const thumbUrl =
+                  item.coverUrl || getCoverImageUrl(item.storageKey, 'small', true) || null;
+                const isActive = i === featuredIndex;
+                return (
+                  <View
+                    key={item.id}
+                    style={{
+                      width: isActive ? 44 : 34,
+                      height: isActive ? 44 : 34,
+                      borderRadius: isActive ? 12 : 8,
+                      overflow: 'hidden',
+                      borderWidth: isActive ? 2 : 1,
+                      borderColor: isActive ? '#08f808' : 'rgba(255,255,255,0.1)',
+                      opacity: isActive ? 1 : 0.45,
+                      backgroundColor: '#1a1a1a',
+                      shadowColor: isActive ? '#08f808' : 'transparent',
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: 0.5,
+                      shadowRadius: 6,
+                    }}>
+                    {thumbUrl ? (
+                      <Image
+                        source={{ uri: thumbUrl }}
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View
+                        style={{
+                          flex: 1,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: 'rgba(8,248,8,0.08)',
+                        }}>
+                        <Ionicons name="musical-notes" size={14} color="#08f808" />
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
             </View>
 
             {/* Compact dot progress */}
@@ -496,7 +489,8 @@ export default function Home() {
                   marginRight: 6,
                   letterSpacing: 0.5,
                 }}>
-                {String(featuredIndex + 1).padStart(2, '0')} / {String(featuredCount).padStart(2, '0')}
+                {String(featuredIndex + 1).padStart(2, '0')} /{' '}
+                {String(featuredCount).padStart(2, '0')}
               </Text>
               {featured.map((_: any, i: number) => (
                 <View
@@ -505,8 +499,7 @@ export default function Home() {
                     height: 3,
                     width: i === featuredIndex ? 20 : 4,
                     borderRadius: 99,
-                    backgroundColor:
-                      i === featuredIndex ? '#08f808' : 'rgba(255,255,255,0.12)',
+                    backgroundColor: i === featuredIndex ? '#08f808' : 'rgba(255,255,255,0.12)',
                   }}
                 />
               ))}
@@ -763,9 +756,7 @@ export default function Home() {
                     <Text className="text-[11px] font-black text-white/70">#{index + 1}</Text>
                   </View>
                 </View>
-                <Text
-                  className="text-[13px] font-bold leading-tight text-white"
-                  numberOfLines={1}>
+                <Text className="text-[13px] font-bold leading-tight text-white" numberOfLines={1}>
                   {capitalize(item.title)}
                 </Text>
                 <Text className="mt-0.5 text-xs font-medium text-zinc-500" numberOfLines={1}>
@@ -785,7 +776,7 @@ export default function Home() {
     if (feedLoading) {
       return (
         <View className="mb-8">
-          <View className="mb-5 px-6 flex-row items-center gap-3">
+          <View className="mb-5 flex-row items-center gap-3 px-6">
             <Skeleton className="h-6 w-6 rounded-full" />
             <Skeleton className="h-7 w-44 rounded-lg" />
           </View>
@@ -863,9 +854,7 @@ export default function Home() {
                     className="absolute bottom-0 left-0 right-0 h-1/2"
                   />
                 </View>
-                <Text
-                  className="text-[13px] font-bold leading-tight text-white"
-                  numberOfLines={1}>
+                <Text className="text-[13px] font-bold leading-tight text-white" numberOfLines={1}>
                   {capitalize(item.title)}
                 </Text>
                 <Text className="mt-0.5 text-xs font-medium text-zinc-500" numberOfLines={1}>
@@ -940,12 +929,12 @@ export default function Home() {
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={
           songsLoading ? (
-            <View className="items-center py-12 gap-3">
+            <View className="items-center gap-3 py-12">
               <ActivityIndicator color="#08f808" size="large" />
               <Text className="text-sm font-medium text-zinc-600">Loading songs…</Text>
             </View>
           ) : (
-            <View className="items-center py-20 gap-2">
+            <View className="items-center gap-2 py-20">
               <Ionicons name="musical-notes-outline" size={40} color="#3f3f46" />
               <Text className="text-base font-semibold text-zinc-500">No songs yet</Text>
             </View>

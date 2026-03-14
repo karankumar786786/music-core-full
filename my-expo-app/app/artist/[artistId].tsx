@@ -6,6 +6,7 @@ import {
   Pressable,
   ActivityIndicator,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
@@ -16,6 +17,7 @@ import { getCoverImageUrl, getBannerImageUrl } from '../../lib/s3';
 import { capitalize } from '../../lib/utils';
 import { usePlayer } from '../../lib/player-context';
 import SongRow from '../../components/SongRow';
+import { useMemo, useCallback } from 'react';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -48,6 +50,101 @@ export default function ArtistDetail() {
 
   const songs = songsData?.pages?.flatMap((page) => page.data || []) || [];
   const totalTracks = songsData?.pages?.[0]?.meta?.totalItems || songs.length;
+
+  const avatarUrl = artist ? getCoverImageUrl(artist.storageKey, 'large') || null : null;
+  const bannerUrl = artist ? getBannerImageUrl(artist.storageKey, 'large') || null : null;
+
+  const handlePlayAll = useCallback(() => {
+    if (songs.length === 0) return;
+    const playerSongs = songs.map((s: any) => ({
+      id: s.id,
+      title: s.title,
+      artistName: s.artistName,
+      storageKey: s.storageKey,
+      coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
+    }));
+    playAll(playerSongs);
+  }, [songs, playAll]);
+
+  const MemoizedHeader = useMemo(() => {
+    if (!artist) return null;
+    return (
+      <View>
+        {/* Hero Banner - Full width */}
+        <View className="h-64 w-full overflow-hidden bg-zinc-900">
+          {bannerUrl ? (
+            <Image source={{ uri: bannerUrl }} className="h-full w-full" resizeMode="cover" />
+          ) : avatarUrl ? (
+            <Image
+              source={{ uri: avatarUrl }}
+              className="h-full w-full"
+              resizeMode="cover"
+              blurRadius={20}
+              style={{ opacity: 0.5 }}
+            />
+          ) : (
+            <View className="h-full w-full bg-primary/10" />
+          )}
+          {/* Dark gradient overlay */}
+          <View className="absolute inset-0 bg-black/40" />
+        </View>
+
+        {/* Artist info card overlapping banner */}
+        <View className="mx-5 -mt-20 mb-6">
+          <View className="rounded-3xl border border-white/10 bg-zinc-950/90 p-5">
+            <View className="flex-row items-center gap-4">
+              {/* Avatar */}
+              <View className="h-24 w-24 overflow-hidden rounded-2xl border-2 border-primary/30 bg-zinc-800">
+                {avatarUrl ? (
+                  <Image source={{ uri: avatarUrl }} className="h-full w-full" resizeMode="cover" />
+                ) : (
+                  <View className="h-full w-full items-center justify-center bg-primary/10">
+                    <Text className="text-3xl font-black text-primary">
+                      {artist.artistName?.[0]?.toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <View className="flex-1">
+                <Text className="mb-1 text-xs font-bold uppercase tracking-widest text-primary">
+                  Artist
+                </Text>
+                <Text className="text-2xl font-black tracking-tight text-white" numberOfLines={2}>
+                  {capitalize(artist.artistName)}
+                </Text>
+                <Text className="mt-1 text-sm font-semibold text-zinc-400">
+                  {totalTracks} tracks
+                </Text>
+              </View>
+            </View>
+
+            {/* Bio */}
+            {artist.bio && (
+              <View className="mt-4 border-t border-white/5 pt-4">
+                <Text className="text-sm leading-5 text-zinc-400">{artist.bio}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Play All */}
+        {songs.length > 0 && (
+          <Pressable
+            onPress={handlePlayAll}
+            className="mx-5 mb-4 h-12 flex-row items-center justify-center rounded-full bg-primary active:opacity-80">
+            <Ionicons name="play" size={20} color="#000" style={{ marginLeft: 2 }} />
+            <Text className="ml-2 text-base font-black text-black">Play All</Text>
+          </Pressable>
+        )}
+
+        {/* Section Header */}
+        <View className="mx-5 mb-2 flex-row items-center justify-between pb-2">
+          <Text className="text-lg font-black tracking-tight text-white">Popular Tracks</Text>
+          <Text className="text-xs font-bold text-zinc-600">{totalTracks} total</Text>
+        </View>
+      </View>
+    );
+  }, [artist, songs, bannerUrl, avatarUrl, handlePlayAll, totalTracks]);
 
   if (isArtistLoading || isSongsLoading) {
     return (
@@ -82,96 +179,6 @@ export default function ArtistDetail() {
     );
   }
 
-  const avatarUrl = getCoverImageUrl(artist.storageKey, 'large') || null;
-  const bannerUrl = getBannerImageUrl(artist.storageKey, 'large') || null;
-
-  const handlePlayAll = () => {
-    if (songs.length === 0) return;
-    const playerSongs = songs.map((s: any) => ({
-      id: s.id,
-      title: s.title,
-      artistName: s.artistName,
-      storageKey: s.storageKey,
-      coverUrl: getCoverImageUrl(s.storageKey, 'large', true) || null,
-    }));
-    playAll(playerSongs);
-  };
-
-  const renderHeader = () => (
-    <View>
-      {/* Hero Banner - Full width */}
-      <View className="h-64 w-full overflow-hidden bg-zinc-900">
-        {bannerUrl ? (
-          <Image source={{ uri: bannerUrl }} className="h-full w-full" resizeMode="cover" />
-        ) : avatarUrl ? (
-          <Image
-            source={{ uri: avatarUrl }}
-            className="h-full w-full"
-            resizeMode="cover"
-            blurRadius={20}
-            style={{ opacity: 0.5 }}
-          />
-        ) : (
-          <View className="h-full w-full bg-primary/10" />
-        )}
-        {/* Dark gradient overlay */}
-        <View className="absolute inset-0 bg-black/40" />
-      </View>
-
-      {/* Artist info card overlapping banner */}
-      <View className="mx-5 -mt-20 mb-6">
-        <View className="rounded-3xl border border-white/10 bg-zinc-950/90 p-5">
-          <View className="flex-row items-center gap-4">
-            {/* Avatar */}
-            <View className="h-24 w-24 overflow-hidden rounded-2xl border-2 border-primary/30 bg-zinc-800">
-              {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} className="h-full w-full" resizeMode="cover" />
-              ) : (
-                <View className="h-full w-full items-center justify-center bg-primary/10">
-                  <Text className="text-3xl font-black text-primary">
-                    {artist.artistName?.[0]?.toUpperCase()}
-                  </Text>
-                </View>
-              )}
-            </View>
-            <View className="flex-1">
-              <Text className="mb-1 text-xs font-bold uppercase tracking-widest text-primary">
-                Artist
-              </Text>
-              <Text className="text-2xl font-black tracking-tight text-white" numberOfLines={2}>
-                {capitalize(artist.artistName)}
-              </Text>
-              <Text className="mt-1 text-sm font-semibold text-zinc-400">{totalTracks} tracks</Text>
-            </View>
-          </View>
-
-          {/* Bio */}
-          {artist.bio && (
-            <View className="mt-4 border-t border-white/5 pt-4">
-              <Text className="text-sm leading-5 text-zinc-400">{artist.bio}</Text>
-            </View>
-          )}
-        </View>
-      </View>
-
-      {/* Play All */}
-      {songs.length > 0 && (
-        <Pressable
-          onPress={handlePlayAll}
-          className="mx-5 mb-4 h-12 flex-row items-center justify-center rounded-full bg-primary active:opacity-80">
-          <Ionicons name="play" size={20} color="#000" style={{ marginLeft: 2 }} />
-          <Text className="ml-2 text-base font-black text-black">Play All</Text>
-        </Pressable>
-      )}
-
-      {/* Section Header */}
-      <View className="mx-5 mb-2 flex-row items-center justify-between pb-2">
-        <Text className="text-lg font-black tracking-tight text-white">Popular Tracks</Text>
-        <Text className="text-xs font-bold text-zinc-600">{totalTracks} total</Text>
-      </View>
-    </View>
-  );
-
   return (
     <View className="flex-1 bg-black">
       {avatarUrl || bannerUrl ? (
@@ -205,7 +212,7 @@ export default function ArtistDetail() {
           data={songs}
           keyExtractor={(item) => item.id}
           renderItem={({ item, index }) => <SongRow song={item} index={index} />}
-          ListHeaderComponent={renderHeader}
+          ListHeaderComponent={MemoizedHeader}
           ListEmptyComponent={
             <View className="items-center py-20">
               <View className="mb-4 h-20 w-20 items-center justify-center rounded-full border border-white/5 bg-zinc-900/60">

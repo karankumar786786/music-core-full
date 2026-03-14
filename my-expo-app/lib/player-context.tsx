@@ -153,7 +153,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     quality: null,
   });
 
-  // FIX #1: Ping-Pong A/B Swap — only swap when standby is fully ready
   useEffect(() => {
     if (!currentSong) return;
     const standbyIdx = activePlayerIndex === 0 ? 1 : 0;
@@ -162,9 +161,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (
       standbyRef.current.id === currentSong.id &&
       standbyRef.current.quality === qualityType &&
-      standbyReadyRef.current // Only swap after standby has fully loaded
+      standbyReadyRef.current
     ) {
-      standbyReadyRef.current = false; // Reset for next preload cycle
+      standbyReadyRef.current = false;
       setActivePlayerIndex(standbyIdx as 0 | 1);
     }
   }, [currentSong, qualityType, activePlayerIndex]);
@@ -212,13 +211,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             lastPlayCommandTimeRef.current = Date.now();
             activeP.play();
           }
+        } catch (err) {
+          console.error('[PlayerContext] replaceAsync FAILED:', err);
         } finally {
           if (isCurrent) {
             isSourceLoadingRef.current = false;
           }
         }
       } else {
-        // Already loaded (from a ping-pong swap) — just ensure correct play state
         if (shouldAutoPlayRef.current || isPlayingStore) {
           lastPlayCommandTimeRef.current = Date.now();
           activeP.play();
@@ -360,7 +360,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const playAll = useCallback((songs: PlayerSong[]) => {
-    if (songs.length === 0) return;
+    console.log('[PlayerContext] playAll triggered with', songs.length, 'songs');
+    if (songs.length === 0) {
+      console.warn('[PlayerContext] playAll called with empty songs array');
+      return;
+    }
     shouldAutoPlayRef.current = true;
     playerActions.playAll(songs);
     router.push({ pathname: '/player', params: { songId: songs[0].id } });

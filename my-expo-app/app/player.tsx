@@ -291,7 +291,7 @@ export default function PlayerScreen() {
               }}
               className="shadow-inner h-2.5 rounded-full bg-zinc-900">
               <View
-                className="absolute h-full rounded-full bg-white/10"
+                className="absolute h-full rounded-full bg-white/60"
                 style={{ width: `${duration > 0 ? (bufferedPosition / duration) * 100 : 0}%` }}
               />
               <View

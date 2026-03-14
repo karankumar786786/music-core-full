@@ -1,4 +1,12 @@
-import { View, Text, FlatList, ActivityIndicator, RefreshControl, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  ActivityIndicator,
+  RefreshControl,
+  Pressable,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -7,7 +15,7 @@ import { musicApi } from '../../lib/api';
 import SongRow from '../../components/SongRow';
 import { usePlayer } from '../../lib/player-context';
 import { getCoverImageUrl } from '../../lib/s3';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Favourites() {
@@ -32,7 +40,7 @@ export default function Favourites() {
     setRefreshing(false);
   }, [refetch]);
 
-  const handlePlayAll = () => {
+  const handlePlayAll = useCallback(() => {
     if (favorites.length === 0) return;
     const playerSongs = favorites
       .map((item: any) => {
@@ -50,8 +58,42 @@ export default function Favourites() {
 
     if (playerSongs.length === 0) return;
     playAll(playerSongs as any);
-    router.push({ pathname: '/player', params: { songId: playerSongs[0]!.id } });
-  };
+  }, [favorites, playAll]);
+
+  const MemoizedHeader = useMemo(() => {
+    return (
+      <View className="px-6 pb-4 pt-6">
+        <View className="flex-row items-center justify-between">
+          <View>
+            <Text className="text-4xl font-black tracking-tighter text-white">Favourites</Text>
+            <Text className="mt-1 text-sm font-bold text-zinc-500">
+              {favorites.length} liked songs
+            </Text>
+          </View>
+          <View className="flex-row items-center gap-3">
+            {isFetching && !isFetchingNextPage && !isLoading && (
+              <ActivityIndicator color="#08f808" size="small" />
+            )}
+            {favorites.length > 0 && (
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-primary/20">
+                <Ionicons name="heart" size={20} color="#08f808" />
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Play All Button */}
+        {favorites.length > 0 && (
+          <Pressable
+            onPress={handlePlayAll}
+            className="mt-6 h-14 flex-row items-center justify-center rounded-2xl bg-primary shadow-xl shadow-primary/20 active:opacity-90">
+            <Ionicons name="play" size={22} color="#000" style={{ marginLeft: 2 }} />
+            <Text className="ml-2 text-lg font-black text-black">Play All</Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  }, [favorites, isFetching, isFetchingNextPage, isLoading, handlePlayAll]);
 
   const renderItem = ({ item, index }: { item: any; index: number }) => {
     const song = item.song;
@@ -85,7 +127,6 @@ export default function Favourites() {
       </SafeAreaView>
     );
   }
-
   return (
     <SafeAreaView className="flex-1 bg-black" edges={['top']}>
       <LinearGradient
@@ -95,41 +136,12 @@ export default function Favourites() {
         end={{ x: 0, y: 0.5 }}
       />
       {/* Header */}
-      <View className="px-6 pb-4 pt-6">
-        <View className="flex-row items-center justify-between">
-          <View>
-            <Text className="text-4xl font-black tracking-tighter text-white">Favourites</Text>
-            <Text className="mt-1 text-sm font-bold text-zinc-500">
-              {favorites.length} liked songs
-            </Text>
-          </View>
-          <View className="flex-row items-center gap-3">
-            {isFetching && !isFetchingNextPage && !isLoading && (
-              <ActivityIndicator color="#08f808" size="small" />
-            )}
-            {favorites.length > 0 && (
-              <View className="h-10 w-10 items-center justify-center rounded-full bg-primary/20">
-                <Ionicons name="heart" size={20} color="#08f808" />
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* Play All Button */}
-        {favorites.length > 0 && (
-          <Pressable
-            onPress={handlePlayAll}
-            className="mt-6 h-14 flex-row items-center justify-center rounded-2xl bg-primary shadow-xl shadow-primary/20 active:opacity-90">
-            <Ionicons name="play" size={22} color="#000" style={{ marginLeft: 2 }} />
-            <Text className="ml-2 text-lg font-black text-black">Play All</Text>
-          </Pressable>
-        )}
-      </View>
 
       <FlatList
         data={favorites}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
+        ListHeaderComponent={MemoizedHeader}
         contentContainerStyle={{ paddingBottom: 100 }}
         ListEmptyComponent={
           <View className="items-center py-20">

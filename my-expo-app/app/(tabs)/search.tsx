@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -22,31 +22,49 @@ import { usePlayer } from '../../lib/player-context';
 export default function SearchTab() {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [isDebouncing, setIsDebouncing] = useState(false);
   const inputRef = useRef<TextInput>(null);
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const queryClient = useQueryClient();
   const { play } = usePlayer();
+  const queryClient = useQueryClient();
 
-  // Debounce: update debouncedQuery 500ms after user stops typing
-  const handleTextChange = useCallback((text: string) => {
+  useEffect(() => {
+    // If query is empty, clear debounced query immediately
+    if (!query.trim()) {
+      setDebouncedQuery('');
+      setIsDebouncing(false);
+      return;
+    }
+
+    // Set debouncing state for instant UI feedback
+    setIsDebouncing(true);
+
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query.trim());
+      setIsDebouncing(false);
+    }, 500);
+
+    return () => clearTimeout(handler);
+  }, [query]);
+
+  const handleTextChange = (text: string) => {
     setQuery(text);
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(() => {
-      const trimmed = text.trim();
-      if (trimmed.length > 0) {
-        setDebouncedQuery(trimmed);
-      } else {
-        setDebouncedQuery('');
-      }
-    }, 300);
-  }, []);
+  };
+
+  const trimmedQuery = query.trim();
 
   // Search query
-  const { data, isLoading } = useQuery({
+  const {
+    data,
+    isLoading: isInitialLoading,
+    isFetching,
+  } = useQuery({
     queryKey: ['search', debouncedQuery],
     queryFn: () => musicApi.search(debouncedQuery),
     enabled: debouncedQuery.length > 0,
+    staleTime: 30000,
   });
+
+  const isPending = isFetching || isDebouncing;
 
   // Search history
   const { data: historyData } = useQuery({
@@ -80,7 +98,8 @@ export default function SearchTab() {
   const hasResults = hasSongs || hasArtists || hasPlaylists;
 
   const searchHistory = historyData || [];
-  const showHistory = !debouncedQuery && searchHistory.length > 0;
+  // Hide history immediately when user starts typing (matching web)
+  const showHistory = !query && searchHistory.length > 0;
 
   const handleSaveHistory = (searchString: string) => {
     const exists = searchHistory.some(
@@ -126,11 +145,15 @@ export default function SearchTab() {
               }
             }}
           />
+          {isPending && (
+            <View className="mr-2">
+              <ActivityIndicator color="#22c55e" size="small" />
+            </View>
+          )}
           {query.length > 0 && (
             <Pressable
               onPress={() => {
                 setQuery('');
-                setDebouncedQuery('');
               }}
               hitSlop={15}
               className="h-8 w-8 items-center justify-center rounded-full bg-white/10">
@@ -164,8 +187,11 @@ export default function SearchTab() {
                 <Pressable
                   key={item.id || index}
                   onPress={() => {
-                    setQuery(item.searchString);
-                    setDebouncedQuery(item.searchString);
+                    const text = item.searchString;
+                    setQuery(text);
+                    // Instant update for history clicks
+                    setDebouncedQuery(text);
+                    setIsDebouncing(false);
                   }}
                   className="flex-row items-center gap-4 rounded-2xl py-3 active:bg-white/10">
                   <View className="h-10 w-10 items-center justify-center rounded-full bg-zinc-900/50">
@@ -189,7 +215,7 @@ export default function SearchTab() {
         )}
 
         {/* Empty state (no query, no history) */}
-        {!debouncedQuery && !showHistory && (
+        {!query && !showHistory && (
           <View className="items-center py-20">
             <Ionicons name="search" size={48} color="#3f3f46" />
             <Text className="mt-4 text-base text-zinc-500">
@@ -198,15 +224,18 @@ export default function SearchTab() {
           </View>
         )}
 
-        {/* Loading */}
-        {debouncedQuery && isLoading && (
-          <View className="items-center py-12">
+        {/* Initial Loading (no data yet) */}
+        {debouncedQuery.trim().length > 0 && isInitialLoading && !hasResults && (
+          <View className="items-center py-20">
             <ActivityIndicator color="#22c55e" size="large" />
+            <Text className="mt-4 text-xs font-black uppercase tracking-widest text-zinc-600">
+              Searching...
+            </Text>
           </View>
         )}
 
-        {/* No results */}
-        {debouncedQuery && !isLoading && !hasResults && (
+        {/* No results (only show when not loading to avoid flickering) */}
+        {debouncedQuery.trim().length > 0 && !isPending && !hasResults && (
           <View className="items-center py-20">
             <Ionicons name="sad-outline" size={48} color="#3f3f46" />
             <Text className="mt-4 text-base text-zinc-500">
@@ -215,8 +244,8 @@ export default function SearchTab() {
           </View>
         )}
 
-        {/* Results */}
-        {debouncedQuery && !isLoading && hasResults && (
+        {/* Results - Keep visible during re-fetches */}
+        {debouncedQuery.trim().length > 0 && hasResults && (
           <View className="gap-10 pb-20">
             {/* Songs */}
             {hasSongs && (
