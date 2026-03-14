@@ -280,6 +280,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         // Stream already loaded for this song — just honour play/pause state
         if (shouldAutoPlayRef.current || isPlayingStore) {
           lastPlayCommandTimeRef.current = Date.now();
+          playerActions.setIsPlaying(true);
           activeP.play();
         } else {
           activeP.pause();
@@ -374,20 +375,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     // queue intentionally excluded — read imperatively inside the effect
   ]);
 
-  // ── Sync Store isPlaying → Player ─────────────────────────────────────────
-  // Fires when the user taps play/pause (togglePlayPause).
-  // Guarded by isSourceLoadingRef so it never plays the old stream
-  // while a new one is being loaded by syncPlayback.
-
-  useEffect(() => {
-    if (isSourceLoadingRef.current) return;
-    if (isPlayingStore) {
-      lastPlayCommandTimeRef.current = Date.now();
-      player.play();
-    } else {
-      player.pause();
-    }
-  }, [isPlayingStore, player]);
 
   // ── Sync Player Events → State ────────────────────────────────────────────
 
