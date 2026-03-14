@@ -264,22 +264,26 @@ export const playerActions = {
 
     _fallbackPage: 1,
     _fallbackFetching: false,
+    _fallbackQueue: 0,
 
     playNextFromFallback: async () => {
         const actions = playerActions as any;
+        actions._fallbackQueue++;
+
         if (actions._fallbackFetching) {
-            SDBG('playNextFromFallback: already fetching, skipping');
+            SDBG('playNextFromFallback: already fetching, queued', actions._fallbackQueue);
             return;
         }
 
         actions._fallbackFetching = true;
 
         try {
-            const existingIds = new Set(playerStore.state.queue.map((s) => s.id));
-            let nextSong: PlayerSong | undefined;
-            
-            // Try fetching up to 3 pages to find a non-duplicate
-            for (let i = 0; i < 3; i++) {
+            while (actions._fallbackQueue > 0) {
+                const existingIds = new Set(playerStore.state.queue.map((s) => s.id));
+                let nextSong: PlayerSong | undefined;
+                
+                // Try fetching up to 3 pages to find a non-duplicate
+                for (let i = 0; i < 3; i++) {
                 SDBG(`playNextFromFallback: fetching page ${actions._fallbackPage}`);
                 const res = await musicApi.getSongs(actions._fallbackPage, 5);
                 
@@ -306,23 +310,27 @@ export const playerActions = {
                 }
             }
 
-            if (nextSong) {
-                SDBG('playNextFromFallback: playing', { title: nextSong.title });
-                playerStore.setState((state) => ({
-                    ...state,
-                    queue: [...state.queue, nextSong!],
-                    currentSong: nextSong!,
-                    isPlaying: false,
-                    lastQueueIndex: state.queue.length,
-                    queueSource: 'feed',
-                }));
-                musicApi.addView(nextSong.id).catch(() => {});
-                actions._fallbackPage++; // Advance for the next call
-            } else {
-                SDBG('playNextFromFallback: failed to find a unique song');
+                if (nextSong) {
+                    SDBG('playNextFromFallback: playing', { title: nextSong.title });
+                    playerStore.setState((state) => ({
+                        ...state,
+                        queue: [...state.queue, nextSong!],
+                        currentSong: nextSong!,
+                        isPlaying: false,
+                        lastQueueIndex: state.queue.length,
+                        queueSource: 'feed',
+                    }));
+                    musicApi.addView(nextSong.id).catch(() => {});
+                    actions._fallbackPage++; // Advance for the next call
+                } else {
+                    SDBG('playNextFromFallback: failed to find a unique song');
+                }
+
+                actions._fallbackQueue--;
             }
         } catch (err) {
             console.warn('Fallback fetch failed:', err);
+            actions._fallbackQueue = 0; // Clear queue on error to prevent infinite loop
         } finally {
             actions._fallbackFetching = false;
         }
