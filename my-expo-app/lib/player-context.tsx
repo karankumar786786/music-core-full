@@ -16,7 +16,7 @@ import { useAuth } from './auth';
 import { playerStore, playerActions, PlayerSong } from './player-store';
 export { PlayerSong };
 
-// ─── Context Types ────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PlayerStateContextType {
   currentSong: PlayerSong | null;
@@ -52,7 +52,7 @@ interface PlayerProgressContextType {
   duration: number;
 }
 
-// Legacy combined type for backwards compat
+// Legacy combined type (state + actions, no progress)
 type PlayerContextType = PlayerStateContextType & PlayerActionsContextType;
 
 // ─── Contexts ─────────────────────────────────────────────────────────────────
@@ -60,26 +60,25 @@ type PlayerContextType = PlayerStateContextType & PlayerActionsContextType;
 const PlayerStateContext = createContext<PlayerStateContextType | null>(null);
 const PlayerActionsContext = createContext<PlayerActionsContextType | null>(null);
 const PlayerProgressContext = createContext<PlayerProgressContextType | null>(null);
-// Legacy context merges state + actions but NOT progress (avoids 50ms re-render cascade)
+// Legacy: merges state + actions — no progress to avoid 50ms re-render cascade
 const PlayerContext = createContext<PlayerContextType | null>(null);
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
-  const state = useStore(playerStore, (s) => s);
-  const {
-    currentSong,
-    queue,
-    lastQueueIndex,
-    isShuffle,
-    repeatMode,
-    isPlaying: isPlayingStore,
-  } = state;
+  // Granular store selectors — each one only re-renders when that specific field changes
+  const currentSong = useStore(playerStore, (s) => s.currentSong);
+  const queue = useStore(playerStore, (s) => s.queue);
+  const lastQueueIndex = useStore(playerStore, (s) => s.lastQueueIndex);
+  const isShuffle = useStore(playerStore, (s) => s.isShuffle);
+  const repeatMode = useStore(playerStore, (s) => s.repeatMode);
+  const isPlayingStore = useStore(playerStore, (s) => s.isPlaying);
+
   const { isAuthenticated } = useAuth();
 
   const initPlayer = (p: any) => {
     p.loop = false;
-    p.timeUpdateEventInterval = 0.05;
+    p.timeUpdateEventInterval = 0.05; // 50ms for smooth progress bar
     p.bufferOptions = { preferredForwardBufferDuration: 20 };
   };
 
@@ -89,6 +88,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [activePlayerIndex, setActivePlayerIndex] = useState<0 | 1>(0);
   const player = activePlayerIndex === 0 ? p0 : p1;
 
+  // Local UI state — mirrored from player events
   const [position, setPosition] = useState(0);
   const [bufferedPosition, setBufferedPosition] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -97,29 +97,36 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [availableTracks, setAvailableTracks] = useState<VideoTrack[]>([]);
   const [qualityType, setQualityType] = useState<'auto' | 'high' | 'med' | 'low'>('auto');
 
+  // Refs — mutable values that don't trigger re-renders
   const shouldAutoPlayRef = useRef(false);
   const isSourceLoadingRef = useRef(false);
   const lastPlayCommandTimeRef = useRef<number>(0);
   const lastSeekTimeRef = useRef<number>(0);
   const standbyReadyRef = useRef(false);
-  // Stable ref so playPrevious doesn't need `position` in its deps
+  // Stable position ref so playPrevious doesn't need position in its deps
   const positionRef = useRef(0);
 
+  // Keep positionRef in sync without triggering re-renders
   useEffect(() => {
     positionRef.current = position;
   }, [position]);
 
+  // Restore playback history on auth
   useEffect(() => {
     if (isAuthenticated) {
       playerActions.restoreFromHistory();
     }
   }, [isAuthenticated]);
 
+  // Reset source loading flag when active player swaps
   useEffect(() => {
     isSourceLoadingRef.current = false;
   }, [activePlayerIndex]);
 
+  // ── Stream URL Resolution ─────────────────────────────────────────────────
+
   const streamUrlCacheRef = useRef<Record<string, string>>({});
+
   const resolveStreamUrl = useCallback(async (song: PlayerSong, targetQuality: string) => {
     const cacheKey = `${song.id}-${targetQuality}`;
     if (streamUrlCacheRef.current[cacheKey]) return streamUrlCacheRef.current[cacheKey];
@@ -162,6 +169,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // ── Dual Player Song Tracking ─────────────────────────────────────────────
+
   const p0SongRef = useRef<{ id: string | null; quality: string | null }>({
     id: null,
     quality: null,
@@ -171,6 +180,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     quality: null,
   });
 
+  // Swap to standby player if it has already preloaded the new song
   useEffect(() => {
     if (!currentSong) return;
     const standbyIdx = activePlayerIndex === 0 ? 1 : 0;
@@ -186,8 +196,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentSong, qualityType, activePlayerIndex]);
 
+  // ── Sync Playback & Preload ───────────────────────────────────────────────
+
   useEffect(() => {
     let isCurrent = true;
+
     const syncPlayback = async () => {
       if (!currentSong) {
         p0.pause();
@@ -200,6 +213,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const activeRef = activePlayerIndex === 0 ? p0SongRef : p1SongRef;
       const standbyRef = activePlayerIndex === 0 ? p1SongRef : p0SongRef;
 
+      // 1. Load active player if song or quality changed
       const isQualityChange =
         activeRef.current.id === currentSong.id && activeRef.current.quality !== qualityType;
       const needsActiveLoad = activeRef.current.id !== currentSong.id || isQualityChange;
@@ -213,6 +227,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         try {
           await activeP.replaceAsync(streamUrl);
           if (!isCurrent) return;
+
           activeRef.current = { id: currentSong.id, quality: qualityType };
 
           if (isQualityChange && preservedPos > 0) {
@@ -241,6 +256,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
+      // 2. Preload standby player with next song
       standbyP.pause();
       let nextIdx = lastQueueIndex + 1;
       if (isShuffle) {
@@ -286,7 +302,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     resolveStreamUrl,
   ]);
 
+  // ── Sync Store isPlaying → Player ─────────────────────────────────────────
+
   useEffect(() => {
+    // Don't fight with replaceAsync while source is loading
     if (isSourceLoadingRef.current) return;
     if (isPlayingStore) {
       lastPlayCommandTimeRef.current = Date.now();
@@ -296,7 +315,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isPlayingStore, player]);
 
+  // ── Sync Player Events → State ────────────────────────────────────────────
+
   useEffect(() => {
+    // Initial sync when player instance changes after a swap
     setIsBuffering(player.status === 'loading');
     setDuration(player.duration);
     setPosition(player.currentTime);
@@ -311,7 +333,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const playSub = player.addListener('playingChange', ({ isPlaying: newIsPlaying }) => {
       const timeSincePlayCommand = Date.now() - lastPlayCommandTimeRef.current;
       const isIgnoringFalse = !newIsPlaying && timeSincePlayCommand < 1000;
-
       if (
         !isSourceLoadingRef.current &&
         !isIgnoringFalse &&
@@ -330,7 +351,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           setPosition(currentTime);
         }
         setBufferedPosition(
-          newBuffered !== undefined && newBuffered !== null ? newBuffered : player.bufferedPosition
+          newBuffered !== undefined && newBuffered !== null
+            ? newBuffered
+            : player.bufferedPosition
         );
         setDuration(player.duration);
       }
@@ -359,13 +382,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     };
   }, [player]);
 
-  // ─── Stable Actions (zero or minimal deps — never recreated on playback) ──
+  // ── Stable Actions ────────────────────────────────────────────────────────
 
   const play = useCallback((song: PlayerSong) => {
     console.log('[PlayerContext] play called for:', song.title);
     shouldAutoPlayRef.current = true;
     playerActions.playSong(song);
-    router.push({ pathname: '/player', params: { songId: song.id } });
+    // navigate reuses existing player screen instead of stacking a new one
+    router.navigate('/player');
   }, []); // zero deps — stable forever
 
   const playAll = useCallback((songs: PlayerSong[]) => {
@@ -373,7 +397,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (songs.length === 0) return;
     shouldAutoPlayRef.current = true;
     playerActions.playAll(songs);
-    router.push({ pathname: '/player', params: { songId: songs[0].id } });
+    router.navigate('/player');
   }, []); // zero deps — stable forever
 
   const seekTo = useCallback(
@@ -381,8 +405,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setPosition(seconds);
       lastSeekTimeRef.current = Date.now();
       try {
-        const delta = seconds - player.currentTime;
-        player.seekBy(delta);
+        player.seekBy(seconds - player.currentTime);
       } catch {
         player.currentTime = seconds;
       }
@@ -395,7 +418,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     playerActions.setCurrentSong(null);
   }, [player]);
 
-  // Uses positionRef instead of position state — no longer depends on position
+  // Uses positionRef — does not depend on position state, so never stale
   const playPrevious = useCallback(() => {
     shouldAutoPlayRef.current = true;
     const result = playerActions.playPrevious(positionRef.current);
@@ -404,10 +427,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [seekTo]);
 
-  // ─── Memoized Context Values ───────────────────────────────────────────────
+  // ── Context Values ────────────────────────────────────────────────────────
 
-  // Actions value: only recreated if seekTo/stop/playPrevious change (player swap)
-  // Crucially does NOT include position/isPlaying/isBuffering etc.
+  // Actions: re-created only when player instance swaps (almost never)
   const actionsValue = useMemo<PlayerActionsContextType>(
     () => ({
       play,
@@ -429,7 +451,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     [play, playAll, seekTo, stop, playPrevious]
   );
 
-  // State value: changes on song/playback changes — NOT on position ticks
+  // State: re-created on song/playback changes — NOT on position ticks
   const stateValue = useMemo<PlayerStateContextType>(
     () => ({
       currentSong,
@@ -458,22 +480,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     ]
   );
 
-  // Progress value: updates every 50ms — isolated so only seekbar re-renders
+  // Progress: updates every 50ms — isolated so only the seekbar re-renders
   const progressValue = useMemo<PlayerProgressContextType>(
-    () => ({
-      position,
-      bufferedPosition,
-      duration,
-    }),
+    () => ({ position, bufferedPosition, duration }),
     [position, bufferedPosition, duration]
   );
 
-  // Legacy merged value (state + actions, no progress) for backwards compat
+  // Legacy: merges state + actions for backwards compat (no progress)
   const legacyValue = useMemo<PlayerContextType>(
-    () => ({
-      ...stateValue,
-      ...actionsValue,
-    }),
+    () => ({ ...stateValue, ...actionsValue }),
     [stateValue, actionsValue]
   );
 
@@ -493,45 +508,45 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
 /**
- * Returns stable action functions only.
+ * Stable action functions only.
  * NEVER re-renders due to playback state changes.
- * Use this in SearchTab, SongRow, and any component that only needs to trigger playback.
+ * Use in: SearchTab, SongRow, any component that only triggers playback.
  */
 export const usePlayerActions = () => {
-  const context = useContext(PlayerActionsContext);
-  if (!context) throw new Error('usePlayerActions must be used within a PlayerProvider');
-  return context;
+  const ctx = useContext(PlayerActionsContext);
+  if (!ctx) throw new Error('usePlayerActions must be used within a PlayerProvider');
+  return ctx;
 };
 
 /**
- * Returns playback state (currentSong, isPlaying, isBuffering, queue, etc.)
- * Re-renders on song/playback changes but NOT on position ticks.
- * Use this in MiniPlayer, Player screen header, etc.
+ * Playback state (currentSong, isPlaying, isBuffering, queue, etc.)
+ * Re-renders on song/playback changes — NOT on position ticks.
+ * Use in: MiniPlayer, Player screen header, queue list.
  */
 export const usePlayerState = () => {
-  const context = useContext(PlayerStateContext);
-  if (!context) throw new Error('usePlayerState must be used within a PlayerProvider');
-  return context;
+  const ctx = useContext(PlayerStateContext);
+  if (!ctx) throw new Error('usePlayerState must be used within a PlayerProvider');
+  return ctx;
 };
 
 /**
- * Returns position/bufferedPosition/duration only.
+ * Position, bufferedPosition, duration only.
  * Re-renders every 50ms during playback.
- * Use this ONLY in the seekbar/progress bar component.
+ * Use in: ONLY the seekbar/progress bar component.
  */
 export const usePlayerProgress = () => {
-  const context = useContext(PlayerProgressContext);
-  if (!context) throw new Error('usePlayerProgress must be used within a PlayerProvider');
-  return context;
+  const ctx = useContext(PlayerProgressContext);
+  if (!ctx) throw new Error('usePlayerProgress must be used within a PlayerProvider');
+  return ctx;
 };
 
 /**
- * Legacy hook — returns state + actions merged (no position/progress).
- * Existing components using usePlayer() continue to work unchanged.
- * New components should prefer usePlayerActions() or usePlayerState().
+ * Legacy hook — state + actions merged, no progress.
+ * Existing components using usePlayer() continue to work.
+ * Prefer usePlayerActions() or usePlayerState() for new components.
  */
 export const usePlayer = () => {
-  const context = useContext(PlayerContext);
-  if (!context) throw new Error('usePlayer must be used within a PlayerProvider');
-  return context;
+  const ctx = useContext(PlayerContext);
+  if (!ctx) throw new Error('usePlayer must be used within a PlayerProvider');
+  return ctx;
 };

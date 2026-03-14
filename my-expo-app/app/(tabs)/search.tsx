@@ -18,16 +18,19 @@ import { getCoverImageUrl } from '../../lib/s3';
 import { capitalize } from '../../lib/utils';
 import SongRow from '../../components/SongRow';
 import { LinearGradient } from 'expo-linear-gradient';
-import { usePlayerActions } from '../../lib/player-context'; // ← changed from usePlayer
+import { usePlayerActions } from '../../lib/player-context';
 
 export default function SearchTab() {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [isDebouncing, setIsDebouncing] = useState(false);
   const inputRef = useRef<TextInput>(null);
-  const { play, playAll } = usePlayerActions(); // ← changed from usePlayer
+
+  // usePlayerActions — stable forever, never causes re-renders from player state
+  const { play, playAll } = usePlayerActions();
   const queryClient = useQueryClient();
 
+  // Dismiss keyboard when navigating away
   useFocusEffect(
     useCallback(() => {
       console.log('[SearchTab] Screen focused');
@@ -39,29 +42,22 @@ export default function SearchTab() {
     }, [])
   );
 
+  // Debounce search input
   useEffect(() => {
     if (!query.trim()) {
-      console.log('[SearchTab] Clearing debounced query (empty input)');
       setDebouncedQuery('');
       setIsDebouncing(false);
       return;
     }
-
     setIsDebouncing(true);
-
     const handler = setTimeout(() => {
-      console.log('[SearchTab] Debounce finished, setting query:', query.trim());
       setDebouncedQuery(query.trim());
       setIsDebouncing(false);
     }, 500);
-
     return () => clearTimeout(handler);
   }, [query]);
 
-  const handleTextChange = (text: string) => {
-    setQuery(text);
-  };
-
+  // Search query
   const {
     data,
     isLoading: isInitialLoading,
@@ -86,6 +82,7 @@ export default function SearchTab() {
 
   const isPending = isFetching || isDebouncing;
 
+  // Search history
   const { data: historyData } = useQuery({
     queryKey: ['searchHistory'],
     queryFn: () => musicApi.getSearchHistory(),
@@ -105,6 +102,9 @@ export default function SearchTab() {
     },
   });
 
+  // Extract stable mutate ref — useMutation returns new object every render
+  const saveHistoryMutate = saveHistoryMutation.mutate;
+
   const results = data?.data;
   const hasSongs = (results?.songs?.length ?? 0) > 0;
   const hasArtists = (results?.artists?.length ?? 0) > 0;
@@ -122,20 +122,17 @@ export default function SearchTab() {
       );
       if (!exists) {
         console.log('[SearchTab] Saving new history item');
-        saveHistoryMutation.mutate(searchString);
+        saveHistoryMutate(searchString);
       } else {
         console.log('[SearchTab] History item already exists, skipping');
       }
     },
-    [searchHistory, saveHistoryMutation]
+    [searchHistory, saveHistoryMutate] // saveHistoryMutate is stable
   );
 
   const handlePlayAll = useCallback(() => {
     console.log('[SearchTab] handlePlayAll called');
-    if (!results?.songs || results.songs.length === 0) {
-      console.log('[SearchTab] No songs to play all');
-      return;
-    }
+    if (!results?.songs || results.songs.length === 0) return;
     const playerSongs = results.songs.map((song: any) => ({
       id: song.id,
       title: song.title,
@@ -305,8 +302,7 @@ export default function SearchTab() {
     data,
     handlePlayAll,
     handleSaveHistory,
-    play,
-    // ↑ play is now from usePlayerActions — stable forever, won't cause re-renders
+    play, // stable from usePlayerActions — never triggers re-render
   ]);
 
   return (
@@ -317,10 +313,13 @@ export default function SearchTab() {
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 0.5 }}
       />
+
+      {/* Title */}
       <View className="px-6 pb-2 pt-6">
         <Text className="text-4xl font-black tracking-tighter text-white">Search</Text>
       </View>
 
+      {/* Search Bar */}
       <View className="px-6 py-4">
         <View
           style={{ overflow: 'hidden' }}
@@ -332,7 +331,7 @@ export default function SearchTab() {
             placeholder="Artists, songs, or lyrics..."
             placeholderTextColor="#52525b"
             value={query}
-            onChangeText={handleTextChange}
+            onChangeText={setQuery}
             returnKeyType="search"
             selectionColor="#22c55e"
             autoCorrect={false}
@@ -340,9 +339,7 @@ export default function SearchTab() {
             spellCheck={false}
             onSubmitEditing={() => {
               const trimmed = query.trim();
-              if (trimmed.length > 0) {
-                handleSaveHistory(trimmed);
-              }
+              if (trimmed.length > 0) handleSaveHistory(trimmed);
             }}
           />
           {isPending && (
@@ -352,9 +349,7 @@ export default function SearchTab() {
           )}
           {query.length > 0 && (
             <Pressable
-              onPress={() => {
-                setQuery('');
-              }}
+              onPress={() => setQuery('')}
               hitSlop={15}
               className="h-8 w-8 items-center justify-center rounded-full bg-white/10">
               <Ionicons name="close" size={18} color="#a1a1aa" />
@@ -368,6 +363,7 @@ export default function SearchTab() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}>
+
         {/* Search History */}
         {showHistory && (
           <View className="px-6 pb-4">
@@ -424,7 +420,7 @@ export default function SearchTab() {
           </View>
         )}
 
-        {/* Initial Loading */}
+        {/* Initial loading */}
         {debouncedQuery.trim().length > 0 && isInitialLoading && !hasResults && (
           <View className="items-center py-20">
             <ActivityIndicator color="#22c55e" size="large" />
@@ -448,7 +444,7 @@ export default function SearchTab() {
             </View>
           )}
 
-        {/* Error State */}
+        {/* Error state */}
         {debouncedQuery.trim().length > 0 && isError && (
           <View className="items-center py-20">
             <Ionicons name="warning-outline" size={48} color="#ef4444" />
