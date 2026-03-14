@@ -11,12 +11,19 @@ import { StatusBar } from 'expo-status-bar';
 import { setupOnlineManager, useAppStateFocusManager } from '../lib/query-setup';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-// Initialize online manager at module level
 setupOnlineManager();
 
-// Routes that authenticated users can access
-const PROTECTED_ROUTES = ['(tabs)', 'artist', 'playlist', 'player', 'userplaylist', 'history', 'lyrics'];
+const PROTECTED_ROUTES = [
+  '(tabs)',
+  'artist',
+  'playlist',
+  'player',
+  'userplaylist',
+  'history',
+  'lyrics',
+];
 
 function AuthGate() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -26,30 +33,14 @@ function AuthGate() {
   useAppStateFocusManager();
 
   useEffect(() => {
-    console.log(
-      '[AuthGate] useEffect | isAuthenticated:',
-      isAuthenticated,
-      'isLoading:',
-      isLoading,
-      'segments:',
-      segments
-    );
     if (isLoading) return;
 
     const firstSegment = segments[0];
     const inProtectedRoute = PROTECTED_ROUTES.includes(firstSegment);
-    console.log(
-      '[AuthGate] Current route segment:',
-      firstSegment,
-      '| isProtected:',
-      inProtectedRoute
-    );
 
     if (isAuthenticated && !inProtectedRoute) {
-      console.log('[AuthGate] Authenticated but in guest route, redirecting to home');
       router.replace('/(tabs)/home');
     } else if (!isAuthenticated && inProtectedRoute) {
-      console.log('[AuthGate] Not authenticated and in protected route, redirecting to login');
       router.replace('/');
     }
   }, [isAuthenticated, isLoading, segments]);
@@ -81,23 +72,70 @@ function AuthGate() {
   return (
     <>
       <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="artist/[artistId]" options={{ animation: 'none' }} />
-        <Stack.Screen name="playlist/[playlistId]" options={{ animation: 'none' }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen
+          name="index"
+          options={{
+            animation: 'fade',
+            gestureEnabled: false,
+          }}
+        />
+        <Stack.Screen
+          name="(tabs)"
+          options={{
+            animation: 'fade',
+            gestureEnabled: false, // tabs root should not be swiped away
+          }}
+        />
+        <Stack.Screen
+          name="artist/[artistId]"
+          options={{
+            animation: 'slide_from_right',
+            gestureEnabled: true,
+            gestureDirection: 'horizontal',
+          }}
+        />
+        <Stack.Screen
+          name="playlist/[playlistId]"
+          options={{
+            animation: 'slide_from_right',
+            gestureEnabled: true,
+            gestureDirection: 'horizontal',
+          }}
+        />
         <Stack.Screen
           name="userplaylist/[userPlaylistId]"
-          options={{ animation: 'slide_from_right' }}
+          options={{
+            animation: 'slide_from_right',
+            gestureEnabled: true,
+            gestureDirection: 'horizontal',
+          }}
         />
-        <Stack.Screen name="history" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen
+          name="history"
+          options={{
+            animation: 'slide_from_right',
+            gestureEnabled: true,
+            gestureDirection: 'horizontal',
+          }}
+        />
         <Stack.Screen
           name="lyrics"
-          options={{ animation: 'slide_from_bottom', presentation: 'fullScreenModal' }}
+          options={{
+            animation: 'slide_from_bottom',
+            presentation: 'fullScreenModal',
+            gestureEnabled: true,
+            gestureDirection: 'vertical',
+          }}
         />
         <Stack.Screen
           name="player"
-          options={{ animation: 'slide_from_bottom', presentation: 'fullScreenModal' }}
+          options={{
+            animation: 'slide_from_bottom',
+            presentation: 'fullScreenModal',
+            gestureEnabled: true,
+            gestureDirection: 'vertical',
+          }}
         />
       </Stack>
     </>
@@ -106,14 +144,16 @@ function AuthGate() {
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <PlayerProvider>
-            <AuthGate />
-          </PlayerProvider>
-        </AuthProvider>
-      </QueryClientProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <PlayerProvider>
+              <AuthGate />
+            </PlayerProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -6,8 +6,6 @@ import MiniPlayer from '../../components/MiniPlayer';
 import { musicApi } from '../../lib/api';
 
 export default function TabLayout() {
-  console.log('[TabLayout] Rendered');
-  // Pre-fetch critical tab data to avoid "stuck on loading" states
   useQuery({
     queryKey: ['userPlaylists'],
     queryFn: () => musicApi.getUserPlaylists(),
