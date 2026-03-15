@@ -1,6 +1,8 @@
 # Build stage
 FROM node:20-slim AS builder
 
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 RUN corepack enable && corepack prepare pnpm@10.26.2 --activate
 
 WORKDIR /app
@@ -9,6 +11,7 @@ COPY package.json pnpm-lock.yaml ./
 COPY prisma ./prisma/
 
 RUN pnpm install --frozen-lockfile
+RUN pnpm approve-builds -y
 
 COPY . .
 
@@ -18,7 +21,7 @@ RUN pnpm run build
 # Production stage
 FROM node:20-slim
 
-RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y openssl ffmpeg && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable && corepack prepare pnpm@10.26.2 --activate
 
