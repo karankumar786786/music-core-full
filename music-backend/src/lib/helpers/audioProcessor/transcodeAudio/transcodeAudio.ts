@@ -2,6 +2,9 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { Logger } from "@nestjs/common";
+
+const logger = new Logger('transcodeAudio');
 
 const execFileAsync = promisify(execFile);
 
@@ -34,7 +37,7 @@ export async function getAudioDuration(audioPath: string): Promise<number> {
         const duration = parseFloat(formatInfo.duration || "0");
         return duration;
     } catch (error) {
-        console.error(`Failed to get audio info for ${audioPath}:`, error);
+        logger.error(`Failed to get audio info for ${audioPath}`, error instanceof Error ? error.stack : error);
         return 0;
     }
 }
@@ -45,7 +48,7 @@ export async function getAudioDuration(audioPath: string): Promise<number> {
  * and a playlist.m3u8 inside each.
  */
 export async function transcodeToHlsMultiQuality(inputAudio: string, outputDir: string): Promise<void> {
-    console.log(`🎬 Transcoding to HLS (multi-quality)...`);
+    logger.log(`🎬 Transcoding to HLS (multi-quality)...`);
 
     if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
@@ -57,7 +60,7 @@ export async function transcodeToHlsMultiQuality(inputAudio: string, outputDir: 
     }
 
     const segmentTime = 4;
-    console.log(`📏 Audio duration: ${duration.toFixed(2)}s, using ${segmentTime}s segments`);
+    logger.log(`📏 Audio duration: ${duration.toFixed(2)}s, using ${segmentTime}s segments`);
 
     // Transcode each quality variant
     for (const profile of QUALITY_PROFILES) {
@@ -68,7 +71,7 @@ export async function transcodeToHlsMultiQuality(inputAudio: string, outputDir: 
             fs.mkdirSync(qualityDir, { recursive: true });
         }
 
-        console.log(`   🔄 Encoding ${bitrate}...`);
+        logger.log(`   🔄 Encoding ${bitrate}...`);
 
         const playlistPath = path.join(qualityDir, "playlist.m3u8");
         const segmentPattern = path.join(qualityDir, `${bitrate.replace('k', '')}k_%03d.ts`);
@@ -95,12 +98,12 @@ export async function transcodeToHlsMultiQuality(inputAudio: string, outputDir: 
 
         try {
             await execFileAsync("ffmpeg", cmdArgs);
-            console.log(`   ✅ Encoding completed for ${bitrate}`);
+            logger.log(`   ✅ Encoding completed for ${bitrate}`);
         } catch (error: any) {
-            console.error(`   ❌ Encoding failed for ${bitrate}:`, error.message || error);
+            logger.error(`   ❌ Encoding failed for ${bitrate}`, error.message || error);
             throw error;
         }
     }
 
-    console.log("✅ All qualities transcoded");
+    logger.log("✅ All qualities transcoded");
 }

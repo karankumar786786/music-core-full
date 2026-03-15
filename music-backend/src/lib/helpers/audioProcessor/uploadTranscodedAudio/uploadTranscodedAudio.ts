@@ -2,6 +2,9 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import 'dotenv/config';
+import { Logger } from "@nestjs/common";
+
+const logger = new Logger('uploadTranscodedAudio');
 
 const AWS_PRODUCTION_BUCKET = process.env.AWS_PRODUCTION_BUCKET || "onemelodyproduction";
 const SONGS_BUCKET_BASE_FILE = process.env.SONGS_BUCKET_BASE_FILE || "songs/";
@@ -73,7 +76,7 @@ export async function uploadTranscodedAudio(
     const s3Prefix = `${SONGS_BUCKET_BASE_FILE}${songId}`;
     const files = collectFiles(processedFolderPath);
 
-    console.log(`☁️  Uploading ${files.length} file(s) to s3://${AWS_PRODUCTION_BUCKET}/${s3Prefix}`);
+    logger.log(`☁️  Uploading ${files.length} file(s) to s3://${AWS_PRODUCTION_BUCKET}/${s3Prefix}`);
 
     let uploaded = 0;
 
@@ -97,6 +100,6 @@ export async function uploadTranscodedAudio(
         uploaded++;
     }
 
-    console.log(`✅ Uploaded ${uploaded} file(s) to s3://${AWS_PRODUCTION_BUCKET}/${s3Prefix}`);
+    logger.log(`✅ Uploaded ${uploaded} file(s) to s3://${AWS_PRODUCTION_BUCKET}/${s3Prefix}`);
     return s3Prefix;
 }

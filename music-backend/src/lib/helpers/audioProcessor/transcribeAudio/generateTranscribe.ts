@@ -2,6 +2,9 @@ import { SarvamAIClient } from "sarvamai";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import { Logger } from "@nestjs/common";
+
+const logger = new Logger('generateTranscribe');
 
 /**
  * Generates transcription for a given audio file and saves it to a specified JSON file path.
@@ -23,7 +26,7 @@ export async function generateTranscribe(audioFilePath: string, outputJsonFilePa
         throw new Error(`Audio file not found: ${audioFilePath}`);
     }
 
-    console.log(`Processing audio file: ${audioFilePath}`);
+    logger.log(`Processing audio file: ${audioFilePath}`);
 
     // Create batch job
     const job = await client.speechToTextJob.createJob({
@@ -31,17 +34,17 @@ export async function generateTranscribe(audioFilePath: string, outputJsonFilePa
         withDiarization: true, // You can make this configurable later if needed
     });
 
-    console.log(`Created job: ${job.jobId}`);
+    logger.log(`Created job: ${job.jobId}`);
 
     // Upload and process files
-    console.log("Uploading file...");
+    logger.log("Uploading file...");
     await job.uploadFiles([audioFilePath]);
 
-    console.log("Starting job...");
+    logger.log("Starting job...");
     await job.start();
 
     // Wait for completion
-    console.log("Waiting for job to complete (this may take a few minutes)...");
+    logger.log("Waiting for job to complete (this may take a few minutes)...");
     await job.waitUntilComplete();
 
     // Check file-level results
@@ -83,7 +86,7 @@ export async function generateTranscribe(audioFilePath: string, outputJsonFilePa
         // Copy the JSON to the requested output path
         fs.copyFileSync(sourceJsonPath, outputJsonFilePath);
 
-        console.log(`Transcription successfully saved to: ${outputJsonFilePath}`);
+        logger.log(`Transcription successfully saved to: ${outputJsonFilePath}`);
     } finally {
         // Clean up the temporary directory
         fs.rmSync(tempOutputDir, { recursive: true, force: true });

@@ -1,5 +1,8 @@
+import './telementry';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { Logger } from '@nestjs/common';
+import { Logger as PinoLogger } from 'nestjs-pino';
 import { ZodValidationPipe } from 'nestjs-zod';
 import * as express from 'express';
 import { serve } from "inngest/express";
@@ -8,8 +11,10 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const logger = new Logger('Bootstrap');
 
+  app.useLogger(app.get(PinoLogger));
   app.use(express.json());
   app.use("/api/inngest", serve({ client, functions }));
   app.useGlobalPipes(new ZodValidationPipe());
@@ -31,11 +36,13 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document);
 
   await app.listen(process.env.PORT ?? 3000);
-  console.log(
+  logger.log(
     `Server running on http://localhost:${process.env.PORT ?? 3000}`,
+    'Bootstrap',
   );
-  console.log(
+  logger.log(
     `Swagger documentation available at http://localhost:${process.env.PORT ?? 3000}/api`,
+    'Bootstrap',
   );
 }
 bootstrap();

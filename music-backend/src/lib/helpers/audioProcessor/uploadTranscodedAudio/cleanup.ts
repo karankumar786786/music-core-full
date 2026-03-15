@@ -1,4 +1,7 @@
 import * as fs from "node:fs";
+import { Logger } from "@nestjs/common";
+
+const logger = new Logger('cleanupProcessedFolder');
 
 /**
  * Removes the processed folder after a successful S3 upload.
@@ -7,10 +10,10 @@ import * as fs from "node:fs";
  */
 export function cleanupProcessedFolder(processedFolderPath: string): void {
     if (!fs.existsSync(processedFolderPath)) {
-        console.log(`🧹 Nothing to clean — folder does not exist: ${processedFolderPath}`);
+        logger.log(`🧹 Nothing to clean — folder does not exist: ${processedFolderPath}`);
         return;
     }
 
     fs.rmSync(processedFolderPath, { recursive: true, force: true });
-    console.log(`🧹 Cleaned up processed folder: ${processedFolderPath}`);
+    logger.log(`🧹 Cleaned up processed folder: ${processedFolderPath}`);
 }

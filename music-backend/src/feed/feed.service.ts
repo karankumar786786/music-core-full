@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { getPrismaClient } from '../lib/helpers/prisma/getPrismaClient';
 
 const RECOMMENDATION_ENGINE_URL =
@@ -6,6 +6,7 @@ const RECOMMENDATION_ENGINE_URL =
 
 @Injectable()
 export class FeedService {
+    private readonly logger = new Logger(FeedService.name);
     private prisma = getPrismaClient();
 
     async getUserFeed(userId: number, extraExcludeIds: string[] = []) {
@@ -64,7 +65,7 @@ export class FeedService {
 
         const excludeIdsArray = Array.from(excludeSongIds);
 
-        console.log(`[FeedService] User ${userId}: ${signals.length} unique signals (from ${rawSignals.length} raw), excluding ${excludeIdsArray.length} songs (${extraExcludeIds.length} from queue)`);
+        this.logger.log(`User ${userId}: ${signals.length} unique signals (from ${rawSignals.length} raw), excluding ${excludeIdsArray.length} songs (${extraExcludeIds.length} from queue)`);
 
         if (signals.length === 0) {
             const fallbackSongs = await this.prisma.song.findMany({
@@ -93,7 +94,7 @@ export class FeedService {
             const data = await response.json();
             const songIds: string[] = Array.isArray(data?.songIds) ? data.songIds : [];
 
-            console.log(`[FeedService] Recommendation engine returned ${songIds.length} song IDs`);
+            this.logger.log(`Recommendation engine returned ${songIds.length} song IDs`);
 
             if (!songIds || songIds.length === 0) {
                 const fallbackSongs = await this.prisma.song.findMany({
@@ -114,9 +115,9 @@ export class FeedService {
                 .filter(Boolean);
             return { data: orderedSongs };
         } catch (error) {
-            console.error(
-                'Failed to call Python recommendation engine:',
-                error,
+            this.logger.error(
+                'Failed to call Python recommendation engine',
+                error instanceof Error ? error.stack : undefined,
             );
 
             // Fallback on timeout or network error

@@ -3,6 +3,9 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import * as fs from 'fs';
 import * as path from 'path';
+import { Logger } from '@nestjs/common';
+
+const logger = new Logger('getPrismaClient');
 import 'dotenv/config';
 
 let prisma: PrismaClient;
@@ -27,7 +30,7 @@ export const getPrismaClient = () => {
                 sslConfig.ca = fs.readFileSync(fullCertPath, 'utf-8');
             }
         } catch (error) {
-            console.warn('Warning: Could not load SSL certificate:', error.message);
+            logger.warn(`Could not load SSL certificate: ${error.message}`);
         }
     }
 

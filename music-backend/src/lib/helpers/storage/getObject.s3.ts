@@ -5,12 +5,15 @@ import { S3ObjectDto } from "../../dtos/storage/s3Object.dto";
 import * as fs from "fs";
 import * as path from "path";
 import { pipeline } from "stream/promises";
+import { Logger } from "@nestjs/common";
+
+const logger = new Logger('getObject.s3');
 
 export async function getObject(dto: S3ObjectDto): Promise<boolean> {
     try {
-        console.log(`📥 Downloading from S3: Bucket=${dto.bucketName}, Key=${dto.key}`);
+        logger.log(`📥 Downloading from S3: Bucket=${dto.bucketName}, Key=${dto.key}`);
         if (!dto.outputDir) {
-            console.error('❌ Error: outputDir is missing in getObject dto');
+            logger.error('outputDir is missing in getObject dto');
             return false;
         }
 
@@ -24,16 +27,16 @@ export async function getObject(dto: S3ObjectDto): Promise<boolean> {
         if (response.Body) {
             fs.mkdirSync(dto.outputDir, { recursive: true });
             const filePath = path.join(dto.outputDir, path.basename(dto.key));
-            console.log(`   Saving to: ${filePath}`);
+            logger.log(`   Saving to: ${filePath}`);
             await pipeline(response.Body as any, fs.createWriteStream(filePath));
-            console.log(`✅ Download complete: ${filePath}`);
+            logger.log(`✅ Download complete: ${filePath}`);
         } else {
-            console.warn(`⚠️ Warning: S3 response body is empty for ${dto.key}`);
+            logger.warn(`S3 response body is empty for ${dto.key}`);
         }
 
         return true;
     } catch (error) {
-        console.error(`❌ Error downloading from S3 (${dto.key}):`, error.message);
+        logger.error(`Error downloading from S3 (${dto.key})`, error instanceof Error ? error.message : error);
         return false;
     }
 }

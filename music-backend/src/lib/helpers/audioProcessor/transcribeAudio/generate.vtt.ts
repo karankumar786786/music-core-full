@@ -1,4 +1,7 @@
 import * as fs from "node:fs";
+import { Logger } from "@nestjs/common";
+
+const logger = new Logger('generateVtt');
 
 /**
  * Formats seconds into HLS-compliant WebVTT timestamp: HH:MM:SS.mmm
@@ -60,5 +63,5 @@ export async function generateVtt(jsonFilePath: string, vttOutputPath: string): 
     }
 
     fs.writeFileSync(vttOutputPath, lines.join("\n"), { encoding: "utf8" });
-    console.log(`✓ VTT generated: ${vttOutputPath}`);
+    logger.log(`✓ VTT generated: ${vttOutputPath}`);
 }

@@ -1,0 +1,1 @@
+{application="music-backend"} | json | line_format "[{{.level}}]{{if .context}} [{{.context}}]{{end}} {{.msg}}{{if .res_statusCode}} | {{.req_method}} {{.req_url}} -> {{.res_statusCode}} ({{.responseTime}}ms){{end}}"

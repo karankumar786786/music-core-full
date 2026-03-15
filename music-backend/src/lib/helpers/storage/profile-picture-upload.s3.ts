@@ -2,6 +2,9 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { client } from "./client";
 import 'dotenv/config';
+import { Logger } from "@nestjs/common";
+
+const logger = new Logger('profile-picture-upload.s3');
 
 export async function getProfilePictureUploadUrl(
     userId: number,
@@ -14,7 +17,7 @@ export async function getProfilePictureUploadUrl(
         const key = `user-profile-pictures/${userId}/${timestamp}-${fileName}`;
         const bucketName = process.env.AWS_PRODUCTION_BUCKET || "onemelodyproduction";
 
-        console.log(`Generating profile picture upload URL for userId: ${userId}, bucket: ${bucketName}, key: ${key}`);
+        logger.log(`Generating profile picture upload URL for userId: ${userId}, bucket: ${bucketName}, key: ${key}`);
 
         const command = new PutObjectCommand({
             Bucket: bucketName,
@@ -29,7 +32,7 @@ export async function getProfilePictureUploadUrl(
             key,
         };
     } catch (error) {
-        console.error("Error generating profile picture upload URL:", error);
+        logger.error("Error generating profile picture upload URL", error instanceof Error ? error.stack : error);
         throw error;
     }
 }

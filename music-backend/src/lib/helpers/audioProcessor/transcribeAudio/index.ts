@@ -1,8 +1,11 @@
 import * as path from "node:path";
 import * as fs from "node:fs";
+import { Logger } from "@nestjs/common";
 
 import { generateTranscribe } from "./generateTranscribe";
 import { generateVtt } from "./generate.vtt";
+
+const logger = new Logger('transcribeAudio');
 
 /**
  * Orchestrates the full process of transcribing an audio file and generating a VTT subtitle file.
@@ -29,21 +32,21 @@ export async function processAudioTranscription(
     const jsonPath = path.join(outputDir, `${name}.json`);
     const vttPath = path.join(outputDir, `${name}.vtt`);
 
-    console.log(`\n--- Starting Audio Transcription Process ---`);
-    console.log(`Input audio: ${audioFilePath}`);
-    console.log(`Output directory: ${outputDir}`);
+    logger.log(`--- Starting Audio Transcription Process ---`);
+    logger.log(`Input audio: ${audioFilePath}`);
+    logger.log(`Output directory: ${outputDir}`);
 
     // Step 1: Transcribe audio to JSON using Sarvam AI
-    console.log(`\n[1/2] Generating transcription (JSON)...`);
+    logger.log(`[1/2] Generating transcription (JSON)...`);
     await generateTranscribe(audioFilePath, jsonPath);
 
     // Step 2: Convert the generated JSON transcript to WebVTT format
-    console.log(`\n[2/2] Generating WebVTT subtitles...`);
+    logger.log(`[2/2] Generating WebVTT subtitles...`);
     await generateVtt(jsonPath, vttPath);
 
-    console.log(`\n--- Transcription Process Completed Successfully ---`);
-    console.log(`JSON Transcript: ${jsonPath}`);
-    console.log(`VTT Subtitles:   ${vttPath}\n`);
+    logger.log(`--- Transcription Process Completed Successfully ---`);
+    logger.log(`JSON Transcript: ${jsonPath}`);
+    logger.log(`VTT Subtitles:   ${vttPath}`);
 
     return {
         jsonPath,

@@ -1,6 +1,9 @@
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { QUALITY_PROFILES } from "./transcodeAudio";
+import { Logger } from "@nestjs/common";
+
+const logger = new Logger('createMasterPlaylist');
 
 /**
  * Creates a master.m3u8 playlist in the output directory that points to the multi-quality streams.
@@ -22,5 +25,5 @@ export function createMasterPlaylist(outputDir: string): void {
     const masterPath = path.join(outputDir, "master.m3u8");
 
     fs.writeFileSync(masterPath, content, { encoding: "utf-8" });
-    console.log("✅ Master playlist created at:", masterPath);
+    logger.log(`✅ Master playlist created at: ${masterPath}`);
 }

@@ -2,6 +2,9 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import 'dotenv/config';
+import { Logger } from "@nestjs/common";
+
+const logger = new Logger('uploadProcessedImages');
 
 const AWS_PRODUCTION_BUCKET = process.env.AWS_PRODUCTION_BUCKET || "onemelodyproduction";
 
@@ -70,13 +73,13 @@ export async function uploadProcessedImages(
     imageType: ImageType
 ): Promise<string | null> {
     if (!fs.existsSync(localProcessingDir)) {
-        console.warn(`Local directory not found: ${localProcessingDir}`);
+        logger.warn(`Local directory not found: ${localProcessingDir}`);
         return null;
     }
 
     const files = collectFiles(localProcessingDir);
     if (files.length === 0) {
-        console.warn(`No files found in ${localProcessingDir}`);
+        logger.warn(`No files found in ${localProcessingDir}`);
         return null;
     }
 
@@ -89,7 +92,7 @@ export async function uploadProcessedImages(
     });
 
     const s3FolderKey = `${s3BaseFolder}${entityId}/${imageType}`;
-    console.log(`☁️  Uploading ${files.length} file(s) to s3://${AWS_PRODUCTION_BUCKET}/${s3FolderKey}`);
+    logger.log(`☁️  Uploading ${files.length} file(s) to s3://${AWS_PRODUCTION_BUCKET}/${s3FolderKey}`);
 
     let uploadedCount = 0;
 
@@ -110,6 +113,6 @@ export async function uploadProcessedImages(
         uploadedCount++;
     }
 
-    console.log(`✅ Uploaded ${uploadedCount} file(s) to s3://${AWS_PRODUCTION_BUCKET}/${s3FolderKey}`);
+    logger.log(`✅ Uploaded ${uploadedCount} file(s) to s3://${AWS_PRODUCTION_BUCKET}/${s3FolderKey}`);
     return s3FolderKey;
 }

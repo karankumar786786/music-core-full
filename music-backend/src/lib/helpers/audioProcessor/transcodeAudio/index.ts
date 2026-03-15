@@ -1,5 +1,8 @@
 import { transcodeToHlsMultiQuality } from "./transcodeAudio";
 import { createMasterPlaylist } from "./generateMaster.m3u8";
+import { Logger } from "@nestjs/common";
+
+const logger = new Logger('processAudioTranscoding');
 
 /**
  * Orchestrates transcoding the given audio file and creating the master playlist.
@@ -8,9 +11,9 @@ import { createMasterPlaylist } from "./generateMaster.m3u8";
  * @param outputDir - Directory to store the output (e.g., /processing/audiofilename/)
  */
 export async function processAudioTranscoding(inputAudio: string, outputDir: string): Promise<void> {
-    console.log(`\n--- Starting Audio Transcoding Process ---`);
-    console.log(`Input audio: ${inputAudio}`);
-    console.log(`Output directory: ${outputDir}`);
+    logger.log(`--- Starting Audio Transcoding Process ---`);
+    logger.log(`Input audio: ${inputAudio}`);
+    logger.log(`Output directory: ${outputDir}`);
 
     // Call transcoding logic
     await transcodeToHlsMultiQuality(inputAudio, outputDir);
@@ -18,8 +21,8 @@ export async function processAudioTranscoding(inputAudio: string, outputDir: str
     // Call master playlist generation
     createMasterPlaylist(outputDir);
 
-    console.log(`\n--- Audio Transcoding Process Completed Successfully ---`);
-    console.log(`Outputs located in: ${outputDir}\n`);
+    logger.log(`--- Audio Transcoding Process Completed Successfully ---`);
+    logger.log(`Outputs located in: ${outputDir}`);
 }
 
 

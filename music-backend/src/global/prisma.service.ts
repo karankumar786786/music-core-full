@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
@@ -9,6 +9,8 @@ import * as path from 'path';
 export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(PrismaService.name);
+
   constructor() {
     // Use core connection string without query parameters to avoid pg driver confusion
     const connectionString = process.env.DATABASE_URL?.split('?')[0];
@@ -27,7 +29,7 @@ export class PrismaService
           sslConfig.ca = fs.readFileSync(fullCertPath, 'utf-8');
         }
       } catch (error) {
-        console.warn('Warning: Could not load SSL certificate:', error.message);
+        new Logger(PrismaService.name).warn(`Could not load SSL certificate: ${error.message}`);
       }
     }
 
@@ -42,7 +44,7 @@ export class PrismaService
 
   async onModuleInit() {
     await this.$connect();
-    console.log('Database connected successfully');
+    this.logger.log('Database connected successfully');
   }
 
   async onModuleDestroy() {
