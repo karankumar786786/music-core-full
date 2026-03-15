@@ -43,13 +43,11 @@ export default function LyricsScreen() {
   // ── Load VTT lyrics ──
   useEffect(() => {
     if (!baseUrl) {
-      console.log('[Lyrics] No baseUrl, skipping fetch');
       setLyrics([]);
       setIsFetchingLyrics(false);
       return;
     }
     const captionUrl = `${baseUrl}/caption.vtt`;
-    console.log('[Lyrics] Fetching:', captionUrl);
 
     let cancelled = false;
     setIsFetchingLyrics(true);
@@ -103,7 +101,6 @@ export default function LyricsScreen() {
       }
     }
     if (found !== activeCueIndex) {
-      console.log(`[Lyrics] Sync | position: ${position.toFixed(2)} | new cue: ${found} | text: ${found !== -1 ? lyrics[found].text : 'None'}`);
       setActiveCueIndex(found);
       if (found !== -1 && cueRefs.current[found] !== undefined && lyricsScrollRef.current) {
         lyricsScrollRef.current.scrollTo({

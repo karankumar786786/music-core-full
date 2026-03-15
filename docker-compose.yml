@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  # ─── Gateway ───────────────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - music-core-network
+    depends_on:
+      - music-backend
+      - audio-processor
+      - recommendation-engine
+      - frontend
+      - admin
+    restart: always
+
+  # ─── Backend Services ──────────────────────────────────
+  music-backend:
+    build:
+      context: ./music-backend
+      dockerfile: Dockerfile
+    expose:
+      - "3000"
+    env_file:
+      - ./music-backend/.env
+    environment:
+      - RECOMMENDATION_ENGINE_URL=http://recommendation-engine:8000
+      - AUDIO_PROCESSOR_URL=http://audio-processor:3000
+    networks:
+      - music-core-network
+    depends_on:
+      - recommendation-engine
+      - audio-processor
+    restart: always
+
+  audio-processor:
+    build:
+      context: ./audioProcessingServer
+      dockerfile: Dockerfile
+    expose:
+      - "3000"
+    env_file:
+      - ./audioProcessingServer/.env
+    networks:
+      - music-core-network
+    restart: always
+
+  recommendation-engine:
+    build:
+      context: ./reccomendationEngine
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    env_file:
+      - ./reccomendationEngine/.env
+    networks:
+      - music-core-network
+    restart: always
+
+  # ─── Frontend Services ─────────────────────────────────
+  frontend:
+    build:
+      context: ./music-frontend-web
+      dockerfile: Dockerfile
+    expose:
+      - "80"
+    networks:
+      - music-core-network
+    restart: always
+
+  admin:
+    build:
+      context: ./music-backend-admin-web
+      dockerfile: Dockerfile
+    expose:
+      - "80"
+    networks:
+      - music-core-network
+    restart: always
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  music-core-network:
+    driver: bridge

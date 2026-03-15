@@ -2,10 +2,6 @@ import { Store } from '@tanstack/react-store';
 import { musicApi } from './api';
 import { getCoverImageUrl } from './s3';
 
-let _storeDbgSeq = 0;
-const SDBG = (label: string, ...args: any[]) =>
-  console.log(`[🎵 STORE #${++_storeDbgSeq}] ${label}`, ...args);
-
 export interface PlayerSong {
     id: string;
     title: string;
@@ -39,7 +35,7 @@ export const playerStore = new Store<PlayerState>({
 
 export const playerActions = {
     setCurrentSong: (song: PlayerSong | null) => {
-        SDBG('setCurrentSong', { song: song?.title ?? null, currentSong: playerStore.state.currentSong?.title ?? null });
+        
         playerStore.setState((state) => {
             let newLastQueueIndex = state.lastQueueIndex;
             if (song) {
@@ -48,11 +44,11 @@ export const playerActions = {
             }
 
             if (state.currentSong?.id === song?.id && song !== null) {
-                SDBG('setCurrentSong: same song, only updating index', { newLastQueueIndex });
+                
                 return { ...state, lastQueueIndex: newLastQueueIndex };
             }
 
-            SDBG('setCurrentSong: new song', { title: song?.title, newLastQueueIndex, isPlaying: false });
+            
             return {
                 ...state,
                 currentSong: song,
@@ -83,12 +79,12 @@ export const playerActions = {
     },
 
     playSong: (song: PlayerSong) => {
-        SDBG('playSong', { title: song.title, id: song.id });
+        
         playerStore.setState((state) => {
             const existingIdx = state.queue.findIndex((s) => s.id === song.id);
 
             if (existingIdx !== -1) {
-                SDBG('playSong: found in queue at idx', existingIdx);
+                
                 return {
                     ...state,
                     currentSong: song,
@@ -103,7 +99,7 @@ export const playerActions = {
                 song,
                 ...state.queue.slice(insertAt),
             ];
-            SDBG('playSong: inserted at idx', insertAt, 'queueLen:', newQueue.length);
+            
 
             return {
                 ...state,
@@ -117,7 +113,7 @@ export const playerActions = {
     },
 
     playAll: (songs: PlayerSong[]) => {
-        SDBG('playAll', { count: songs.length, first: songs[0]?.title });
+        
         if (songs.length === 0) return;
         playerStore.setState((state) => ({
             ...state,
@@ -159,14 +155,14 @@ export const playerActions = {
                 }));
             }
         } catch (e) {
-            console.warn('Failed to restore history in store:', e);
+            // Silently ignore history restore failures
         }
     },
 
     setIsPlaying: (isPlaying: boolean) => {
         playerStore.setState((state) => {
             if (state.isPlaying === isPlaying) return state;
-            SDBG('setIsPlaying', { from: state.isPlaying, to: isPlaying, song: state.currentSong?.title });
+            
             return { ...state, isPlaying };
         });
     },
@@ -215,10 +211,10 @@ export const playerActions = {
 
     playNext: async () => {
         const { queue, lastQueueIndex, isShuffle, repeatMode, currentSong } = playerStore.state;
-        SDBG('playNext', { currentSong: currentSong?.title, lastQueueIndex, queueLen: queue.length, repeatMode, isShuffle });
+        
 
         if (repeatMode === 'one' && currentSong) {
-            SDBG('playNext: repeat-one, restarting');
+            
             playerStore.setState((s) => ({ ...s, isPlaying: false }));
             return;
         }
@@ -236,20 +232,20 @@ export const playerActions = {
             nextIndex = 0;
         }
 
-        SDBG('playNext: computed nextIndex', { nextIndex, queueLen: queue.length });
+        
 
         if (nextIndex >= 0 && nextIndex < queue.length) {
             const nextSong = queue[nextIndex];
-            SDBG('playNext: playing', { title: nextSong.title, nextIndex });
+            
             playerActions.setCurrentSong(nextSong);
             musicApi.addView(nextSong.id).catch(() => {});
         } else if (repeatMode === 'all' && queue.length > 0) {
             const nextSong = queue[0];
-            SDBG('playNext: repeat-all wrap to 0', { title: nextSong.title });
+            
             playerActions.setCurrentSong(nextSong);
             musicApi.addView(nextSong.id).catch(() => {});
         } else {
-            SDBG('playNext: falling back to playNextFromFallback');
+            
             await playerActions.playNextFromFallback();
         }
 
@@ -257,7 +253,7 @@ export const playerActions = {
         const finalIdx = playerStore.state.lastQueueIndex;
         const remaining = finalQueue.length - finalIdx - 1;
         if (finalQueue.length > 0 && remaining <= 2) {
-            SDBG('playNext: low remaining songs, fetching feed', { remaining });
+            
             playerActions.fetchAndAddFeedToQueue();
         }
     },
@@ -271,7 +267,7 @@ export const playerActions = {
         actions._fallbackQueue++;
 
         if (actions._fallbackFetching) {
-            SDBG('playNextFromFallback: already fetching, queued', actions._fallbackQueue);
+            
             return;
         }
 
@@ -284,7 +280,7 @@ export const playerActions = {
                 
                 // Try fetching up to 3 pages to find a non-duplicate
                 for (let i = 0; i < 3; i++) {
-                SDBG(`playNextFromFallback: fetching page ${actions._fallbackPage}`);
+                
                 const res = await musicApi.getSongs(actions._fallbackPage, 5);
                 
                 if (res?.data && res.data.length > 0) {
@@ -301,17 +297,17 @@ export const playerActions = {
                     if (nextSong) {
                         break;
                     } else {
-                        SDBG('playNextFromFallback: all duplicates, advancing page');
+                        
                         actions._fallbackPage++;
                     }
                 } else {
-                    SDBG('playNextFromFallback: no more songs from API');
+                    
                     break;
                 }
             }
 
                 if (nextSong) {
-                    SDBG('playNextFromFallback: playing', { title: nextSong.title });
+                    
                     playerStore.setState((state) => ({
                         ...state,
                         queue: [...state.queue, nextSong!],
@@ -323,7 +319,7 @@ export const playerActions = {
                     musicApi.addView(nextSong.id).catch(() => {});
                     actions._fallbackPage++; // Advance for the next call
                 } else {
-                    SDBG('playNextFromFallback: failed to find a unique song');
+                    
                 }
 
                 actions._fallbackQueue--;
@@ -365,7 +361,7 @@ export const playerActions = {
                 return newSongs;
             }
         } catch (error) {
-            console.error('Failed to fetch feed in store:', error);
+            // Silently ignore feed fetch failures
         }
         return [];
     },

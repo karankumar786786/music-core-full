@@ -1,0 +1,7 @@
+prometheus.scrape "music_backend" {  
+  targets = [{"__address__" = "localhost:3000"}]  
+  forward_to = [prometheus.remote_write.default.receiver]  
+  job_name       = "music-backend"  
+  metrics_path   = "/metrics"  
+  scrape_interval = "15s"  
+}

@@ -16,11 +16,6 @@ import { useAuth } from './auth';
 import { playerStore, playerActions, PlayerSong } from './player-store';
 export { PlayerSong };
 
-// ─── Debug Logging ────────────────────────────────────────────────────────────
-let _dbgSeq = 0;
-const DBG = (label: string, ...args: any[]) =>
-  console.log(`[🎵 DBG #${++_dbgSeq}] ${label}`, ...args);
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PlayerStateContextType {
@@ -122,7 +117,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [isAuthenticated]);
 
   useEffect(() => {
-    DBG('activePlayerIndex committed →', activePlayerIndex, '| clearing isSourceLoading + swappingRef');
+    
     isSourceLoadingRef.current = false;
     swappingRef.current = false;
   }, [activePlayerIndex]);
@@ -194,7 +189,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
     const syncPlayback = async () => {
       if (!currentSong) {
-        DBG('SYNC no currentSong → pausing both players');
+        
         p0.pause();
         p1.pause();
         return;
@@ -210,18 +205,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         activeRef.current.id === currentSong.id && activeRef.current.quality !== qualityType;
       const needsActiveLoad = activeRef.current.id !== currentSong.id || isQualityChange;
 
-      DBG('SYNC entry', {
-        song: currentSong.title,
-        activeIdx: activePlayerIndex,
-        activeRefId: activeRef.current.id?.slice(-8),
-        standbyRefId: standbyRef.current.id?.slice(-8),
-        standbyReady: standbyReadyRef.current,
-        needsActiveLoad,
-        isQualityChange,
-        shouldAutoPlay: shouldAutoPlayRef.current,
-        isPlayingStore,
-        isSourceLoading: isSourceLoadingRef.current,
-      });
+
 
       // ── Fast-path: standby already has this song → instant swap ────────
       if (
@@ -233,7 +217,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         standbyReadyRef.current
       ) {
         const wasPlaying = shouldAutoPlayRef.current || isPlayingStore;
-        DBG('SYNC → SWAP fast-path to p' + standbyIdx, { song: currentSong.title, wasPlaying });
+        
 
         // Stop old player
         activeP.pause();
@@ -245,7 +229,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           lastPlayCommandTimeRef.current = Date.now();
           playerActions.setIsPlaying(true);
           standbyP.play();
-          DBG('SYNC → SWAP PLAY on p' + standbyIdx);
+          
         }
 
         // Now flip the index. This triggers a re-render:
@@ -261,13 +245,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       // ── Normal path: load the stream on the active player ──────────────
       if (needsActiveLoad) {
         const wasPlaying = shouldAutoPlayRef.current || isPlayingStore;
-        DBG('SYNC needsLoad', { wasPlaying, shouldAutoPlay: shouldAutoPlayRef.current, isPlayingStore });
+        
 
         const streamUrl = await resolveStreamUrl(currentSong, qualityType);
-        if (!isCurrent) { DBG('SYNC STALE after resolveStreamUrl'); return; }
+        if (!isCurrent) return;
 
         const preservedPos = isQualityChange ? activeP.currentTime : 0;
-        DBG('SYNC replaceAsync START on p' + activePlayerIndex, { streamUrl: streamUrl.slice(-40), preservedPos });
+        
 
         isSourceLoadingRef.current = true;
 
@@ -275,9 +259,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           if (isQualityChange) activeP.pause();
 
           await activeP.replaceAsync(streamUrl);
-          if (!isCurrent) { DBG('SYNC STALE after replaceAsync'); return; }
-
-          DBG('SYNC replaceAsync DONE on p' + activePlayerIndex);
+          if (!isCurrent) return;
+          
           activeRef.current = { id: currentSong.id, quality: qualityType };
 
           if (isQualityChange && preservedPos > 0) {
@@ -295,14 +278,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           if (wasPlaying) {
             lastPlayCommandTimeRef.current = Date.now();
             playerActions.setIsPlaying(true);
-            DBG('SYNC → PLAY on p' + activePlayerIndex, { song: currentSong.title });
+            
             activeP.play();
           } else {
-            DBG('SYNC → NOT playing (wasPlaying=false)', { song: currentSong.title });
+            
           }
         } catch (err) {
           console.error('[PlayerContext] replaceAsync FAILED:', err);
-          DBG('SYNC replaceAsync FAILED', err);
+          
         } finally {
           if (isCurrent) isSourceLoadingRef.current = false;
         }
@@ -311,15 +294,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (shouldAutoPlayRef.current || isPlayingStore) {
           lastPlayCommandTimeRef.current = Date.now();
           playerActions.setIsPlaying(true);
-          DBG('SYNC already loaded → PLAY on p' + activePlayerIndex, { song: currentSong.title });
+          
           activeP.play();
         } else {
-          DBG('SYNC already loaded → PAUSE on p' + activePlayerIndex, { song: currentSong.title });
+          
           activeP.pause();
         }
       }
 
-      DBG('SYNC done, clearing shouldAutoPlayRef (was:', shouldAutoPlayRef.current, ')');
+      
       shouldAutoPlayRef.current = false;
     };
 
@@ -365,7 +348,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         nextIdx >= 0 && nextIdx < currentQueue.length ? currentQueue[nextIdx] : null;
 
       if (!nextSong) {
-        DBG('PRELOAD skip: no nextSong', { lastQueueIndex, queueLen: currentQueue.length });
+        
         return;
       }
 
@@ -373,16 +356,16 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         standbyRef.current.id !== nextSong.id || standbyRef.current.quality !== qualityType;
 
       if (!needsStandbyLoad) {
-        DBG('PRELOAD skip: already loaded', { nextSong: nextSong.title, standbyIdx });
+        
         return;
       }
 
       const loadId = ++standbyLoadIdRef.current;
-      DBG('PRELOAD start', { nextSong: nextSong.title, standbyIdx, loadId });
+      
 
       const streamUrl = await resolveStreamUrl(nextSong, qualityType);
       if (!isCurrent || loadId !== standbyLoadIdRef.current) {
-        DBG('PRELOAD STALE after resolve', { loadId, currentLoadId: standbyLoadIdRef.current });
+        
         return;
       }
 
@@ -390,15 +373,15 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       try {
         await standbyP.replaceAsync(streamUrl);
         if (!isCurrent || loadId !== standbyLoadIdRef.current) {
-          DBG('PRELOAD STALE after replaceAsync', { loadId, currentLoadId: standbyLoadIdRef.current });
+          
           return;
         }
         standbyRef.current = { id: nextSong.id, quality: qualityType };
         standbyP.pause();
         standbyReadyRef.current = true;
-        DBG('PRELOAD DONE ✓', { nextSong: nextSong.title, standbyIdx, loadId });
+        
       } catch (err) {
-        DBG('PRELOAD FAILED', { nextSong: nextSong.title, err });
+        
       }
     };
 
@@ -423,7 +406,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const pIdx = activePlayerIndex;
-    DBG('EVENT-SUBS attaching on p' + pIdx, { playerStatus: player.status });
+    
 
     setIsBuffering(player.status === 'loading');
     setDuration(player.duration);
@@ -433,7 +416,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     setAvailableTracks(player.availableVideoTracks || []);
 
     const statusSub = player.addListener('statusChange', ({ status }) => {
-      DBG('EVENT statusChange on p' + pIdx, { status, swapping: swappingRef.current, isSourceLoading: isSourceLoadingRef.current });
+      
       setIsBuffering(status === 'loading');
     });
 
@@ -442,16 +425,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const isIgnoringFalse = !newIsPlaying && timeSincePlayCommand < 1000;
       const blocked = swappingRef.current || isSourceLoadingRef.current || isIgnoringFalse || player.status === 'loading';
 
-      DBG('EVENT playingChange on p' + pIdx, {
-        newIsPlaying,
-        storeIsPlaying: playerStore.state.isPlaying,
-        swapping: swappingRef.current,
-        isSourceLoading: isSourceLoadingRef.current,
-        isIgnoringFalse,
-        playerStatus: player.status,
-        timeSincePlayCmd: timeSincePlayCommand,
-        willApply: !blocked && newIsPlaying !== playerStore.state.isPlaying,
-      });
+
 
       if (swappingRef.current) return;
       if (
@@ -460,7 +434,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         player.status !== 'loading' &&
         newIsPlaying !== playerStore.state.isPlaying
       ) {
-        DBG('EVENT playingChange → APPLYING', { newIsPlaying });
+        
         playerActions.setIsPlaying(newIsPlaying);
       }
     });
@@ -486,18 +460,18 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     );
 
     const metadataSub = player.addListener('sourceLoad', (payload) => {
-      DBG('EVENT sourceLoad on p' + pIdx, { trackCount: payload?.availableVideoTracks?.length });
+      
       setAvailableTracks(payload?.availableVideoTracks || []);
     });
 
     const endSub = player.addListener('playToEnd', () => {
-      DBG('EVENT playToEnd on p' + pIdx, { currentSong: playerStore.state.currentSong?.title });
+      
       shouldAutoPlayRef.current = true;
       playerActions.playNext();
     });
 
     return () => {
-      DBG('EVENT-SUBS detaching from p' + pIdx);
+      
       statusSub.remove();
       playSub.remove();
       timeSub.remove();
@@ -510,14 +484,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   // ── Stable Actions ────────────────────────────────────────────────────────
 
   const play = useCallback((song: PlayerSong) => {
-    DBG('ACTION play', { song: song.title, activeIdx: activePlayerIndex });
+    
     shouldAutoPlayRef.current = true;
     playerActions.playSong(song);
     router.navigate('/player');
   }, []);
 
   const playAll = useCallback((songs: PlayerSong[]) => {
-    DBG('ACTION playAll', { count: songs.length });
+    
     if (songs.length === 0) return;
     shouldAutoPlayRef.current = true;
     playerActions.playAll(songs);
@@ -545,10 +519,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [player]);
 
   const playPrevious = useCallback(() => {
-    DBG('ACTION playPrevious', { position: positionRef.current });
+    
     shouldAutoPlayRef.current = true;
     const result = playerActions.playPrevious(positionRef.current);
-    DBG('ACTION playPrevious result:', result);
+    
     if (result === 'restart') {
       seekTo(0);
       playerActions.setIsPlaying(true);
@@ -565,14 +539,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       addToQueue: (songs: PlayerSong[]) => playerActions.addToQueue(songs),
       togglePlayPause: () => {
         const willPlay = !playerStore.state.isPlaying;
-        DBG('ACTION togglePlayPause', { willPlay, currentStoreIsPlaying: playerStore.state.isPlaying });
+        
         if (willPlay) shouldAutoPlayRef.current = true;
         playerActions.setIsPlaying(willPlay);
       },
       seekTo,
       stop,
       playNext: () => {
-        DBG('ACTION playNext (user-initiated)');
+        
         shouldAutoPlayRef.current = true;
         playerActions.playNext();
       },

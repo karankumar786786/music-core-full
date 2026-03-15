@@ -16,7 +16,6 @@ export default function SongRow({ song, index, onPress, renderRightAction }: Son
   const coverUrl = song.coverUrl || getCoverImageUrl(song.storageKey, 'small', true) || null;
 
   const openPlayer = () => {
-    console.log('[SongRow] openPlayer called for:', song.title);
     const largeCoverUrl = song.coverUrl || getCoverImageUrl(song.storageKey, 'large', true) || null;
     play({
       id: song.id,

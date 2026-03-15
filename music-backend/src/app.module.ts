@@ -12,6 +12,7 @@ import { SearchModule } from './search/search.module';
 import { ConfigModule } from '@nestjs/config';
 import { FeedModule } from './feed/feed.module';
 import { StorageModule } from './storage/storage.module';
+import { PrometheusModule } from '@willsoto/nestjs-prometheus'; 
 
 @Module({
   imports: [
@@ -37,6 +38,10 @@ import { StorageModule } from './storage/storage.module';
           },
         } : undefined,
       },
+    }),
+    PrometheusModule.register({  
+      defaultMetrics: { enabled: true },  
+      path: '/metrics',  
     }),
     ConfigModule.forRoot({ isGlobal: true }),
     UsersModule,

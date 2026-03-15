@@ -1,6 +1,8 @@
-const S3_PRODUCTION_BUCKET = 'onemelodyproduction';
-const S3_REGION = 'ap-south-1';
-export const S3_BASE_URL = `https://${S3_PRODUCTION_BUCKET}.s3.${S3_REGION}.amazonaws.com`;
+const S3_PRODUCTION_BUCKET = process.env.EXPO_PUBLIC_S3_BUCKET || 'onemelodyproduction';
+const S3_REGION = process.env.EXPO_PUBLIC_S3_REGION || 'ap-south-1';
+const CDN_URL = process.env.EXPO_PUBLIC_CDN_URL;
+
+export const S3_BASE_URL = CDN_URL || `https://${S3_PRODUCTION_BUCKET}.s3.${S3_REGION}.amazonaws.com`;
 
 export type ImageSize = 'small' | 'medium' | 'large';
 

@@ -1,0 +1,19 @@
+music-backend.one-org.me {
+    reverse_proxy music-backend:3000
+}
+
+audio-processor.one-org.me {
+    reverse_proxy audio-processor:3000
+}
+
+recommendation-engine.one-org.me {
+    reverse_proxy recommendation-engine:8000
+}
+
+one-melody.one-org.me {
+    reverse_proxy frontend:80
+}
+
+one-melody-admin.one-org.me {
+    reverse_proxy admin:80
+}
