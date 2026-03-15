@@ -11,7 +11,7 @@ COPY package.json pnpm-lock.yaml ./
 COPY prisma ./prisma/
 
 RUN pnpm install --frozen-lockfile
-RUN pnpm approve-builds -y
+RUN echo '{"esbuild":true,"sharp":true,"protobufjs":true,"@scarf/scarf":true}' > .pnpm-approved-builds.json
 
 COPY . .
 
