@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
-import { History,  ChevronRight } from "lucide-react";
+import { History } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 export function RecentSearchesSection() {
