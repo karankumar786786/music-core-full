@@ -205,8 +205,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         activeRef.current.id === currentSong.id && activeRef.current.quality !== qualityType;
       const needsActiveLoad = activeRef.current.id !== currentSong.id || isQualityChange;
 
-
-
       // ── Fast-path: standby already has this song → instant swap ────────
       if (
         needsActiveLoad &&
@@ -217,7 +215,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         standbyReadyRef.current
       ) {
         const wasPlaying = shouldAutoPlayRef.current || isPlayingStore;
-        
 
         // Stop old player
         activeP.pause();
@@ -229,7 +226,6 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           lastPlayCommandTimeRef.current = Date.now();
           playerActions.setIsPlaying(true);
           standbyP.play();
-          
         }
 
         // Now flip the index. This triggers a re-render:
@@ -242,50 +238,104 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // ── Normal path: load the stream on the active player ──────────────
-      if (needsActiveLoad) {
+      // ── Quality-change path: use standby player for seamless swap ──────
+      // Keep the active player playing while loading the new quality on the
+      // standby player, then swap once it's ready at the correct position.
+      if (isQualityChange && needsActiveLoad && !isSourceLoadingRef.current) {
         const wasPlaying = shouldAutoPlayRef.current || isPlayingStore;
-        
 
         const streamUrl = await resolveStreamUrl(currentSong, qualityType);
         if (!isCurrent) return;
 
-        const preservedPos = isQualityChange ? activeP.currentTime : 0;
-        
+        isSourceLoadingRef.current = true;
+
+        try {
+          // Load new quality on the standby player
+          await standbyP.replaceAsync(streamUrl);
+          if (!isCurrent) { isSourceLoadingRef.current = false; return; }
+
+          standbyRef.current = { id: currentSong.id, quality: qualityType };
+
+          // Seek standby to the active player's current position
+          const swapPosition = activeP.currentTime;
+          if (swapPosition > 0) {
+            try {
+              standbyP.currentTime = swapPosition;
+            } catch {
+              try { standbyP.seekBy(swapPosition - standbyP.currentTime); } catch {}
+            }
+            // Brief wait for seek to settle
+            await new Promise<void>((resolve) => setTimeout(resolve, 80));
+            if (!isCurrent) { isSourceLoadingRef.current = false; return; }
+          }
+
+          // Swap: start standby → pause active → flip index
+          standbyReadyRef.current = false;
+          if (wasPlaying || isPlayingStore) {
+            lastPlayCommandTimeRef.current = Date.now();
+            playerActions.setIsPlaying(true);
+            standbyP.play();
+          }
+
+          activeP.pause();
+
+          setPosition(swapPosition);
+          lastSeekTimeRef.current = Date.now();
+          shouldAutoPlayRef.current = false;
+          swappingRef.current = true;
+          setActivePlayerIndex(standbyIdx);
+        } catch (err) {
+          console.error('[PlayerContext] quality swap via standby FAILED, falling back:', err);
+          // Fallback: in-place replaceAsync on active player
+          try {
+            const fallbackPos = activeP.currentTime;
+            activeP.pause();
+            await activeP.replaceAsync(streamUrl);
+            if (!isCurrent) return;
+            activeRef.current = { id: currentSong.id, quality: qualityType };
+            if (fallbackPos > 0) {
+              try { activeP.currentTime = fallbackPos; } catch {}
+              await new Promise<void>((resolve) => setTimeout(resolve, 120));
+              if (!isCurrent) return;
+            }
+            if (wasPlaying) {
+              lastPlayCommandTimeRef.current = Date.now();
+              playerActions.setIsPlaying(true);
+              activeP.play();
+            }
+          } catch (fallbackErr) {
+            console.error('[PlayerContext] fallback replaceAsync also FAILED:', fallbackErr);
+          }
+        } finally {
+          if (isCurrent) isSourceLoadingRef.current = false;
+        }
+
+        shouldAutoPlayRef.current = false;
+        return;
+      }
+
+      // ── Normal path: load the stream on the active player ──────────────
+      if (needsActiveLoad) {
+        const wasPlaying = shouldAutoPlayRef.current || isPlayingStore;
+
+        const streamUrl = await resolveStreamUrl(currentSong, qualityType);
+        if (!isCurrent) return;
 
         isSourceLoadingRef.current = true;
 
         try {
-          if (isQualityChange) activeP.pause();
-
           await activeP.replaceAsync(streamUrl);
           if (!isCurrent) return;
-          
-          activeRef.current = { id: currentSong.id, quality: qualityType };
 
-          if (isQualityChange && preservedPos > 0) {
-            setPosition(preservedPos);
-            lastSeekTimeRef.current = Date.now();
-            try {
-              activeP.currentTime = preservedPos;
-            } catch {
-              try { activeP.seekBy(preservedPos - activeP.currentTime); } catch {}
-            }
-            await new Promise<void>((resolve) => setTimeout(resolve, 120));
-            if (!isCurrent) return;
-          }
+          activeRef.current = { id: currentSong.id, quality: qualityType };
 
           if (wasPlaying) {
             lastPlayCommandTimeRef.current = Date.now();
             playerActions.setIsPlaying(true);
-            
             activeP.play();
-          } else {
-            
           }
         } catch (err) {
           console.error('[PlayerContext] replaceAsync FAILED:', err);
-          
         } finally {
           if (isCurrent) isSourceLoadingRef.current = false;
         }

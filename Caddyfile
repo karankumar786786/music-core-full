@@ -3,7 +3,7 @@ music-backend.one-org.me {
 }
 
 audio-processor.one-org.me {
-    reverse_proxy audio-processor:3000
+    reverse_proxy audio-processor:3005
 }
 
 recommendation-engine.one-org.me {
