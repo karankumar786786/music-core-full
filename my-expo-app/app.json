@@ -3,8 +3,14 @@
     "name": "One Melody",
     "slug": "one-melody",
     "version": "1.0.0",
+    "icon": "./assets/image.png",
     "orientation": "portrait",
     "scheme": "my-expo-app",
+    "splash": {
+      "image": "./assets/image.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
@@ -28,7 +34,7 @@
     ],
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/image.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.oneorg6969.onemelody"
