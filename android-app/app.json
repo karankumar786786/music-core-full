@@ -21,9 +21,7 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "UIBackgroundModes": [
-          "audio"
-        ]
+        "UIBackgroundModes": ["audio"]
       }
     },
     "plugins": [
@@ -35,7 +33,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/image.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       },
       "package": "com.oneorg6969.onemelody"
     },
