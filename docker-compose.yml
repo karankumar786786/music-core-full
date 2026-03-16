@@ -43,6 +43,7 @@ services:
       - ./audioProcessingServer/.env
     environment:
       - NODE_ENV=production
+      - AWS_CONFIG_REGION=ap-south-1
     networks:
       - music-core-network
     deploy:
