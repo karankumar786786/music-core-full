@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://music-backend.one-org.me';
 
 let cachedToken: string | null = null;
 
