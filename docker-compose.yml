@@ -24,6 +24,8 @@ services:
     image: oneorg6969/music-backend:latest
     env_file:
       - ./music-backend/.env
+    environment:
+      - NODE_ENV=production
     networks:
       - music-core-network
     deploy:
@@ -39,6 +41,8 @@ services:
     image: oneorg6969/audio-processor:latest
     env_file:
       - ./audioProcessingServer/.env
+    environment:
+      - NODE_ENV=production
     networks:
       - music-core-network
     deploy:
@@ -54,6 +58,8 @@ services:
     image: oneorg6969/recommendation-engine:latest
     env_file:
       - ./reccomendationEngine/.env
+    environment:
+      - NODE_ENV=production
     networks:
       - music-core-network
     deploy:
