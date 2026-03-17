@@ -1,0 +1,213 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                Int      @id @default(autoincrement())
+  email             String   @unique
+  password          String
+  name              String
+  profilePictureKey String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  userPlaylists     UserPlaylist[]
+  userSearchHistory UserSearchHistory[]
+  userHistory       UserHistory[]
+  userFavourites    UserFavourites[]
+}
+
+model Song {
+  id          String   @id
+  title       String
+  artistName  String
+  durationMs  Int
+  storageKey  String
+  releaseDate DateTime
+  isrc        String
+  genre       String
+  vectorId    String   @unique
+
+  playlists      PlaylistSongs[]
+  userPlaylists  UserPlaylistSongs[]
+  userHistory    UserHistory[]
+  userFavourites UserFavourites[]
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@unique([title, artistName])
+}
+
+model Artist {
+  id         String   @id
+  artistName String
+  bio        String
+  storageKey String
+  dob        DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([artistName, bio, dob])
+}
+
+model Playlist {
+  id          String          @id
+  title       String          @unique
+  description String
+  storageKey  String
+  songs       PlaylistSongs[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model PlaylistSongs {
+  id         Int    @id @default(autoincrement())
+  playlistId String
+  songId     String
+
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  song     Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, songId])
+  @@index([playlistId])
+  @@index([songId])
+}
+
+model UserPlaylist {
+  id     String @id
+  title  String
+  userId Int
+
+  user  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  songs UserPlaylistSongs[]
+
+  @@unique([title, userId])
+  @@index([userId])
+}
+
+model UserPlaylistSongs {
+  id         Int    @id @default(autoincrement())
+  songId     String
+  playlistId String
+
+  song     Song         @relation(fields: [songId], references: [id], onDelete: Cascade)
+  playlist UserPlaylist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+
+  @@unique([songId, playlistId])
+  @@index([playlistId])
+  @@index([songId])
+}
+
+model UserSearchHistory {
+  id           Int      @id @default(autoincrement())
+  searchString String
+  userId       Int
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model UserHistory {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  songId       String
+  songVectorId String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  song         Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([songId])
+}
+
+model SongProcessingJob {
+  id               String   @id
+  songId           String   @unique
+  title            String
+  artistName       String
+  durationMs       Int
+  releaseDate      DateTime
+  isrc             String
+  vectorId         String?
+  tempSongKey      String
+  tempSongImageKey String
+  processedKey     String?
+  genre            String?
+
+  // Processing stage flags
+  transcribed            Boolean @default(false)
+  transcoded             Boolean @default(false)
+  extractedAudioFeatures Boolean @default(false)
+  generatedEmbeddings    Boolean @default(false)
+  processingCompleted    Boolean @default(false)
+  updatedSongTable       Boolean @default(false)
+  processedImages        Boolean @default(false)
+  completed              Boolean @default(false)
+
+  // Retry attempt counters
+  transcribedAttempts            Int @default(0)
+  transcodedAttempts             Int @default(0)
+  extractedAudioFeaturesAttempts Int @default(0)
+  generatedEmbeddingsAttempts    Int @default(0)
+  updatedSongTableAttempts       Int @default(0)
+  processedImagesAttempts        Int @default(0)
+
+  currentStatus String   @default("pending")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ArtistProcessingJob {
+  id                 String   @id
+  artistName         String
+  bio                String
+  tempCoverImageKey  String
+  tempBannerImageKey String
+  dob                DateTime
+
+  processedKey       String?
+  scaledImage        Boolean  @default(false)
+  processedImages    Boolean  @default(false)
+  completed          Boolean  @default(false)
+  processingAttempts Int      @default(0)
+  currentStatus      String   @default("pending")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model PlaylistProcessingJob {
+  id                 String   @id
+  title              String
+  description        String
+  tempCoverImageKey  String
+  tempBannerImageKey String
+  processedKey       String?
+  scaledImage        Boolean  @default(false)
+  processedImages    Boolean  @default(false)
+  completed          Boolean  @default(false)
+  processingAttempts Int      @default(0)
+  currentStatus      String   @default("pending")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model UserFavourites {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  songId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  song Song @relation(fields: [songId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, songId])
+  @@index([userId])
+  @@index([songId])
+}
