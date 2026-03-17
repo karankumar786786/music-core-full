@@ -67,12 +67,12 @@ function getMp3Url(song: PlayerSong): string {
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
-  const currentSong   = useStore(playerStore, (s) => s.currentSong);
+  const currentSong    = useStore(playerStore, (s) => s.currentSong);
   const lastQueueIndex = useStore(playerStore, (s) => s.lastQueueIndex);
-  const isShuffle     = useStore(playerStore, (s) => s.isShuffle);
-  const repeatMode    = useStore(playerStore, (s) => s.repeatMode);
+  const isShuffle      = useStore(playerStore, (s) => s.isShuffle);
+  const repeatMode     = useStore(playerStore, (s) => s.repeatMode);
   const isPlayingStore = useStore(playerStore, (s) => s.isPlaying);
-  const queue         = useStore(playerStore, (s) => s.queue);
+  const queue          = useStore(playerStore, (s) => s.queue);
 
   const { isAuthenticated } = useAuth();
 
@@ -81,17 +81,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     p.timeUpdateEventInterval = 0.5;
   });
 
-  const [position, setPosition]               = useState(0);
+  const [position, setPosition]                 = useState(0);
   const [bufferedPosition, setBufferedPosition] = useState(0);
-  const [duration, setDuration]               = useState(0);
-  const [isBuffering, setIsBuffering]         = useState(false);
+  const [duration, setDuration]                 = useState(0);
+  const [isBuffering, setIsBuffering]           = useState(false);
 
-  const loadedSongIdRef         = useRef<string | null>(null);
-  const shouldAutoPlayRef       = useRef(false);
-  const isLoadingRef            = useRef(false);
-  const lastSeekTimeRef         = useRef(0);
-  const positionRef             = useRef(0);
-  const isPlayingStoreRef       = useRef(isPlayingStore);
+  const loadedSongIdRef    = useRef<string | null>(null);
+  const shouldAutoPlayRef  = useRef(false);
+  const isLoadingRef       = useRef(false);
+  const lastSeekTimeRef    = useRef(0);
+  const positionRef        = useRef(0);
+  const isPlayingStoreRef  = useRef(isPlayingStore);
+
+  // ── NEW: seeking guard refs ───────────────────────────────────────────────
+  const isSeekingRef       = useRef(false);
+  const seekTimeoutRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keep ref in sync so event listeners always see latest value
   useEffect(() => {
@@ -168,10 +172,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       setIsBuffering(status === 'loading');
     });
 
-    // For plain mp3 the native player does NOT oscillate play/pause during
-    // buffering the way HLS does, so a simple listener is enough.
     const playSub = player.addListener('playingChange', ({ isPlaying: nativePlaying }) => {
+      // Ignore spurious pause events fired during loading or seeking
       if (isLoadingRef.current) return;
+      if (isSeekingRef.current) return;
+
       if (nativePlaying !== playerStore.state.isPlaying) {
         playerActions.setIsPlaying(nativePlaying);
       }
@@ -203,6 +208,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       timeSub.remove();
       sourceSub.remove();
       endSub.remove();
+      // Clean up any pending seek timeout
+      if (seekTimeoutRef.current) clearTimeout(seekTimeoutRef.current);
     };
   }, [player]);
 
@@ -211,6 +218,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const seekTo = useCallback((seconds: number) => {
     setPosition(seconds);
     lastSeekTimeRef.current = Date.now();
+
+    // Block playingChange interference during and just after seeking
+    isSeekingRef.current = true;
+    if (seekTimeoutRef.current) clearTimeout(seekTimeoutRef.current);
+    seekTimeoutRef.current = setTimeout(() => {
+      isSeekingRef.current = false;
+    }, 800);
+
     try {
       player.currentTime = seconds;
     } catch {
