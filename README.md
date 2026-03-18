@@ -660,14 +660,20 @@ The platform uses two S3 buckets — a **temp** bucket for raw uploads and a **p
   <img src="assets/processed-file-structure.png" width="500" alt="S3 Processed File Structure" />
 </p>
 
-### Songs
+### 1. Songs
+
+Songs involve two separate upload flows: the audio file and its cover image. Both are linked together in the database, but they are stored under different S3 prefixes in production.
+
+**Database Record:**
+- `id`: `<songUuid>`
+- `storageKey`: `songs/<jobId>` (This is the "audio" storage key prefix returned by the processing job)
 
 ```
-# Temp (raw upload)
-s3://onemelodytemp/<uuid>-<filename.mp3>        # Raw audio
-s3://onemelodytemp/<uuid>-<filename.png>        # Raw cover image
+# Temp Upload (Before Processing)
+s3://onemelodytemp/<uuid>-<filename.mp3>        # Raw audio (Saved as tempSongKey)
+s3://onemelodytemp/<uuid>-<filename.png>        # Raw cover image (Saved as tempSongImageKey)
 
-# Production (after processing)
+# Production Storage (After Processing)
 s3://onemelodyproduction/songs/<jobId>/
 ├── master.m3u8                                 # HLS master playlist
 ├── 32k/  64k/  128k/                          # HLS segments per quality
@@ -679,9 +685,22 @@ s3://onemelodyproduction/song-cover-images/<jobId>/cover/
 └── large.webp                                  # Full display
 ```
 
-### Artists
+> **Frontend URL Resolution**: To display a song cover, take the DB `storageKey` (`songs/<jobId>`), change the prefix to `song-cover-images/`, and append `/cover/small.webp` (or `medium.webp`, `large.webp`).
+
+### 2. Artists
+
+Artists involve a cover image (avatar) and a banner image.
+
+**Database Record:**
+- `id`: `<artistUuid>`
+- `storageKey`: `artists/<jobId>`
 
 ```
+# Temp Upload (Before Processing)
+s3://onemelodytemp/<uuid>-<filename.png>        # Raw cover image (Saved as tempCoverImageKey)
+s3://onemelodytemp/<uuid>-<filename.png>        # Raw banner image (Saved as tempBannerImageKey)
+
+# Production Storage (After Processing)
 s3://onemelodyproduction/artists/<jobId>/
 ├── cover/
 │   ├── original.png | small.webp | medium.webp | large.webp
@@ -689,17 +708,26 @@ s3://onemelodyproduction/artists/<jobId>/
     ├── original.png | small.webp | medium.webp | large.webp
 ```
 
-### Playlists
+### 3. Playlists
+
+Playlists follow the exact same structure as Artists, but under the `playlists/` prefix.
+
+**Database Record:**
+- `id`: `<playlistUuid>`
+- `storageKey`: `playlists/<jobId>`
 
 ```
+# Temp Upload (Before Processing)
+s3://onemelodytemp/<uuid>-<filename.png>        # Raw cover image (Saved as tempCoverImageKey)
+s3://onemelodytemp/<uuid>-<filename.png>        # Raw banner image (Saved as tempBannerImageKey)
+
+# Production Storage (After Processing)
 s3://onemelodyproduction/playlists/<jobId>/
 ├── cover/
 │   ├── original.png | small.webp | medium.webp | large.webp
 └── banner/
     ├── original.png | small.webp | medium.webp | large.webp
 ```
-
-> **Frontend URL Resolution**: To display a song cover, take the DB `storageKey` (`songs/<jobId>`), swap the prefix to `song-cover-images/`, and append `/cover/small.webp` (or `medium.webp`, `large.webp`).
 
 ---
 
@@ -900,7 +928,7 @@ Add these A records in your DNS provider pointing to your EC2 IP:
 
 ### Docker Compose Configuration
 
-The `docker-compose.yml` defines a Docker Swarm stack with:
+The `docker-compose.yml` defines a robust Docker Swarm stack configuration for resilient deployments:
 
 | Service | Image | Replicas | Update Strategy |
 |---------|-------|----------|-----------------|
@@ -911,7 +939,11 @@ The `docker-compose.yml` defines a Docker Swarm stack with:
 | `frontend` | `oneorg6969/frontend:latest` | 1 | On failure restart |
 | `admin` | `oneorg6969/admin:latest` | 1 | On failure restart |
 
-All services communicate via the `music-core-network` Docker overlay network.
+#### Swarm Volumes, Networking, & Architecture Details
+- **Volumes**: Caddy relies on `caddy_data` and `caddy_config` named volumes to persist automatically provisioned Let's Encrypt TLS certificates, preventing rate limits on restarts. It also locally mounts `./Caddyfile` for routing rules.
+- **Networking**: All services sit on the `music-core-network` initialized with the `overlay` driver. This enables secure inter-container communication across the swarm without needing to expose internal ports externally to the public internet (except Caddy's 80/443 mapping).
+- **Placement**: The `caddy` container is constrained via `node.role == manager` to ensure it only runs on the manager node.
+- **Zero-Downtime Deployments**: Core services (`music-backend`, `audio-processor`, `recommendation-engine`) use a rolling update config (`parallelism: 1`, `delay: 10s`, `order: start-first`). This ensures the orchestrator spins up the new healthy container *before* shutting down the old one.
 
 ---
 
