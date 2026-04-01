@@ -4,9 +4,8 @@ import * as path from "node:path";
 import { getPrismaClient } from "../../prisma/getPrismaClient";
 import { SignatureUtility } from "../../signature/signature.utility";
 import { getObject } from "../../storage/getObject.s3";
-import { processArtistImages } from "../../imageProcessors";
-import { uploadProcessedImages, IMAGE_S3_BASE_FOLDERS } from "../../imageProcessors/uploadProcessedImages/uploadImages";
-import { cleanupProcessedImagesFolder } from "../../imageProcessors/uploadProcessedImages/cleanup";
+import { deleteObject } from "../../storage/deleteObject.s3";
+import { uploadImageToImageKit } from "../../imageKit/uploadImage";
 
 const prisma = getPrismaClient();
 
@@ -35,57 +34,83 @@ export const artistProcessingFunction = client.createFunction(
         }
 
         const localFolderPath = path.join(process.cwd(), "processing", "artist", jobId);
+        const tempImageDir = path.join(localFolderPath, "imageInput");
 
-        await step.run("process-artist-images", async () => {
-            const tempImageDir = path.join(localFolderPath, "imageInput");
-            const processedImageDir = path.join(localFolderPath, "imageOutput");
+        // ── Upload Images to ImageKit ──────────────────────────────────────────
+        const imagekitResults = await step.run("upload-artist-images-imagekit", async () => {
+            const results: { cover?: string; banner?: string } = {};
 
             // Process Cover
             if (tempCoverImageKey) {
-                const downloadPath = path.join(tempImageDir, "cover_" + path.basename(tempCoverImageKey));
                 await getObject({
                     bucketName: process.env.AWS_TEMP_BUCKET as string,
                     key: tempCoverImageKey,
                     outputDir: tempImageDir,
                 });
-
-                await processArtistImages({
-                    coverImage: { inputFilePath: path.join(tempImageDir, path.basename(tempCoverImageKey)), outputDirPath: processedImageDir }
-                });
-
-                await uploadProcessedImages(processedImageDir, IMAGE_S3_BASE_FOLDERS.ARTIST, jobId, "cover");
+                const localPath = path.join(tempImageDir, path.basename(tempCoverImageKey));
+                const result = await uploadImageToImageKit(
+                    localPath,
+                    `artists/${jobId}`,
+                    "cover"
+                );
+                results.cover = result.url;
+                console.log(`✅ [Artist Job ${jobId}] Cover uploaded to ImageKit: ${result.url}`);
             }
 
             // Process Banner
             if (tempBannerImageKey) {
-                const downloadPath = path.join(tempImageDir, "banner_" + path.basename(tempBannerImageKey));
                 await getObject({
                     bucketName: process.env.AWS_TEMP_BUCKET as string,
                     key: tempBannerImageKey,
                     outputDir: tempImageDir,
                 });
-
-                await processArtistImages({
-                    bannerImage: { inputFilePath: path.join(tempImageDir, path.basename(tempBannerImageKey)), outputDirPath: processedImageDir }
-                });
-
-                await uploadProcessedImages(processedImageDir, IMAGE_S3_BASE_FOLDERS.ARTIST, jobId, "banner");
+                const localPath = path.join(tempImageDir, path.basename(tempBannerImageKey));
+                const result = await uploadImageToImageKit(
+                    localPath,
+                    `artists/${jobId}`,
+                    "banner"
+                );
+                results.banner = result.url;
+                console.log(`✅ [Artist Job ${jobId}] Banner uploaded to ImageKit: ${result.url}`);
             }
 
-            cleanupProcessedImagesFolder(localFolderPath);
+            // Cleanup local temp dir
+            if (fs.existsSync(localFolderPath)) {
+                fs.rmSync(localFolderPath, { recursive: true, force: true });
+            }
+
+            return results;
         });
 
-        const updatedJob = await step.run("update-job-and-artist", async () => {
-            const processedKey = `${IMAGE_S3_BASE_FOLDERS.ARTIST}${jobId}`;
+        // ── Cleanup Temp S3 Objects ────────────────────────────────────────────
+        await step.run("cleanup-temp-s3", async () => {
+            if (tempCoverImageKey) {
+                await deleteObject({
+                    bucketName: process.env.AWS_TEMP_BUCKET as string,
+                    key: tempCoverImageKey,
+                });
+                console.log(`🧹 [Artist Job ${jobId}] Deleted temp cover from S3: ${tempCoverImageKey}`);
+            }
+            if (tempBannerImageKey) {
+                await deleteObject({
+                    bucketName: process.env.AWS_TEMP_BUCKET as string,
+                    key: tempBannerImageKey,
+                });
+                console.log(`🧹 [Artist Job ${jobId}] Deleted temp banner from S3: ${tempBannerImageKey}`);
+            }
+        });
 
-            // Update Job
+        // ── Update DB ──────────────────────────────────────────────────────────
+        const updatedJob = await step.run("update-job-and-artist", async () => {
+            // Store ImageKit cover URL as processedKey (primary image reference)
+            const processedKey = imagekitResults.cover || imagekitResults.banner || "";
+
             await prisma.artistProcessingJob.update({
                 where: { id: jobId },
                 data: {
-                    processedImages: true,
-                    completed: true,
-                    currentStatus: "completed",
-                    processedKey: processedKey
+                    processedKey: processedKey, // Backwards compat
+                    coverUrl: processedKey,
+                    bannerUrl: imagekitResults.banner || null
                 }
             });
 
@@ -99,20 +124,29 @@ export const artistProcessingFunction = client.createFunction(
                     }
                 },
                 update: {
-                    storageKey: processedKey
+                    storageKey: `artists/${jobId}`,
+                    coverUrl: processedKey,
+                    bannerUrl: imagekitResults.banner || null
                 },
                 create: {
                     id: SignatureUtility.generateSignedId(),
                     artistName: job.artistName,
                     bio: job.bio,
                     dob: job.dob,
-                    storageKey: processedKey
+                    storageKey: `artists/${jobId}`,
+                    coverUrl: processedKey,
+                    bannerUrl: imagekitResults.banner || null
                 }
             });
 
             return { processedKey };
         });
 
-        return { success: true, jobId, processedKey: updatedJob.processedKey };
+        return {
+            success: true,
+            jobId,
+            processedKey: updatedJob.processedKey,
+            imagekitUrls: imagekitResults,
+        };
     }
 );

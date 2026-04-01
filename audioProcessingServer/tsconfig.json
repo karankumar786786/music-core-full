@@ -10,6 +10,7 @@
     "esModuleInterop": true,
     "noEmit": true,
 
+
     // Best practices
     "strict": true,
     "skipLibCheck": true,

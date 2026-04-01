@@ -77,6 +77,7 @@ export const updateSongsTableFunction = client.createFunction(
                             releaseDate: job.releaseDate,
                             isrc: job.isrc,
                             genre: job.genre || "Unknown",
+                            coverUrl: job.coverUrl || "",
                         }
                     });
                     console.log(`✅ [Job ${jobId}] Song create successful with ID: ${job.songId}`);

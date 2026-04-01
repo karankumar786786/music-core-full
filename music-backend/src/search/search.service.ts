@@ -11,6 +11,7 @@ interface SearchRow {
     title: string | null;
     artistName: string | null;
     genre: string | null;
+    language: string | null;
     durationMs: number | null;
     releaseDate: Date | null;
     storageKey: string | null;
@@ -26,11 +27,11 @@ export class SearchService {
 
     constructor(@Inject(CACHE_MANAGER) private cache: Cache) { }
 
-    private getCacheKey(query: string, page: number, limit: number) {
-        return `search:${query}:${page}:${limit}`;
+    private getCacheKey(query: string, page: number, limit: number, language?: string) {
+        return `search:${query}:${page}:${limit}:${language ?? 'all'}`;
     }
 
-    async globalSearch(query: string, paginationQuery: PaginationQueryDto) {
+    async globalSearch(query: string, paginationQuery: PaginationQueryDto, language?: string) {
         const searchString = query.toLowerCase().trim();
         const { page = 1, limit = 10 } = paginationQuery;
         const skip = (page - 1) * limit;
@@ -42,7 +43,7 @@ export class SearchService {
             };
         }
 
-        const cacheKey = this.getCacheKey(searchString, page, limit);
+        const cacheKey = this.getCacheKey(searchString, page, limit, language);
         const cached = await this.cache.get(cacheKey);
         if (cached) return cached;
 
@@ -58,18 +59,24 @@ export class SearchService {
             )
         `);
 
-        // Split by entity_type and strip score
-        const songs = rows
+        // Split by entity_type and strip internal fields
+        let songs = rows
             .filter(r => r.entity_type === 'song')
             .map(({ entity_type: _, score: _s, bio: _b, dob: _d, description: _desc, ...rest }) => rest);
 
         const artists = rows
             .filter(r => r.entity_type === 'artist')
-            .map(({ entity_type: _, score: _s, title: _t, genre: _g, durationMs: _dm, releaseDate: _rd, description: _desc, ...rest }) => rest);
+            .map(({ entity_type: _, score: _s, title: _t, genre: _g, language: _l, durationMs: _dm, releaseDate: _rd, description: _desc, ...rest }) => rest);
 
         const playlists = rows
             .filter(r => r.entity_type === 'playlist')
-            .map(({ entity_type: _, score: _s, artistName: _an, genre: _g, durationMs: _dm, releaseDate: _rd, bio: _b, dob: _d, ...rest }) => rest);
+            .map(({ entity_type: _, score: _s, artistName: _an, genre: _g, language: _l, durationMs: _dm, releaseDate: _rd, bio: _b, dob: _d, ...rest }) => rest);
+
+        // Apply language filter on songs if provided (post-query filter)
+        if (language && language.trim().length > 0) {
+            const langLower = language.toLowerCase().trim();
+            songs = songs.filter(s => s.language && s.language.toLowerCase() === langLower);
+        }
 
         const result = {
             data: { songs, artists, playlists },

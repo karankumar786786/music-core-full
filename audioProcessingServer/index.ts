@@ -32,7 +32,7 @@ console.log(`🚀 Embedded Inngest Server (Express) starting on port ${PORT}`);
 // Verify DB connection on startup
 prisma.$connect()
     .then(() => console.log("✅ Database connected successfully to embeddedInngestServer"))
-    .catch((err) => console.error("❌ Database connection failed in embeddedInngestServer:", err));
+    .catch((err: any) => console.error("❌ Database connection failed in embeddedInngestServer:", err));
 
 app.listen(PORT, () => {
     console.log(`📡 Server listening on http://localhost:${PORT}`);

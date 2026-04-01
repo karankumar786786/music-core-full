@@ -1,0 +1,5 @@
+const client = new ApiClient(
+  'one-org-one-melody',
+  'pN8aXBwXNHjUJyceeab9si9keRB8bDNyYFdrWpqmddXScnoLcG8jGf7r9PkdX1jR',
+  { region: 'eu-west' }
+);

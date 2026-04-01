@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
+    "@types/node": "^22.0.0",
     "tsx": "^4.19.3"
   },
   "peerDependencies": {
@@ -17,6 +18,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1004.0",
     "@aws-sdk/s3-request-presigner": "^3.1004.0",
+    "@imagekit/nodejs": "^7.0.0",
     "@prisma/adapter-pg": "^7.4.2",
     "@prisma/client": "^7.4.2",
     "dotenv": "^17.3.1",
@@ -24,7 +26,6 @@
     "inngest": "^3.52.6",
     "pg": "^8.20.0",
     "prisma": "^7.4.2",
-    "sarvamai": "^1.1.5",
-    "sharp": "^0.34.5"
+    "sarvamai": "^1.1.5"
   }
 }

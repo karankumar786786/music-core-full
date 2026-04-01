@@ -4,12 +4,12 @@ import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 import { getPrismaClient } from "../../prisma/getPrismaClient";
 import { getObject } from "../../storage/getObject.s3";
+import { deleteObject } from "../../storage/deleteObject.s3";
 import { putObject } from "../../storage/putObject.s3";
-import { processSongImages } from "../../imageProcessors";
+import { uploadImageToImageKit } from "../../imageKit/uploadImage";
+import { detectGenre } from "../../audioProcessor/detectGenre";
 import { processAudioTranscription } from "../../audioProcessor/transcribeAudio";
 import { processAudioTranscoding } from "../../audioProcessor/transcodeAudio";
-import { uploadProcessedImages, IMAGE_S3_BASE_FOLDERS } from "../../imageProcessors/uploadProcessedImages/uploadImages";
-import { cleanupProcessedImagesFolder } from "../../imageProcessors/uploadProcessedImages/cleanup";
 import { uploadTranscodedAudio } from "../../audioProcessor/uploadTranscodedAudio/uploadTranscodedAudio";
 import { cleanupProcessedFolder } from "../../audioProcessor/uploadTranscodedAudio/cleanup";
 
@@ -34,7 +34,7 @@ export const audioProcessingFunction = client.createFunction(
         const { jobId, tempSongKey, tempSongImageKey } = event.data;
         console.log(`📡 [Job ${jobId}] Received audio-process-job event`);
 
-        // Fetch the full job details to get metadata like title, artistName, genre
+        // Fetch the full job details
         const job = await step.run("fetch-job-details", async () => {
             return await prisma.songProcessingJob.findUnique({
                 where: { id: jobId },
@@ -63,9 +63,11 @@ export const audioProcessingFunction = client.createFunction(
             });
         };
 
+        // ── Image Processing via ImageKit ──────────────────────────────────────
         const processImages = async () => {
-            console.log(`📸 [Job ${jobId}] Starting image processing`);
+            console.log(`📸 [Job ${jobId}] Starting image upload to ImageKit`);
             const tempImageDir = path.join(localFolderPath, "imageInput");
+
             const downloadedImagePath = await step.run("download-temp-image", async () => {
                 const success = await getObject({
                     bucketName: process.env.AWS_TEMP_BUCKET as string,
@@ -78,26 +80,39 @@ export const audioProcessingFunction = client.createFunction(
                 return path.join(tempImageDir, path.basename(tempSongImageKey));
             });
 
-            const processedImageDir = path.join(localFolderPath, "imageOutput");
-            await step.run("process-images", async () => {
-                console.log(`🖼️ [Job ${jobId}] Running processSongImages`);
-                const { coverSuccess } = await processSongImages({
-                    coverImage: { inputFilePath: downloadedImagePath, outputDirPath: processedImageDir }
-                });
-                console.log(`🖼️ [Job ${jobId}] processSongImages result: coverSuccess=${coverSuccess}`);
-                if (!coverSuccess) {
-                    throw new Error("Image processing failed");
+            // Upload original image directly to ImageKit — transformations are applied at URL level
+            const imageKitResult = await step.run("upload-image-to-imagekit", async () => {
+                const result = await uploadImageToImageKit(
+                    downloadedImagePath,
+                    `songs/cover`,
+                    jobId
+                );
+                // Cleanup local temp image dir
+                if (fs.existsSync(tempImageDir)) {
+                    fs.rmSync(tempImageDir, { recursive: true, force: true });
                 }
+                return result;
             });
-            await updateJobStage("images-processed", { processedImages: true });
 
-            await step.run("upload-images-to-s3", async () => {
-                await uploadProcessedImages(processedImageDir, IMAGE_S3_BASE_FOLDERS.SONG, jobId, "cover");
-                cleanupProcessedImagesFolder(processedImageDir);
-                cleanupProcessedImagesFolder(tempImageDir);
+            await updateJobStage("images-processed", {
+                processedImages: true,
+                // Store ImageKit filePath as processedKey for images
+                // The actual song's storageKey will be set to songS3Prefix later
             });
+
+            // Delete temp image from S3
+            await step.run("cleanup-temp-image-s3", async () => {
+                await deleteObject({
+                    bucketName: process.env.AWS_TEMP_BUCKET as string,
+                    key: tempSongImageKey,
+                });
+                console.log(`🧹 [Job ${jobId}] Deleted temp image from S3: ${tempSongImageKey}`);
+            });
+
+            return imageKitResult;
         };
 
+        // ── Audio Processing ───────────────────────────────────────────────────
         const processAudio = async () => {
             console.log(`🎵 [Job ${jobId}] Starting audio processing`);
             const tempAudioDir = path.join(localFolderPath, "audioInput");
@@ -115,6 +130,17 @@ export const audioProcessingFunction = client.createFunction(
 
             const audioOutputDir = path.join(localFolderPath, "audioOutput");
 
+            // ── Genre Auto-Detection ───────────────────────────────────────────
+            const detectedGenre = await step.run("detect-genre", async () => {
+                const genre = await detectGenre(downloadedAudioPath);
+                console.log(`🎵 [Job ${jobId}] Auto-detected genre: ${genre}`);
+                await prisma.songProcessingJob.update({
+                    where: { id: jobId },
+                    data: { genre },
+                });
+                return genre;
+            });
+
             await step.run("transcribe-audio", async () => {
                 await processAudioTranscription(downloadedAudioPath, audioOutputDir);
             });
@@ -128,32 +154,38 @@ export const audioProcessingFunction = client.createFunction(
             const songS3Prefix = await step.run("upload-audio-to-s3", async () => {
                 const prefix = await uploadTranscodedAudio(audioOutputDir, jobId);
                 cleanupProcessedFolder(audioOutputDir);
-                // We keep tempAudioDir for a moment to upload the raw audio to the production bucket
                 return prefix;
             });
 
-            // Upload raw audio for Embedder (in the processed folder)
+            // Upload raw audio for Embedder
             await step.run("upload-raw-audio-for-embedder", async () => {
                 const rawAudioKey = `${songS3Prefix}/audio.mp3`;
-                const audioInputPath = downloadedAudioPath;
                 console.log(`📤 [Job ${jobId}] Uploading raw audio to ${rawAudioKey}`);
                 const success = await putObject({
                     bucketName: process.env.AWS_PRODUCTION_BUCKET as string,
                     key: rawAudioKey,
-                    body: fs.readFileSync(audioInputPath),
+                    body: fs.readFileSync(downloadedAudioPath),
                     contentType: "audio/mpeg",
                 });
-                console.log(`📤 [Job ${jobId}] Raw audio upload success: ${success}`);
                 if (!success) {
                     throw new Error("Raw audio upload failed");
                 }
                 cleanupProcessedFolder(tempAudioDir);
             });
 
-            return songS3Prefix;
+            // Delete temp audio from S3
+            await step.run("cleanup-temp-audio-s3", async () => {
+                await deleteObject({
+                    bucketName: process.env.AWS_TEMP_BUCKET as string,
+                    key: tempSongKey,
+                });
+                console.log(`🧹 [Job ${jobId}] Deleted temp audio from S3: ${tempSongKey}`);
+            });
+
+            return { songS3Prefix, detectedGenre };
         };
 
-        // Execution Flow
+        // ── Execution Flow ─────────────────────────────────────────────────────
         console.log(`⌛ [Job ${jobId}] Running pipelines sequentially...`);
 
         const vectorId = await step.run("generate-vector-id", async () => {
@@ -161,11 +193,12 @@ export const audioProcessingFunction = client.createFunction(
         });
         await updateJobStage("init-vector-id", { vectorId });
 
-        await processImages();
-        const songS3Prefix = await processAudio();
+        const imageKitResult = await processImages();
+        const { songS3Prefix, detectedGenre } = await processAudio();
 
         await updateJobStage("pipeline-completed", {
             processedKey: songS3Prefix,
+            coverUrl: imageKitResult?.url || null,
         });
 
         // Trigger the Python Embedder Server
@@ -179,7 +212,8 @@ export const audioProcessingFunction = client.createFunction(
                 processedKey: songS3Prefix,
                 title: job.title || "Unknown Title",
                 artistName: job.artistName || "Unknown Artist",
-                genre: job.genre || "Unknown Genre",
+                genre: detectedGenre,
+                imagekitUrl: imageKitResult?.url || null,
             },
         });
 
@@ -190,6 +224,6 @@ export const audioProcessingFunction = client.createFunction(
             }
         });
 
-        return { success: true, songS3Prefix };
+        return { success: true, songS3Prefix, imagekitUrl: imageKitResult?.url };
     }
 );

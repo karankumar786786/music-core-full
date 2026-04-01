@@ -29,6 +29,8 @@ model Song {
   artistName  String
   durationMs  Int
   storageKey  String
+  coverUrl    String?
+  bannerUrl   String?
   releaseDate DateTime
   isrc        String
   genre       String
@@ -52,6 +54,8 @@ model Artist {
   artistName String
   bio        String
   storageKey String
+  coverUrl   String?
+  bannerUrl  String?
   dob        DateTime
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -65,6 +69,8 @@ model Playlist {
   title       String
   description String
   storageKey  String
+  coverUrl    String?
+  bannerUrl   String?
   songs       PlaylistSongs[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -148,6 +154,8 @@ model SongProcessingJob {
   tempSongKey      String
   tempSongImageKey String
   processedKey     String?
+  coverUrl         String?
+  bannerUrl        String?
   genre            String?
 
   // Processing stage flags
@@ -182,6 +190,8 @@ model ArtistProcessingJob {
   dob                DateTime
 
   processedKey       String?
+  coverUrl           String?
+  bannerUrl          String?
   scaledImage        Boolean  @default(false)
   processingAttempts Int      @default(0)
   createdAt          DateTime @default(now())
@@ -195,6 +205,8 @@ model PlaylistProcessingJob {
   tempCoverImageKey  String
   tempBannerImageKey String
   processedKey       String?
+  coverUrl           String?
+  bannerUrl          String?
   scaledImage        Boolean  @default(false)
   processingAttempts Int      @default(0)
   createdAt          DateTime @default(now())

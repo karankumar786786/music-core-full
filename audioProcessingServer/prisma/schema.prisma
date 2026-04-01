@@ -1,9 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [pg_trgm]
 }
 
 model User {
@@ -27,6 +29,8 @@ model Song {
   artistName  String
   durationMs  Int
   storageKey  String
+  coverUrl    String?
+  bannerUrl   String?
   releaseDate DateTime
   isrc        String
   genre       String
@@ -35,11 +39,14 @@ model Song {
   playlists      PlaylistSongs[]
   userPlaylists  UserPlaylistSongs[]
   userHistory    UserHistory[]
-  userFavourites UserFavourites[]
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
+  userFavourites UserFavourites[]
 
   @@unique([title, artistName])
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([artistName(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([genre(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model Artist {
@@ -47,21 +54,29 @@ model Artist {
   artistName String
   bio        String
   storageKey String
+  coverUrl   String?
+  bannerUrl  String?
   dob        DateTime
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   @@unique([artistName, bio, dob])
+  @@index([artistName(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model Playlist {
   id          String          @id
-  title       String          @unique
+  title       String
   description String
   storageKey  String
+  coverUrl    String?
+  bannerUrl   String?
   songs       PlaylistSongs[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([description(ops: raw("gin_trgm_ops"))], type: Gin)
 }
 
 model PlaylistSongs {
@@ -139,6 +154,8 @@ model SongProcessingJob {
   tempSongKey      String
   tempSongImageKey String
   processedKey     String?
+  coverUrl         String?
+  bannerUrl        String?
   genre            String?
 
   // Processing stage flags
@@ -173,11 +190,10 @@ model ArtistProcessingJob {
   dob                DateTime
 
   processedKey       String?
+  coverUrl           String?
+  bannerUrl          String?
   scaledImage        Boolean  @default(false)
-  processedImages    Boolean  @default(false)
-  completed          Boolean  @default(false)
   processingAttempts Int      @default(0)
-  currentStatus      String   @default("pending")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
@@ -189,11 +205,10 @@ model PlaylistProcessingJob {
   tempCoverImageKey  String
   tempBannerImageKey String
   processedKey       String?
+  coverUrl           String?
+  bannerUrl          String?
   scaledImage        Boolean  @default(false)
-  processedImages    Boolean  @default(false)
-  completed          Boolean  @default(false)
   processingAttempts Int      @default(0)
-  currentStatus      String   @default("pending")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }

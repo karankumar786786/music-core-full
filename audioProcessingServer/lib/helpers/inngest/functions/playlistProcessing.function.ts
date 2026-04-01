@@ -4,9 +4,8 @@ import * as path from "node:path";
 import { getPrismaClient } from "../../prisma/getPrismaClient";
 import { SignatureUtility } from "../../signature/signature.utility";
 import { getObject } from "../../storage/getObject.s3";
-import { processPlaylistImages } from "../../imageProcessors";
-import { uploadProcessedImages, IMAGE_S3_BASE_FOLDERS } from "../../imageProcessors/uploadProcessedImages/uploadImages";
-import { cleanupProcessedImagesFolder } from "../../imageProcessors/uploadProcessedImages/cleanup";
+import { deleteObject } from "../../storage/deleteObject.s3";
+import { uploadImageToImageKit } from "../../imageKit/uploadImage";
 
 const prisma = getPrismaClient();
 
@@ -35,10 +34,11 @@ export const playlistProcessingFunction = client.createFunction(
         }
 
         const localFolderPath = path.join(process.cwd(), "processing", "playlist", jobId);
+        const tempImageDir = path.join(localFolderPath, "imageInput");
 
-        await step.run("process-playlist-images", async () => {
-            const tempImageDir = path.join(localFolderPath, "imageInput");
-            const processedImageDir = path.join(localFolderPath, "imageOutput");
+        // ── Upload Images to ImageKit ──────────────────────────────────────────
+        const imagekitResults = await step.run("upload-playlist-images-imagekit", async () => {
+            const results: { cover?: string; banner?: string } = {};
 
             // Process Cover
             if (tempCoverImageKey) {
@@ -47,12 +47,14 @@ export const playlistProcessingFunction = client.createFunction(
                     key: tempCoverImageKey,
                     outputDir: tempImageDir,
                 });
-
-                await processPlaylistImages({
-                    coverImage: { inputFilePath: path.join(tempImageDir, path.basename(tempCoverImageKey)), outputDirPath: processedImageDir }
-                });
-
-                await uploadProcessedImages(processedImageDir, IMAGE_S3_BASE_FOLDERS.PLAYLIST, jobId, "cover");
+                const localPath = path.join(tempImageDir, path.basename(tempCoverImageKey));
+                const result = await uploadImageToImageKit(
+                    localPath,
+                    `playlists/${jobId}`,
+                    "cover"
+                );
+                results.cover = result.url;
+                console.log(`✅ [Playlist Job ${jobId}] Cover uploaded to ImageKit: ${result.url}`);
             }
 
             // Process Banner
@@ -62,49 +64,73 @@ export const playlistProcessingFunction = client.createFunction(
                     key: tempBannerImageKey,
                     outputDir: tempImageDir,
                 });
-
-                await processPlaylistImages({
-                    bannerImage: { inputFilePath: path.join(tempImageDir, path.basename(tempBannerImageKey)), outputDirPath: processedImageDir }
-                });
-
-                await uploadProcessedImages(processedImageDir, IMAGE_S3_BASE_FOLDERS.PLAYLIST, jobId, "banner");
+                const localPath = path.join(tempImageDir, path.basename(tempBannerImageKey));
+                const result = await uploadImageToImageKit(
+                    localPath,
+                    `playlists/${jobId}`,
+                    "banner"
+                );
+                results.banner = result.url;
+                console.log(`✅ [Playlist Job ${jobId}] Banner uploaded to ImageKit: ${result.url}`);
             }
 
-            cleanupProcessedImagesFolder(localFolderPath);
+            // Cleanup local temp dir
+            if (fs.existsSync(localFolderPath)) {
+                fs.rmSync(localFolderPath, { recursive: true, force: true });
+            }
+
+            return results;
         });
 
-        const updatedJob = await step.run("update-job-and-playlist", async () => {
-            const processedKey = `${IMAGE_S3_BASE_FOLDERS.PLAYLIST}${jobId}`;
+        // ── Cleanup Temp S3 Objects ────────────────────────────────────────────
+        await step.run("cleanup-temp-s3", async () => {
+            if (tempCoverImageKey) {
+                await deleteObject({
+                    bucketName: process.env.AWS_TEMP_BUCKET as string,
+                    key: tempCoverImageKey,
+                });
+                console.log(`🧹 [Playlist Job ${jobId}] Deleted temp cover from S3: ${tempCoverImageKey}`);
+            }
+            if (tempBannerImageKey) {
+                await deleteObject({
+                    bucketName: process.env.AWS_TEMP_BUCKET as string,
+                    key: tempBannerImageKey,
+                });
+                console.log(`🧹 [Playlist Job ${jobId}] Deleted temp banner from S3: ${tempBannerImageKey}`);
+            }
+        });
 
-            // Update Job
+        // ── Update DB ──────────────────────────────────────────────────────────
+        const updatedJob = await step.run("update-job-and-playlist", async () => {
+            const processedKey = imagekitResults.cover || imagekitResults.banner || "";
+
             await prisma.playlistProcessingJob.update({
                 where: { id: jobId },
                 data: {
-                    processedImages: true,
-                    completed: true,
-                    currentStatus: "completed",
-                    processedKey: processedKey
+                    processedKey: processedKey,
+                    coverUrl: processedKey,
                 }
             });
 
-            // Upsert Playlist
-            await prisma.playlist.upsert({
-                where: { title: job.title },
-                update: {
-                    description: job.description,
-                    storageKey: processedKey
-                },
-                create: {
+            // Create Playlist
+            await prisma.playlist.create({
+                data: {
                     id: SignatureUtility.generateSignedId(),
                     title: job.title,
                     description: job.description,
-                    storageKey: processedKey
+                    storageKey: `playlists/${jobId}`,
+                    coverUrl: processedKey
                 }
             });
 
             return { processedKey };
         });
 
-        return { success: true, jobId, processedKey: updatedJob.processedKey };
+        return {
+            success: true,
+            jobId,
+            processedKey: updatedJob.processedKey,
+            imagekitUrls: imagekitResults,
+        };
     }
 );
