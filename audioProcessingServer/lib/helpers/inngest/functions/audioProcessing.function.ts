@@ -7,7 +7,7 @@ import { getObject } from "../../storage/getObject.s3";
 import { deleteObject } from "../../storage/deleteObject.s3";
 import { putObject } from "../../storage/putObject.s3";
 import { uploadImageToImageKit } from "../../imageKit/uploadImage";
-import { detectGenre } from "../../audioProcessor/detectGenre";
+import { normalizeAudio } from "../../audioProcessor/normalizeAudio";
 import { processAudioTranscription } from "../../audioProcessor/transcribeAudio";
 import { processAudioTranscoding } from "../../audioProcessor/transcodeAudio";
 import { uploadTranscodedAudio } from "../../audioProcessor/uploadTranscodedAudio/uploadTranscodedAudio";
@@ -130,24 +130,18 @@ export const audioProcessingFunction = client.createFunction(
 
             const audioOutputDir = path.join(localFolderPath, "audioOutput");
 
-            // ── Genre Auto-Detection ───────────────────────────────────────────
-            const detectedGenre = await step.run("detect-genre", async () => {
-                const genre = await detectGenre(downloadedAudioPath);
-                console.log(`🎵 [Job ${jobId}] Auto-detected genre: ${genre}`);
-                await prisma.songProcessingJob.update({
-                    where: { id: jobId },
-                    data: { genre },
-                });
-                return genre;
+            // ── Audio Normalization ────────────────────────────────────────────
+            const normalizedAudioPath = await step.run("normalize-audio", async () => {
+                return await normalizeAudio(downloadedAudioPath, tempAudioDir);
             });
 
             await step.run("transcribe-audio", async () => {
-                await processAudioTranscription(downloadedAudioPath, audioOutputDir);
+                await processAudioTranscription(normalizedAudioPath, audioOutputDir);
             });
             await updateJobStage("transcribe-completed", { transcribed: true });
 
             await step.run("transcode-audio", async () => {
-                await processAudioTranscoding(downloadedAudioPath, audioOutputDir);
+                await processAudioTranscoding(normalizedAudioPath, audioOutputDir);
             });
             await updateJobStage("transcode-completed", { transcoded: true });
 
@@ -157,63 +151,35 @@ export const audioProcessingFunction = client.createFunction(
                 return prefix;
             });
 
-            // Upload raw audio for Embedder
-            await step.run("upload-raw-audio-for-embedder", async () => {
-                const rawAudioKey = `${songS3Prefix}/audio.mp3`;
-                console.log(`📤 [Job ${jobId}] Uploading raw audio to ${rawAudioKey}`);
-                const success = await putObject({
-                    bucketName: process.env.AWS_PRODUCTION_BUCKET as string,
-                    key: rawAudioKey,
-                    body: fs.readFileSync(downloadedAudioPath),
-                    contentType: "audio/mpeg",
-                });
-                if (!success) {
-                    throw new Error("Raw audio upload failed");
-                }
-                cleanupProcessedFolder(tempAudioDir);
-            });
+            // Note: Python script will download `tempSongKey` directly, 
+            // process features, and delete it after processing.
+            // No need to upload raw audio to production bucket anymore.
 
-            // Delete temp audio from S3
-            await step.run("cleanup-temp-audio-s3", async () => {
-                await deleteObject({
-                    bucketName: process.env.AWS_TEMP_BUCKET as string,
-                    key: tempSongKey,
-                });
-                console.log(`🧹 [Job ${jobId}] Deleted temp audio from S3: ${tempSongKey}`);
-            });
-
-            return { songS3Prefix, detectedGenre };
+            return { songS3Prefix };
         };
 
         // ── Execution Flow ─────────────────────────────────────────────────────
         console.log(`⌛ [Job ${jobId}] Running pipelines sequentially...`);
 
-        const vectorId = await step.run("generate-vector-id", async () => {
-            return randomUUID();
-        });
-        await updateJobStage("init-vector-id", { vectorId });
-
         const imageKitResult = await processImages();
-        const { songS3Prefix, detectedGenre } = await processAudio();
+        const { songS3Prefix } = await processAudio();
 
         await updateJobStage("pipeline-completed", {
             processedKey: songS3Prefix,
             coverUrl: imageKitResult?.url || null,
         });
 
-        // Trigger the Python Embedder Server
-        console.log(`🚀 [Job ${jobId}] Triggering vector-embedding-job`);
-        await step.sendEvent("trigger-python-embedder", {
-            name: "vector-embedding-job",
+        // Trigger the Python Processor Server (Essentia -> Recombee)
+        console.log(`🚀 [Job ${jobId}] Triggering process-song-features`);
+        await step.sendEvent("trigger-python-processor", {
+            name: "process-song-features",
             data: {
                 jobId,
                 songId: job.songId,
-                vectorId,
+                tempSongKey,
                 processedKey: songS3Prefix,
                 title: job.title || "Unknown Title",
                 artistName: job.artistName || "Unknown Artist",
-                genre: detectedGenre,
-                imagekitUrl: imageKitResult?.url || null,
             },
         });
 

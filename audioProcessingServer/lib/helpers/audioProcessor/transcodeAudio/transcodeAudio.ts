@@ -71,7 +71,7 @@ export async function transcodeToHlsMultiQuality(inputAudio: string, outputDir: 
         console.log(`   🔄 Encoding ${bitrate}...`);
 
         const playlistPath = path.join(qualityDir, "playlist.m3u8");
-        const segmentPattern = path.join(qualityDir, `${bitrate.replace('k', '')}k_%03d.ts`);
+        const segmentPattern = path.join(qualityDir, `${bitrate.replace('k', '')}k_%03d.m4s`);
 
         const cmdArgs = [
             "-y",
@@ -82,15 +82,14 @@ export async function transcodeToHlsMultiQuality(inputAudio: string, outputDir: 
             "-b:a", bitrate,
             "-ar", "44100",
             "-ac", "2",
-            // Use segment muxer for time-based splitting
-            "-f", "segment",
-            "-segment_time", segmentTime.toString(),
-            "-segment_list", playlistPath,
-            "-segment_list_type", "hls",
-            "-segment_format", "mpegts",
-            "-break_non_keyframes", "1", // Allow breaking anywhere (for audio)
-            "-reset_timestamps", "1",    // Reset timestamps per segment
-            segmentPattern
+            "-f", "hls",
+            "-hls_time", segmentTime.toString(),
+            "-hls_segment_type", "fmp4",
+            "-hls_fmp4_init_filename", "init.mp4",
+            "-hls_segment_filename", segmentPattern,
+            "-hls_playlist_type", "vod",
+            "-movflags", "+frag_keyframe+default_base_moof", 
+            playlistPath
         ];
 
         try {

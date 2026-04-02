@@ -1,5 +1,6 @@
 import { transcodeToHlsMultiQuality } from "./transcodeAudio";
 import { createMasterPlaylist } from "./generateMaster.m3u8";
+import { createMasterMpd } from "./generateMaster.mpd";
 
 /**
  * Orchestrates transcoding the given audio file and creating the master playlist.
@@ -17,9 +18,9 @@ export async function processAudioTranscoding(inputAudio: string, outputDir: str
 
     // Call master playlist generation
     createMasterPlaylist(outputDir);
+    createMasterMpd(outputDir);
 
     console.log(`\n--- Audio Transcoding Process Completed Successfully ---`);
     console.log(`Outputs located in: ${outputDir}\n`);
 }
-
 

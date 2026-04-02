@@ -3,22 +3,23 @@ import { getPrismaClient } from "../../prisma/getPrismaClient";
 
 const prisma = getPrismaClient();
 
-export const setEmbeddingFlagsFunction = client.createFunction(
-    { id: "set-embedding-flags-v2" },
-    { event: "vector-embedding-completed" },
+export const setRecombeeFlagsFunction = client.createFunction(
+    { id: "set-recombee-flags-v2" },
+    { event: "recombee-sync-completed" },
     async ({ event, step }: { event: any, step: any }) => {
         const jobId = event.data.jobId;
-        const { vectorId, qdrantPointId } = event.data;
-        console.log(`📡 [Job ${jobId}] Received vector-embedding-completed event for vectorId: ${vectorId}`);
+        const { genre } = event.data;
+        console.log(`📡 [Job ${jobId}] Received recombee-sync-completed event with genre: ${genre}`);
 
-        // Set the two flags Python could not set
-        await step.run("set-embedding-flags", async () => {
+        // Set the final flags and genre from Python Essentia processing
+        await step.run("set-recombee-flags", async () => {
             await prisma.songProcessingJob.update({
                 where: { id: jobId },
                 data: {
                     extractedAudioFeatures: true,
-                    generatedEmbeddings: true,
-                    currentStatus: "embeddings_completed",
+                    generatedEmbeddings: true, // Legacy flag, kept for backward compatibility checking
+                    genre: genre,
+                    currentStatus: "recombee_sync_completed",
                 },
             });
         });

@@ -15,6 +15,9 @@ const CONTENT_TYPE_MAP: Record<string, string> = {
     ".ts": "video/mp2t",
     ".vtt": "text/vtt",
     ".json": "application/json",
+    ".m4s": "video/iso.segment",
+    ".mp4": "video/mp4",
+    ".mpd": "application/dash+xml",
 };
 
 /**

@@ -8,7 +8,8 @@ import { QUALITY_PROFILES } from "./transcodeAudio";
 export function createMasterPlaylist(outputDir: string): void {
     const lines = [
         "#EXTM3U",
-        "#EXT-X-VERSION:3",
+        "#EXT-X-VERSION:7",
+        "#EXT-X-INDEPENDENT-SEGMENTS",
         ""
     ];
 
