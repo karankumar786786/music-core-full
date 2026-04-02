@@ -4,6 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "build": "tsc",
     "start": "tsx index.ts",
     "dev": "tsx --watch index.ts"
   },

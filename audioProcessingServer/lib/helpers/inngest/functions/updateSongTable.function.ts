@@ -30,8 +30,7 @@ export const updateSongsTableFunction = client.createFunction(
             processedImages: !!job.processedImages,
             extractedAudioFeatures: !!job.extractedAudioFeatures,
             generatedEmbeddings: !!job.generatedEmbeddings,
-            processedKey: job.processedKey,
-            vectorId: job.vectorId
+            processedKey: job.processedKey
         });
 
         const isAllCompleted =
@@ -59,17 +58,16 @@ export const updateSongsTableFunction = client.createFunction(
             await step.run("update-songs-table", async () => {
                 console.log(`📝 [Job ${jobId}] Upserting song into table: ${job.title}`);
 
-                console.log(`Checking song with vector ID: ${job.vectorId}`);
+                console.log(`Checking song with ID: ${job.songId}`);
 
                 let song = await prisma.song.findUnique({
-                    where: { vectorId: job.vectorId },
+                    where: { id: job.songId },
                 });
 
                 if (!song) {
                     song = await prisma.song.create({
                         data: {
                             id: job.songId,
-                            vectorId: job.vectorId || `pending-vectorId-${job.id}`,
                             title: job.title,
                             artistName: job.artistName,
                             durationMs: job.durationMs,

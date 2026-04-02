@@ -22,7 +22,7 @@ export class InteractionService {
       throw new UnauthorizedException('Invalid song signature provided');
     }
 
-    // Verify song exists and get its vectorId
+    // Verify song exists
     const song = await this.prisma.song.findUnique({
       where: { id: songId }
     });
@@ -35,7 +35,6 @@ export class InteractionService {
       data: {
         userId,
         songId,
-        songVectorId: song.vectorId,
       },
     });
   }

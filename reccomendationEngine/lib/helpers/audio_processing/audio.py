@@ -3,40 +3,21 @@ import essentia.standard as es
 from lib.helpers.config import VECTOR_DIM
 
 
-def extract_audio_features(audio_path: str) -> list:
+def extract_audio_features(audio_path: str) -> dict:
     """
-    Extracts audio features using Essentia and returns a normalized vector.
+    Extracts audio features using Essentia and returns a dictionary of features.
     """
     # Decode MP3 → raw mono signal at 44100 Hz
     audio = es.MonoLoader(filename=audio_path, sampleRate=44100)()
 
     # BPM & rhythm
     bpm, _, beat_conf, _, _ = es.RhythmExtractor2013(method="multifeature")(audio)
-    norm_bpm = float(bpm) / 250.0
-    beat_conf = float(beat_conf)
-
+    
     # Key & scale
     key_str, scale_str, key_conf = es.KeyExtractor()(audio)
-    KEY_MAP = {
-        "C": 0,
-        "C#": 1,
-        "D": 2,
-        "D#": 3,
-        "E": 4,
-        "F": 5,
-        "F#": 6,
-        "G": 7,
-        "G#": 8,
-        "A": 9,
-        "A#": 10,
-        "B": 11,
-    }
-    norm_key = KEY_MAP.get(key_str, 0) / 11.0
-    scale_bin = 1.0 if scale_str == "major" else 0.0
-    key_conf = float(key_conf)
-
+    
     # Loudness & energy
-    loudness = abs(float(es.Loudness()(audio))) / 60.0
+    loudness = float(es.Loudness()(audio))
     energy = float(es.Energy()(audio))
 
     # Danceability
@@ -59,27 +40,62 @@ def extract_audio_features(audio_path: str) -> list:
         ro_vals.append(ro_algo(spectrum))
 
     mfcc_mean = np.mean(mfcc_frames, axis=0).tolist()  # 13 values
-    norm_sc = float(np.mean(sc_vals)) / 10000.0
-    norm_ro = float(np.mean(ro_vals)) / 22050.0
+    avg_sc = float(np.mean(sc_vals))
+    avg_ro = float(np.mean(ro_vals))
 
-    # 23-value feature array
-    features = [
-        norm_bpm,
-        beat_conf,
-        norm_key,
-        scale_bin,
-        key_conf,
-        loudness,
-        energy,
-        danceability,
-        norm_sc,
-        norm_ro,
-    ] + mfcc_mean  # total: 23
+    # Construct feature dictionary
+    features = {
+        "bpm": float(bpm),
+        "energy": energy,
+        "danceability": danceability,
+        "loudness": loudness,
+        "key": float(key_conf), # Using confidence as a proxy or just the key index if needed
+        "scale": 1.0 if scale_str == "major" else 0.0,
+        "spectral_centroid": avg_sc,
+        "ro_vals": avg_ro,
+    }
+    
+    # Add MFCCs
+    for i, val in enumerate(mfcc_mean):
+        features[f"mfcc_{i+1}"] = float(val)
 
-    # Pad to VECTOR_DIM
-    features += [0.0] * (VECTOR_DIM - len(features))
+    return features
 
-    # L2 normalise
-    arr = np.array(features, dtype=np.float32)
-    norm = np.linalg.norm(arr)
-    return (arr / norm if norm > 0 else arr).tolist()
+def detect_genre(features: dict) -> str:
+    """
+    Heuristic genre detection based on Essentia features.
+    """
+    bpm = features.get("bpm", 120)
+    energy = features.get("energy", 0.5)
+    danceability = features.get("danceability", 0.5)
+    
+    # Very slow + low energy → Classical / Jazz
+    if bpm < 70:
+        return "Classical" if energy < 0.4 else "Jazz"
+
+    # Slow tempo
+    if bpm < 90:
+        if energy < 0.35: return "Folk"
+        if energy < 0.55: return "Blues"
+        return "R&B"
+
+    # Mid tempo
+    if bpm < 115:
+        if energy < 0.4: return "Country"
+        if energy < 0.6: return "R&B"
+        return "Pop"
+
+    # Mid-high tempo
+    if bpm < 135:
+        if energy < 0.45: return "Pop"
+        if danceability > 0.6: return "Hip-Hop"
+        if energy > 0.7: return "Rock"
+        return "Pop"
+
+    # High tempo
+    if bpm < 160:
+        if danceability > 0.6: return "Hip-Hop"
+        return "Electronic"
+
+    # Very high tempo → Electronic / Metal
+    return "Metal" if energy > 0.7 else "Electronic"

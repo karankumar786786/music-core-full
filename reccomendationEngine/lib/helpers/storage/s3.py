@@ -4,7 +4,7 @@ import os
 import tempfile
 from typing import Any, Optional
 import boto3
-from lib.helpers.config import AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_REGION, AWS_BUCKET
+AWS_TEMP_BUCKET = os.environ.get("AWS_TEMP_BUCKET", "onemelodytemp")
 
 log = logging.getLogger("embedderserver")
 
@@ -23,40 +23,35 @@ def get_s3_client():
     return _s3_client
 
 
-def download_audio(processed_key: str) -> str:
+def download_audio(key: str, bucket: str = AWS_TEMP_BUCKET) -> str:
     """
-    Downloads audio to a temp file and returns the local path.
-    Tries original.mp3 first, falls back to audio.mp3.
-    """
-    s3 = get_s3_client()
-    tmp_path = tempfile.mktemp(suffix=".mp3")
-    for filename in ("original.mp3", "audio.mp3"):
-        key = f"{processed_key}/{filename}"
-        try:
-            log.info(f"Downloading s3://{AWS_BUCKET}/{key}")
-            s3.download_file(AWS_BUCKET, key, tmp_path)
-            log.info("Audio downloaded")
-            return tmp_path
-        except Exception:
-            continue
-    raise RuntimeError(f"No audio file found under prefix: {processed_key}")
-
-
-def download_caption_as_dict(processed_key: str) -> dict:
-    """
-    Downloads caption.json and returns its parsed content as a dict.
+    Downloads audio from S3 to a temp file and returns the local path.
     """
     s3 = get_s3_client()
-    tmp_path = tempfile.mktemp(suffix=".json")
-    key = f"{processed_key}/caption.json"
-    log.info(f"Downloading s3://{AWS_BUCKET}/{key}")
+    # Create temp file with .mp3 extension
+    fd, tmp_path = tempfile.mkstemp(suffix=".mp3")
+    os.close(fd)
+    
     try:
-        s3.download_file(AWS_BUCKET, key, tmp_path)
-    except Exception as exc:
-        raise RuntimeError(f"caption.json not found at {key}: {exc}")
+        log.info(f"Downloading s3://{bucket}/{key}")
+        s3.download_file(bucket, key, tmp_path)
+        log.info("Audio downloaded")
+        return tmp_path
+    except Exception as e:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        log.error(f"Failed to download audio from s3://{bucket}/{key}: {e}")
+        raise e
 
-    with open(tmp_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
 
-    os.remove(tmp_path)
-    return data
+def delete_s3_object(key: str, bucket: str = AWS_TEMP_BUCKET):
+    """
+    Deletes an object from S3.
+    """
+    s3 = get_s3_client()
+    try:
+        log.info(f"Deleting s3://{bucket}/{key}")
+        s3.delete_object(Bucket=bucket, Key=key)
+        log.info("S3 object deleted")
+    except Exception as e:
+        log.error(f"Failed to delete s3://{bucket}/{key}: {e}")

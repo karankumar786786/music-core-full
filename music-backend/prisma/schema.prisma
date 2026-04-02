@@ -34,7 +34,6 @@ model Song {
   releaseDate DateTime
   isrc        String
   genre       String
-  vectorId    String   @unique
 
   playlists      PlaylistSongs[]
   userPlaylists  UserPlaylistSongs[]
@@ -132,7 +131,6 @@ model UserHistory {
   id           Int      @id @default(autoincrement())
   userId       Int
   songId       String
-  songVectorId String
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   song         Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
   createdAt    DateTime @default(now())
@@ -150,7 +148,6 @@ model SongProcessingJob {
   durationMs       Int
   releaseDate      DateTime
   isrc             String
-  vectorId         String?
   tempSongKey      String
   tempSongImageKey String
   processedKey     String?
